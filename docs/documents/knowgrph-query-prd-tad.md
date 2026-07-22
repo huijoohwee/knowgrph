@@ -2,10 +2,10 @@
 title: "Knowgrph Queryable Corpus Graph - PRD and TAD"
 doc_type: "Combined PRD/TAD"
 id: "knowgrph-query-prd-tad"
-version: "0.2.1"
+version: "0.3.0"
 status: "implemented-finetune-contract"
 created: "2026-05-29"
-updated: "2026-05-29"
+updated: "2026-07-22"
 author: "airvio / joohwee"
 domain: "knowgrph"
 lang: "en-US"
@@ -14,8 +14,8 @@ deployment_topology: "Dev -> Prod -> Cloudflare"
 dev_root: "$GITHUB_ROOT/knowgrph"
 prod_mirror: "$GITHUB_ROOT/huijoohwee/content/knowgrph"
 cloudflare_route: "https://airvio.co/knowgrph"
-inspiration_source: "https://github.com/safishamsi/graphify"
-copy_policy: "No Graphify code, prompts, schemas, assets, output files, or wording are copied; only product-level workflow inspiration is referenced."
+inspiration_source: "https://github.com/Graphify-Labs/graphify"
+copy_policy: "Clean-room, architecture-only inspiration: do not copy code, prose, schemas, tool definitions, tests, fixtures, assets, prompts, commands, or output formats; do not clone, vendor, import, execute, call, or depend on Graphify."
 constraints:
   - "universal"
   - "neutral"
@@ -44,6 +44,7 @@ related:
   - "docs/documents/knowgrph-source-files-import-document.md"
   - "docs/documents/knowgrph-chat-ai-markdown-pipeline-document.md"
   - "docs/documents/knowgrph-agent-ready-prd-tad.md"
+  - "docs/documents/knowgrph-deterministic-knowledge-graph-runtime.md"
 ---
 
 # Knowgrph Queryable Corpus Graph - PRD and TAD
@@ -52,13 +53,15 @@ related:
 
 Knowgrph should turn an imported folder or file set into a queryable knowledge graph that can answer questions about app code, database schema, infrastructure, scripts, documentation, papers, images, and videos through the existing Toolbar -> Launch -> Import folder, Toolbar -> Launch -> Import file, Editor Workspace, Source Files, Canvas, Rendering Pipeline, and FloatingPanel Chat surfaces.
 
-This is a native in-repo enhancement. It must not copy Graphify implementation details, command structure, output files, prompts, schemas, or examples. The product inspiration is limited to the general pattern: ingest a mixed corpus, cache source-level extraction, build a persistent graph, expose query/path/explain workflows, and report which relationships are extracted versus inferred.
+This is a native in-repo enhancement. Graphify-Labs/graphify is architecture-only inspiration for the broad idea of a mixed-corpus graph. Knowgrph must not copy its code, prose, schemas, tool definitions, tests, fixtures, assets, prompts, commands, examples, or output formats, and must not clone, vendor, import, execute, call, or depend on it. Knowgrph defines its own contracts from existing Source Files, GraphData, Canvas, chat, and MCP owners.
 
-The min-viable-max-value version finetunes the existing E2E pipeline rather than adding a parallel CLI or external service. The user imports a folder or file, Editor Workspace persists and previews source artifacts, Source Files parses and composes graph fragments, Canvas renders the active queryable graph, and FloatingPanel Chat queries that graph with bounded context, citations, and token-cost logs.
+The original min-viable-max-value version finetuned the existing E2E pipeline without a parallel CLI or external service. The user imports a folder or file, Editor Workspace persists and previews source artifacts, Source Files parses and composes graph fragments, Canvas renders the active queryable graph, and FloatingPanel Chat queries that graph with bounded context, citations, and token-cost logs.
 
 **Implementation note (2026-05-29)**: The Phase 1 through Phase 3 native slice is implemented through `canvas/src/features/queryable-corpus/`, existing workspace import owners, Source Files composition, and FloatingPanel Chat request construction. The implementation does not add a Graphify dependency, a separate graph database, a duplicate import bridge, or a standalone chat pipeline.
 
 **Long-horizon harness note (2026-06-04)**: The queryable corpus graph is a research/scout input for Knowgrph's native SuperAgent harness, not a separate harness memory store. SuperAgent runs must reuse the same source-unit, GraphData, citation, and chat-pack owners; DeerFlow-style long-horizon concepts are inspiration only and must not introduce copied graph extraction, parser, or query execution paths.
+
+**Deterministic local runtime extension (2026-07-22)**: The earlier Phase 1 no-CLI/MCP non-goal is superseded only for the bounded local stdio tools and ACOS aliases defined in the [focused deterministic knowledge-graph runtime contract](knowgrph-deterministic-knowledge-graph-runtime.md); the original browser/chat implementation history remains unchanged.
 
 ## Directive Commitments
 
@@ -74,14 +77,7 @@ The min-viable-max-value version finetunes the existing E2E pipeline rather than
 
 ## Inspiration Boundary
 
-Graphify is referenced only as public product inspiration for folder-scale graph indexing, multimodal ingestion, cache-aware updates, and query-oriented graph outputs. Its public README describes mapping a project into a queryable knowledge graph and handling code, docs, PDFs, images, videos, SQL, and scripts; Knowgrph uses that product pattern only, not its implementation, commands, outputs, or wording. This document intentionally avoids copying:
-
-- command names or install flows
-- file layout or output names
-- implementation architecture
-- prompt wording or skill instructions
-- benchmark wording or claims
-- example corpora, screenshots, or reports
+[`Graphify-Labs/graphify`](https://github.com/Graphify-Labs/graphify) is clean-room, architecture-only inspiration for the product category, never an implementation source or runtime component. Knowgrph forbids copied code, prose, schemas, tool definitions, tests, fixtures, assets, prompts, commands, examples, benchmarks, layouts, and outputs; it also forbids cloning, vendoring, importing, executing, calling, or depending on Graphify.
 
 Knowgrph's implementation remains grounded in its existing browser workspace, Source Files, GraphData, KGC markdown, and Cloudflare deployment topology.
 
@@ -255,7 +251,7 @@ Acceptance criteria:
 | Should | Query/path/explain commands inside chat | High ROI for debugging and onboarding. |
 | Could | Optional AI multimodal extraction for images/video | Useful but token-cost sensitive; must be BYOK/harnessed. |
 | Could | Published static graph wiki or GraphML exports | Helpful for agents, but export paths already exist for JSON/JSON-LD/GraphML. |
-| Won't | Copy Graphify CLI, skill, output tree, prompts, schemas, or benchmark claims | Violates copy directive and native in-repo rule. |
+| Won't | Copy or call any Graphify code, prose, schema, tool definition, test, fixture, asset, prompt, command, output, benchmark, package, service, or runtime | Violates the clean-room directive and native in-repo rule. |
 | Won't | Require Neo4j or a paid graph database | Violates TCO-zero for min-viable scope. |
 
 ### Min-Viable Scope
@@ -275,8 +271,8 @@ Out of scope for Phase 1:
 - remote crawler of arbitrary repos
 - background watch mode
 - mandatory paid multimodal model calls
-- separate CLI
-- separate MCP mutation surface
+- remote MCP or hosted knowledge-graph service
+- any MCP-only graph store, vector index, or duplicate materialization pipeline
 - separate graph database
 
 ## Technical Architecture

@@ -6,6 +6,7 @@ import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { createUniqueId } from '@/lib/ids'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
+import { buildCorpusEdgeEvidence } from '@/features/queryable-corpus/corpusEdgeEvidence'
 
 export type SourceLayerInput = {
   id: string
@@ -210,19 +211,32 @@ function appendCorpusCrossSourceReferenceEdges(nodes: GraphNode[], edges: GraphE
       if (existingEdgeIds.has(edgeId)) continue
       existingEdgeIds.add(edgeId)
       const lineStart = readCorpusLineStart(ref)
+      const premiseEdgeIds = edges
+        .filter(edge => [String(edge.source || ''), String(edge.target || '')].includes(String(ref.id || '')))
+        .map(edge => String(edge.id || '').trim())
+        .filter(Boolean)
+        .sort()
+        .slice(0, 16)
+      const evidenceKind = targets.length > 1 ? 'ambiguous' : 'inferred'
       edges.push({
         id: edgeId,
         source: String(ref.id),
         target: String(target.id),
         label: 'referencesCorpusEntity',
-        properties: {
-          'evidence:kind': 'inferred' as unknown as JSONValue,
-          'evidence:confidence': 'medium' as unknown as JSONValue,
-          'evidence:sourcePath': readCorpusSourcePath(ref) as unknown as JSONValue,
-          'evidence:lineStart': lineStart as unknown as JSONValue,
-          'evidence:lineEnd': lineStart as unknown as JSONValue,
-          'corpus:parserId': 'source-layer-compose' as unknown as JSONValue,
-        },
+        properties: buildCorpusEdgeEvidence({
+          sourcePath: readCorpusSourcePath(ref),
+          sourceText: String(ref.label || ref.id || ''),
+          lineStart,
+          parserId: 'source-layer-compose',
+          ruleId: 'source-layer-compose.exact-normalized-label',
+          explanation: targets.length > 1
+            ? `The source reference matches ${targets.length} graph entities by exact normalized label, so the relationship remains ambiguous.`
+            : 'The source reference and target entity share one exact normalized label across distinct source layers.',
+          kind: evidenceKind,
+          confidence: evidenceKind === 'ambiguous' ? 'low' : 'medium',
+          premiseEdgeIds,
+          candidateCount: targets.length,
+        }),
         metadata: {
           sourceLayerId: refLayer as unknown as JSONValue,
           sourceLayerLabel: String(readRecord((ref as { metadata?: unknown }).metadata).sourceLayerLabel || '') as unknown as JSONValue,
