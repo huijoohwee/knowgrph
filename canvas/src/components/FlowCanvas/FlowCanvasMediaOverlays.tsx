@@ -8,7 +8,7 @@ import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/Flo
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
-import { computeCollectiveFollowScaleFromBaseline } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveCameraFollowScaleFromBaseline, computeCollectiveFollowScaleFromBaseline } from '@/lib/canvas/overlayWidgetZoom'
 import { readVectorPaintedOverlayScale } from '@/lib/canvas/vectorPaintedOverlayProjection'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
@@ -72,6 +72,7 @@ export default function FlowCanvasMediaOverlays(args: {
   mediaNodes: MediaOverlayNode[]
   flowWidgetPinnedByNodeIdOverride?: Record<string, boolean>
   flowWidgetStateGraphKeyOverride?: string | null
+  storyboardCollectiveZoomBaselineKRef?: React.MutableRefObject<number | null>
   selectedOverlayNodeIdSet: Set<string>
   sceneGraphData: GraphData | null
   mutationSourceGraphData: GraphData | null
@@ -105,6 +106,7 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaNodes,
     flowWidgetPinnedByNodeIdOverride,
     flowWidgetStateGraphKeyOverride,
+    storyboardCollectiveZoomBaselineKRef,
     selectedOverlayNodeIdSet,
     sceneGraphData,
     mutationSourceGraphData,
@@ -172,7 +174,8 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayPanMoveSchedulerRef = React.useRef<RafLatestScheduler<{ pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }> | null>(null)
   const mediaOverlayHeaderMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const mediaOverlayResizeMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
-  const storyboardWidgetZoomBaselineKRef = React.useRef<number | null>(null)
+  const localStoryboardWidgetZoomBaselineKRef = React.useRef<number | null>(null)
+  const storyboardWidgetZoomBaselineKRef = storyboardCollectiveZoomBaselineKRef || localStoryboardWidgetZoomBaselineKRef
   const workspaceOverlayOpenRef = React.useRef(false)
   const workspaceMutationBlockedRef = React.useRef(false), resizeMutationBlockedRef = React.useRef(false)
   const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
@@ -344,8 +347,8 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [storyboardWidgetSurfaceRendererMode, registerInteractionFrameLayoutScheduler])
   const stopEvent = React.useCallback(captureRichMediaPanelBoundaryEvent, [])
   React.useEffect(() => {
-    storyboardWidgetZoomBaselineKRef.current = null
-  }, [canvas2dRenderer, storyboardWidgetSurfaceId, mediaLayoutItemIdsKey])
+    if (!storyboardCollectiveZoomBaselineKRef) storyboardWidgetZoomBaselineKRef.current = null
+  }, [canvas2dRenderer, mediaLayoutItemIdsKey, storyboardCollectiveZoomBaselineKRef, storyboardWidgetSurfaceId, storyboardWidgetZoomBaselineKRef])
   const computeOverlaySizingScale = React.useCallback((zoomK: number, itemCount: number, panelW: number, panelH: number) => {
     const layoutViewport = clampMediaLayoutViewportToFrame16x9(readMediaLayoutViewport())
     const safeZoomK = Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
@@ -359,9 +362,15 @@ export default function FlowCanvasMediaOverlays(args: {
     ) {
       storyboardWidgetZoomBaselineKRef.current = safeZoomK
     }
+    if (storyboardWidgetSurfaceRendererMode) {
+      return computeCollectiveCameraFollowScaleFromBaseline({
+        zoomK: safeZoomK,
+        baselineZoomK: storyboardWidgetZoomBaselineKRef.current,
+      })
+    }
     return computeCollectiveFollowScaleFromBaseline({
       zoomK: safeZoomK,
-      baselineZoomK: storyboardWidgetSurfaceRendererMode ? storyboardWidgetZoomBaselineKRef.current : 1,
+      baselineZoomK: 1,
       viewportW: layoutViewport.width,
       viewportH: layoutViewport.height,
       count: itemCount,
@@ -370,9 +379,9 @@ export default function FlowCanvasMediaOverlays(args: {
       quantizeStep: 0.02,
       hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.min,
       hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
-      fitToViewport: storyboardWidgetSurfaceRendererMode ? false : undefined,
+      fitToViewport: undefined,
     })
-  }, [storyboardWidgetSurfaceRendererMode, readMediaLayoutViewport])
+  }, [readMediaLayoutViewport, storyboardWidgetSurfaceRendererMode, storyboardWidgetZoomBaselineKRef])
   const writeRichMediaResizeTrace = React.useCallback((parts: Array<string | number>) => {
     try {
       __flowCanvasDebug.lastRichMediaResizeTrace = parts.map(v => String(v)).join('|')

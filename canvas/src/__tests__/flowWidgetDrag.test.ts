@@ -11,11 +11,28 @@ import {
   clearActiveFlowWidgetPointerDragSession,
   dispatchFlowWidgetPointerDragDropFromSession,
   flowWidgetDragPayloadToDataTransferText,
+  hasFlowWidgetDragType,
   markFlowWidgetPointerDragNativeStart,
   readActiveFlowWidgetPointerDragSession,
   readFlowWidgetDragPayloadFromDataTransfer,
   type FlowWidgetPointerDragDropDetail,
 } from '@/lib/storyboardWidget/widgetDrag'
+
+function createDragTypeProbe(types: string[]): DataTransfer {
+  return { types } as unknown as DataTransfer
+}
+
+export function testFlowWidgetDragTypeDoesNotClaimGenericMediaFallbacks() {
+  if (!hasFlowWidgetDragType(createDragTypeProbe([FLOW_WIDGET_DRAG_MIME, 'text/plain']))) {
+    throw new Error('expected the explicit flow-widget MIME to identify widget drags')
+  }
+  if (!hasFlowWidgetDragType(createDragTypeProbe(['application/json', 'text/plain']))) {
+    throw new Error('expected the widget JSON fallback to identify widget drags')
+  }
+  if (hasFlowWidgetDragType(createDragTypeProbe(['text/plain', 'text/uri-list']))) {
+    throw new Error('expected generic URL/text media fallbacks not to be claimed as widget drags')
+  }
+}
 
 export function testFlowWidgetDragPayloadRoundTrip() {
   const payload = buildFlowWidgetDragPayload({ registryEntryId: 'qer-123' })

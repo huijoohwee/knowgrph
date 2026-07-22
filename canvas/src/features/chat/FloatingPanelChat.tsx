@@ -68,6 +68,9 @@ import { stopFloatingPanelChatStream } from '@/features/chat/floatingPanelChat/f
 import { useFloatingPanelChatThreadFollow } from '@/features/chat/floatingPanelChat/useFloatingPanelChatThreadFollow'
 import { openMarkdownWorkspacePathInExplorer } from '@/features/markdown-workspace/openMarkdownWorkspacePathInExplorer'
 import { useFloatingPanelChatCredentialContext } from '@/features/chat/floatingPanelChat/useFloatingPanelChatCredentialContext'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { resolveChatModelSelectionValues } from '@/lib/chatProviderSelection'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -108,6 +111,7 @@ export default function FloatingPanelChat() {
   const chatSystemPrompt = useGraphStore(s => s.chatSystemPrompt)
   const chatContextScope = useGraphStore(s => s.chatContextScope || 'hybrid')
   const setChatModel = useGraphStore(s => s.setChatModel)
+  const updateNode = useGraphStore(s => s.updateNode)
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
   const pushUiLog = useGraphStore(s => s.pushUiLog)
   const requestHistorySubTab = useGraphStore(s => s.requestHistorySubTab)
@@ -229,26 +233,29 @@ export default function FloatingPanelChat() {
     globalModel: chatModel,
   })
 
+  const activeChatProvider = credentialContext.provider
+  const activeChatAuthMode = credentialContext.authMode
+  const activeChatEndpointUrl = credentialContext.endpointUrl
   const chatProviderLabel = React.useMemo(
-    () => getChatProviderLabel(chatProvider),
-    [chatProvider],
+    () => getChatProviderLabel(activeChatProvider),
+    [activeChatProvider],
   )
   const credentialProviderLabel = React.useMemo(
     () => getChatProviderLabel(credentialContext.provider),
     [credentialContext.provider],
   )
   const chatProviderRegion = React.useMemo(
-    () => getChatProviderRegionLabel(chatProvider, chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL),
-    [chatEndpointUrl, chatProvider],
+    () => getChatProviderRegionLabel(activeChatProvider, activeChatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL),
+    [activeChatEndpointUrl, activeChatProvider],
   )
   const chatProviderSummary = React.useMemo(() => {
-    const modelLabel = typeof chatModel === 'string' && chatModel.trim() ? chatModel.trim() : 'model pending'
+    const modelLabel = credentialContext.model || 'model pending'
     return `${chatProviderLabel} · ${chatProviderRegion} · ${modelLabel}`
-  }, [chatModel, chatProviderLabel, chatProviderRegion])
-  const chatProviderHint = React.useMemo(() => getChatRecommendedModelHint(chatProvider), [chatProvider])
+  }, [chatProviderLabel, chatProviderRegion, credentialContext.model])
+  const chatProviderHint = React.useMemo(() => getChatRecommendedModelHint(activeChatProvider), [activeChatProvider])
   const storageChatProviderId = React.useMemo(
-    () => toKnowgrphStorageChatProviderId(chatProvider),
-    [chatProvider],
+    () => toKnowgrphStorageChatProviderId(activeChatProvider),
+    [activeChatProvider],
   )
   const storageChatMembership = React.useMemo<KnowgrphStorageChatSessionMembership | null>(() => {
     if (!storageChatRelayConfig || !storageChatSession) return null
@@ -292,10 +299,10 @@ export default function FloatingPanelChat() {
         policy: null,
       }
     }
-    if (!isKnowgrphStorageChatAuthModeAllowed(storageChatPolicy, chatAuthMode)) {
+    if (!isKnowgrphStorageChatAuthModeAllowed(storageChatPolicy, activeChatAuthMode)) {
       return {
         kind: 'blocked',
-        detail: chatAuthMode === 'byok'
+        detail: activeChatAuthMode === 'byok'
           ? `${chatProviderLabel} BYOK relay is not enabled for this workspace.`
           : `${chatProviderLabel} server-managed relay is not enabled for this workspace.`,
         policy: storageChatPolicy,
@@ -309,7 +316,7 @@ export default function FloatingPanelChat() {
       policy: storageChatPolicy,
     }
   }, [
-    chatAuthMode,
+    activeChatAuthMode,
     chatProviderLabel,
     storageChatMembership,
     storageChatPolicy,
@@ -348,20 +355,20 @@ export default function FloatingPanelChat() {
     if (workspaceId) parts.push(`Workspace ${workspaceId}`)
     if (storageChatRelayDecision.kind === 'ready') {
       parts.push(`Role ${storageChatRelayDecision.membership.role}`)
-      parts.push(`Auth ${chatAuthMode === 'byok' ? 'BYOK' : 'server-managed'}`)
+      parts.push(`Auth ${activeChatAuthMode === 'byok' ? 'BYOK' : 'server-managed'}`)
       if (storageChatRelayDecision.policy.defaultModel) {
         parts.push(`Default model ${storageChatRelayDecision.policy.defaultModel}`)
       }
       return parts.join(' · ')
     }
-    if (chatAuthMode === 'byok' || chatAuthMode === 'serverManaged') {
-      parts.push(`Requested auth ${chatAuthMode === 'byok' ? 'BYOK' : 'server-managed'}`)
+    if (activeChatAuthMode === 'byok' || activeChatAuthMode === 'serverManaged') {
+      parts.push(`Requested auth ${activeChatAuthMode === 'byok' ? 'BYOK' : 'server-managed'}`)
     }
     if (storageChatPolicy?.defaultModel) {
       parts.push(`Default model ${storageChatPolicy.defaultModel}`)
     }
     return parts.length > 0 ? parts.join(' · ') : null
-  }, [chatAuthMode, storageChatPolicy, storageChatRelayConfig, storageChatRelayDecision])
+  }, [activeChatAuthMode, storageChatPolicy, storageChatRelayConfig, storageChatRelayDecision])
   const openRelayLogView = React.useCallback(() => {
     try {
       setBottomSurfaceCollapsed(false)
@@ -384,7 +391,7 @@ export default function FloatingPanelChat() {
       relayDecision: storageChatRelayDecision,
       workspaceId: storageChatRelayConfig?.workspaceId || null,
       providerLabel: chatProviderLabel,
-      authMode: chatAuthMode,
+      authMode: activeChatAuthMode,
       policy: storageChatPolicy,
     })
     if (!relayLogDescriptor) {
@@ -395,7 +402,7 @@ export default function FloatingPanelChat() {
     lastRelayLogSignatureRef.current = relayLogDescriptor.signature
     pushUiLog(relayLogDescriptor.entry)
   }, [
-    chatAuthMode,
+    activeChatAuthMode,
     chatProviderLabel,
     pushUiLog,
     storageChatPolicy,
@@ -482,8 +489,33 @@ export default function FloatingPanelChat() {
   ])
 
   const chatModelSelect = React.useMemo(() => {
-    return resolveSharedChatModelSelect({ chatModel, chatProvider })
-  }, [chatModel, chatProvider])
+    return resolveSharedChatModelSelect({
+      chatModel: credentialContext.model,
+      chatProvider: activeChatProvider,
+    })
+  }, [activeChatProvider, credentialContext.model])
+
+  const handleChatModelChanged = React.useCallback((nextModel: string) => {
+    if (credentialContext.source !== 'selection' || !currentNode) {
+      setChatModel(nextModel)
+      return
+    }
+    const route = resolveChatModelSelectionValues({
+      currentEndpointUrl: activeChatEndpointUrl,
+      currentProvider: activeChatProvider,
+      model: nextModel,
+    })
+    const nodeId = String(unwrapGraphCellValue(currentNode.id) || '').trim()
+    if (!nodeId) return
+    updateNode(nodeId, {
+      properties: {
+        ...readGraphNodeProperties(currentNode),
+        chatProvider: route.chatProvider,
+        chatEndpointUrl: route.chatEndpointUrl,
+        chatModel: route.chatModel,
+      },
+    })
+  }, [activeChatEndpointUrl, activeChatProvider, credentialContext.source, currentNode, setChatModel, updateNode])
 
   const clearCurrentHistory = React.useCallback(() => {
     setMessages([])
@@ -690,10 +722,10 @@ export default function FloatingPanelChat() {
     markdownDocumentName,
     sourceFiles,
     workspaceContextCacheKey,
-    chatProvider,
-    chatAuthMode,
+    chatProvider: activeChatProvider,
+    chatAuthMode: activeChatAuthMode,
     chatApiKey,
-    chatEndpointUrl,
+    chatEndpointUrl: activeChatEndpointUrl,
     chatModel: chatModelSelect.modelId,
     chatTemperature,
     chatMaxCompletionTokens,
@@ -834,7 +866,7 @@ export default function FloatingPanelChat() {
         currentNode={currentNode}
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}
-        onModelChanged={setChatModel}
+        onModelChanged={handleChatModelChanged}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModelSelect.modelId}

@@ -51,6 +51,7 @@ export default function FlowCanvas({
   excludeNativeSceneNodeIds,
   flowWidgetPinnedByNodeIdOverride,
   flowWidgetStateGraphKeyOverride,
+  storyboardCollectiveZoomBaselineKRef,
   storyboardWidgetSurfaceId,
   forbidCircleNodes = false,
   onNodeChange,
@@ -506,6 +507,7 @@ export default function FlowCanvas({
           mediaNodes={mediaNodes as any}
           flowWidgetPinnedByNodeIdOverride={flowWidgetPinnedByNodeIdOverride}
           flowWidgetStateGraphKeyOverride={flowWidgetStateGraphKeyOverride}
+          storyboardCollectiveZoomBaselineKRef={storyboardCollectiveZoomBaselineKRef}
           selectedOverlayNodeIdSet={selectedOverlayNodeIdSet}
           sceneGraphData={sceneGraphData}
           mutationSourceGraphData={mutationSourceGraphDataOverride !== undefined ? mutationSourceGraphDataOverride : renderGraphData}

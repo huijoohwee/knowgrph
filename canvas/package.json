@@ -43,6 +43,7 @@
     "preview": "vite preview --configLoader runner",
     "precheck": "npm run prepare:linked-packages",
     "check": "tsc -b --noEmit",
+    "test:native-physics": "node --import tsx --test src/__tests__/planarPhysicsEngine.test.ts src/__tests__/spatialPhysicsEngine.test.ts",
     "pretypecheck": "npm run prepare:linked-packages",
     "typecheck": "tsc -b --noEmit",
     "typecheck:agenticrag": "tsc -p tsconfig.agenticrag.json --noEmit",

@@ -7,7 +7,7 @@ export function testStoryboardWidgetRichMediaOverlaySizingClampsToWidgetScale() 
   if (!text.includes('computeSizingZoomK')) {
     throw new Error('expected FlowCanvas media overlays to provide computeSizingZoomK to rich media overlay layout loop')
   }
-  if (!text.includes('computeCollectiveFollowScaleFromBaseline')) {
-    throw new Error('expected rich media overlay sizing to reuse the shared baseline-relative scale helper')
+  if (!text.includes('computeCollectiveCameraFollowScaleFromBaseline')) {
+    throw new Error('expected Storyboard rich media overlay sizing to follow the exact shared camera-to-baseline ratio')
   }
 }

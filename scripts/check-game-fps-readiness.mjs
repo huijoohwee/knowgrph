@@ -2,9 +2,21 @@ import { readFile, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { load as loadYaml } from 'js-yaml'
+import {
+  assertRapierIndependentDependencyBoundary,
+  assertRapierIndependentPhysicsSourceBoundary,
+} from './lib/rapier-independence-boundary.mjs'
 
 const root = process.cwd()
 const requiredPaths = [
+  'canvas/src/features/physics/planarPhysicsTypes.ts',
+  'canvas/src/features/physics/planarPhysicsGeometry.ts',
+  'canvas/src/features/physics/planarPhysicsEngine.ts',
+  'canvas/src/features/physics/spatialPhysicsTypes.ts',
+  'canvas/src/features/physics/spatialPhysicsGeometry.ts',
+  'canvas/src/features/physics/spatialPhysicsStep.ts',
+  'canvas/src/features/physics/spatialPhysicsEngine.ts',
+  'canvas/src/features/three/xrSpatialPhysicsAdapter.ts',
   'canvas/src/features/game-fps/gameFpsModel.ts',
   'canvas/src/features/game-fps/gameFpsMission.ts',
   'canvas/src/features/game-fps/gameFpsNpcPolicy.ts',
@@ -45,11 +57,10 @@ const requiredPaths = [
   'docs/workspace-seeds/knowgrph-physics-playground-demo.md',
   'docs/documents/knowgrph-game-fps-prd-tad.md',
   'docs/documents/knowgrph-game-fps-runtime-readiness.md',
+  'docs/documents/knowgrph-native-physics-engines-prd-tad.md',
   'ecs/decisionDocument.js',
 ]
 const forbiddenDependencies = [
-  '@dimforge/rapier3d',
-  '@dimforge/rapier3d-compat',
   'bitecs',
   'behaviortree',
   'recast-navigation',
@@ -101,6 +112,10 @@ function parseFrontmatter(markdown, relPath) {
 }
 
 for (const relPath of requiredPaths) await text(relPath)
+await Promise.all([
+  assertRapierIndependentDependencyBoundary(root),
+  assertRapierIndependentPhysicsSourceBoundary(root),
+])
 
 const forbiddenStandaloneSourcePaths = [
   'canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx',
