@@ -185,8 +185,14 @@ export const testMarkdownDocumentGraphApplyRequestsFitAfterViewPresetGraphApply 
   })
   if (!ok) throw new Error('expected markdown graph apply to succeed before asserting fit request')
   const zoomRequest = useGraphStore.getState().zoomRequest
-  if (!zoomRequest || zoomRequest.type !== 'fit' || zoomRequest.intent !== 'fitToView') {
-    throw new Error(`expected view-preset markdown graph apply to request a fit-to-view refresh, got ${JSON.stringify(zoomRequest)}`)
+  if (
+    !zoomRequest ||
+    zoomRequest.type !== 'fit' ||
+    zoomRequest.intent !== 'fitToView' ||
+    zoomRequest.origin !== 'graphActivation' ||
+    !zoomRequest.targetGraphKey
+  ) {
+    throw new Error(`expected view-preset graph activation to request a target-tagged fit, got ${JSON.stringify(zoomRequest)}`)
   }
 }
 

@@ -1,9 +1,6 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
-import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import type { GetGraph, SetGraph } from './graphDataSliceAccess'
-import { isJsonValue } from '@/lib/graph/jsonValue'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
-import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersistence'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
@@ -15,18 +12,13 @@ import {
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashStringToHexSharedContentCached } from '@/lib/hash/textHashCache'
-import {
-  buildWorkspaceGraphMutationTransitionState,
-  isWorkspaceGraphMutationBlocked,
-} from '@/features/workspace-table/workspaceTableSsot'
-import {
-  syncGraphFieldsWithGraphData,
-  readGraphRagWorkflowJsonTextFromGraphData,
-  withGraphDataRevision,
-} from '@/hooks/store/graphDataSliceUtils'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { isStrybldrStoryboardMarkdown } from '@/features/strybldr/strybldrStoryboard'
+import { createGraphActivationFitRequest } from '@/lib/zoom/graphActivationFit'
 import { MarkdownApplyRequestQueue } from './markdownApplyRequestQueue'
+import { createGraphDataDocumentProjectionActions } from './graphDataDocumentProjectionActions'
+import { createGraphDataMarkdownDocumentStateActions } from './graphDataMarkdownDocumentStateActions'
 
 type PendingMarkdownApplyRequest = {
   name: string
@@ -68,24 +60,6 @@ function buildMarkdownApplyRequestSemanticKey(request: PendingMarkdownApplyReque
       text.length,
       textHash,
       buildCanvasWorkspacePresetApplyKey(request.preset),
-    ].join('|'),
-  })
-}
-
-function buildMarkdownDocumentSwitchMutationSemanticKey(args: {
-  name: string | null
-  text: string | null
-  applyViewPreset: boolean
-}): string {
-  const name = String(args.name || '').trim()
-  const text = String(args.text || '')
-  const textHash = hashStringToHexSharedContentCached(text, 'markdown-document-source-switch')
-  return buildScopedGraphSemanticKey('markdown-document-source-switch', {
-    graphSemanticKey: [
-      name,
-      text.length,
-      textHash,
-      args.applyViewPreset ? 'view:1' : 'view:0',
     ].join('|'),
   })
 }
@@ -239,78 +213,8 @@ function canReuseParsedMarkdownSourceGraph(args: {
 
 export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
   return ({
-  resyncGraphFieldsFromGraphData: () => {
-    const current = get().graphData
-    if (!current) return
-    try {
-      syncGraphFieldsWithGraphData(get, current)
-    } catch {
-      void 0
-    }
-  },
-
-  setMarkdownDocument: (
-    name: string | null,
-    text: string | null,
-    opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean; forceRevision?: boolean },
-  ) => {
-    const state = get()
-    const nextText = state.markdownDocumentName === name
-      ? preferCanonicalYamlFrontmatterFencedText({
-          candidateText: String(text || ''),
-          canonicalText: String(state.markdownDocumentText || ''),
-        })
-      : String(text || '')
-    const shouldAutoEnableFrontmatter = opts?.autoEnableFrontmatter !== false
-    const requestedApplyViewPreset = typeof opts?.applyViewPreset === 'boolean' ? opts.applyViewPreset !== false : true
-    const sameActiveDocumentText =
-      state.markdownDocumentName === name &&
-      state.markdownDocumentText === nextText
-    const applyViewPreset =
-      requestedApplyViewPreset === false &&
-      sameActiveDocumentText &&
-      state.markdownDocumentApplyViewPreset === true
-        ? true
-        : requestedApplyViewPreset
-    const needsAutoEnable = shouldAutoEnableFrontmatter &&
-      !(state.frontmatterModeEnabled || false) &&
-      containsFrontmatterMermaid(nextText)
-    const documentSwitches =
-      state.markdownDocumentName !== name ||
-      state.markdownDocumentText !== nextText ||
-      state.markdownDocumentApplyViewPreset !== applyViewPreset
-    const shouldBumpApplyRevision = documentSwitches || opts?.forceRevision === true
-    if (
-      !needsAutoEnable &&
-      !documentSwitches &&
-      !shouldBumpApplyRevision
-    ) return
-    const transitionState = documentSwitches
-      ? buildWorkspaceGraphMutationTransitionState({
-          workspaceViewMode: state.workspaceViewMode,
-          workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
-          markdownWorkspaceIndexingInFlight: state.markdownWorkspaceIndexingInFlight,
-          transitionSemanticKey: buildMarkdownDocumentSwitchMutationSemanticKey({
-            name,
-            text: nextText,
-            applyViewPreset,
-          }),
-        })
-      : {}
-    set(prev => ({
-      markdownDocumentName: name,
-      markdownDocumentText: nextText,
-      markdownDocumentApplyViewPreset: applyViewPreset,
-      ...(shouldBumpApplyRevision ? { markdownDocumentApplyRevision: (prev.markdownDocumentApplyRevision || 0) + 1 } : {}),
-      markdownTokens: null, // Invalidate tokens
-      markdownTokensPath: null,
-      markdownTokensKey: null,
-      markdownTokensMeta: null,
-      markdownTokensStartLineOffset: null,
-      ...(needsAutoEnable ? { frontmatterModeEnabled: true } : {}),
-      ...transitionState,
-    }))
-  },
+  ...createGraphDataDocumentProjectionActions(set, get),
+  ...createGraphDataMarkdownDocumentStateActions(set, get),
 
   setActiveMarkdownDocument: async (args: {
     name: string
@@ -436,7 +340,8 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         if (!didSwitchActiveDocument) return
         const active = get()
         if (active.markdownDocumentName !== name || active.markdownDocumentText !== text) return
-        active.requestZoom('fit', { intent: 'fitToView' })
+        const zoomRequest = createGraphActivationFitRequest({ graphData: active.graphData })
+        if (zoomRequest) set({ zoomRequest })
       }
       try {
         const graphApplied = await get().applyMarkdownDocumentToGraph(name, text, {
@@ -619,130 +524,5 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     }
   },
 
-  setMarkdownTokens: (args: {
-    tokens: import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null
-    path?: string | null
-    key?: string | null
-    meta?: import('@/lib/markdown').MarkdownFrontmatter | null
-    startLineOffset?: number | null
-  }) => {
-    set(state => {
-      const nextPath = args.path ?? null
-      const nextKey = args.key ?? null
-      const nextMeta = args.meta ?? null
-      const nextOffset = args.startLineOffset ?? null
-      if (
-        state.markdownTokens === args.tokens &&
-        state.markdownTokensPath === nextPath &&
-        state.markdownTokensKey === nextKey &&
-        state.markdownTokensMeta === nextMeta &&
-        state.markdownTokensStartLineOffset === nextOffset
-      ) {
-        return state
-      }
-      return {
-        markdownTokens: args.tokens,
-        markdownTokensPath: nextPath,
-        markdownTokensKey: nextKey,
-        markdownTokensMeta: nextMeta,
-        markdownTokensStartLineOffset: nextOffset,
-      }
-    })
-  },
-
-  setJsonSourceDocument: (name: string | null, text: string | null) => {
-    const nextName = typeof name === 'string' && name.trim() ? name.trim() : null
-    const trimmed = typeof text === 'string' ? text.trim() : ''
-    const nextText = trimmed ? text : null
-    set(state => ({
-      ...state,
-      jsonSourceDocumentName: nextText ? nextName : null,
-      jsonSourceDocumentText: nextText,
-    }))
-  },
-
-  setMarkdownPreviewMermaidFocus: (
-    focus: { code: string; frontmatterConfig: Record<string, unknown> | null } | null,
-  ) => {
-    if (!focus) {
-      set({
-        markdownPreviewMermaidFocusCode: null,
-        markdownPreviewMermaidFocusConfig: null,
-      })
-      return
-    }
-    const nextCode = typeof focus.code === 'string' ? focus.code : ''
-    const cfg = focus.frontmatterConfig
-    const nextConfig =
-      cfg && typeof cfg === 'object' && !Array.isArray(cfg) ? (cfg as Record<string, unknown>) : null
-    set({
-      markdownPreviewMermaidFocusCode: nextCode,
-      markdownPreviewMermaidFocusConfig: nextConfig,
-    })
-  },
-
-  setMarkdownPreviewActiveMediaKey: (key: string | null) => {
-    const nextKey = typeof key === 'string' ? key.trim() : ''
-    set({
-      markdownPreviewActiveMediaKey: nextKey ? nextKey : null,
-    })
-  },
-
-  setMarkdownDocumentSourceUrl: (url: string | null) => {
-    set({ markdownDocumentSourceUrl: url })
-  },
-
-  setGraphRagWorkflowJsonText: (text: string | null) => {
-    const nextText = typeof text === 'string' ? text : null
-    set({ graphRagWorkflowJsonText: nextText })
-    const graphData = get().graphData
-    if (!graphData) return
-
-    const nextMetadata = { ...(graphData.metadata || {}) } as Record<string, JSONValue>
-    const trimmed = typeof nextText === 'string' ? nextText.trim() : ''
-    if (!trimmed) {
-      if ('graphRagWorkflowJsonText' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonText
-      if ('graphRagWorkflowJsonLd' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonLd
-    } else {
-      nextMetadata.graphRagWorkflowJsonText = nextText as unknown as JSONValue
-      try {
-        const parsed = JSON.parse(trimmed) as unknown
-        if (isJsonValue(parsed) && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          const t = (parsed as Record<string, unknown>)['@type']
-          if (t === 'rag:GraphRAGWorkflow' || t === 'GraphRAGWorkflow') {
-            nextMetadata.graphRagWorkflowJsonLd = parsed as JSONValue
-          } else if ('graphRagWorkflowJsonLd' in nextMetadata) {
-            delete nextMetadata.graphRagWorkflowJsonLd
-          }
-        } else if ('graphRagWorkflowJsonLd' in nextMetadata) {
-          delete nextMetadata.graphRagWorkflowJsonLd
-        }
-      } catch {
-        if ('graphRagWorkflowJsonLd' in nextMetadata) delete nextMetadata.graphRagWorkflowJsonLd
-      }
-    }
-
-    const nextGraphDataBase: GraphData = {
-      ...graphData,
-      metadata: nextMetadata,
-    }
-    const nextRevision = (get().graphDataRevision || 0) + 1
-    const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
-    set({ graphData: nextGraphData, graphDataRevision: nextRevision })
-    try {
-      persistGraphDataToLocalStorage(nextGraphData)
-    } catch {
-      void 0
-    }
-    try {
-      get().scheduleHistory('Update GraphRAG workflow')
-    } catch {
-      void 0
-    }
-  },
-
-  setLastTraversalSummary: (summary: TraversalSummary | null) => {
-    set({ lastTraversalSummary: summary })
-  },
   })
 }
