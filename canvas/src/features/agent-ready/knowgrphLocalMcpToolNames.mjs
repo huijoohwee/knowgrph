@@ -56,6 +56,9 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   ecsDecisionPersist: "knowgrph.ecs.decision_persist",
   osStatus: KNOWGRPH_OS_STATUS_TOOL_NAME,
   vdeoxplnList: "knowgrph.vdeoxpln.list",
+  applicationCatalog: "knowgrph.application.catalog",
+  applicationPlan: "knowgrph.application.plan",
+  applicationExecute: "knowgrph.application.execute",
 });
 
 export const buildKnowgrphLocalMcpToolNameList = () => Object.values(KNOWGRPH_LOCAL_MCP_TOOL_NAMES);

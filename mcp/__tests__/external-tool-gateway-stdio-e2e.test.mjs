@@ -94,7 +94,7 @@ test("gateway invokes an exact host-approved stdio Slides MCP and returns only a
   const approvalToken = runtime.createApprovalToken(callArgs, { tokenId: "fixture-approval-token-0001" });
   const outputPath = fixtureOutputPath("fixture-deck-0001", "slides.md");
   try {
-    const result = await runtime.call({ ...callArgs, approvalToken });
+    const result = await runtime.call({ ...callArgs, approvalToken }, { markSideEffectDispatched: () => {} });
     assert.equal(result.ok, true, JSON.stringify(result));
     assert.equal(result.cached, false);
     assert.equal(result.receipt.externalId, "fixture-deck-0001");
@@ -125,7 +125,7 @@ test("gateway invokes an exact host-approved stdio Sheets MCP and creates the ex
   const approvalToken = runtime.createApprovalToken(callArgs, { tokenId: "fixture-approval-token-sheet-0003" });
   const outputPath = fixtureOutputPath("fixture-sheet-0003", "sheet.md");
   try {
-    const result = await runtime.call({ ...callArgs, approvalToken });
+    const result = await runtime.call({ ...callArgs, approvalToken }, { markSideEffectDispatched: () => {} });
     assert.equal(result.ok, true, JSON.stringify(result));
     assert.equal(result.receipt.webUrl, "https://docs.example.com/sheets/fixture-sheet-0003");
     assert.equal(await readFile(outputPath, "utf8"), callArgs.artifact.content);

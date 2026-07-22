@@ -4,6 +4,7 @@ import {
   EXTERNAL_MCP_PREPARE_PATH,
 } from '@/features/agent-ready/externalMcpBridgeContract'
 import { invokeExternalMcpArtifactCreation } from '@/features/agent-ready/externalMcpClient'
+import { invokeApprovedGatewayCall } from '../../viteExternalMcpBridge'
 
 const capability = {
   id: 'workspace.slides',
@@ -87,6 +88,25 @@ export async function testExternalMcpBridgeRequiresExplicitApprovalAndReturnsSan
   ) {
     throw new Error(`expected canonical artifact prepare plus opaque approved call, got ${JSON.stringify(calls)}`)
   }
+
+  const expectedDigest = 'a'.repeat(64)
+  let markerObserved = false
+  const gatewayResult = await invokeApprovedGatewayCall({
+    call: async (_args, context) => {
+      context.markSideEffectDispatched(expectedDigest)
+      markerObserved = true
+      return { ok: true, cached: false, receipt: { id: 'deck-1' } }
+    },
+  }, { approvalToken: 'host-owned' }, expectedDigest)
+  if (!markerObserved || gatewayResult.ok !== true) throw new Error('expected the Dev bridge to preserve the host-only dispatch marker')
+
+  let unconfirmedRejected = false
+  try {
+    await invokeApprovedGatewayCall({ call: async () => ({ ok: true, cached: false }) }, {}, expectedDigest)
+  } catch {
+    unconfirmedRejected = true
+  }
+  if (!unconfirmedRejected) throw new Error('expected the Dev bridge to reject unconfirmed non-cached mutation success')
 }
 
 export async function testExternalMcpBridgeCancellationDoesNotInvokeTool() {
