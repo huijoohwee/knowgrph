@@ -37,7 +37,10 @@ const requiredPaths = [
   'canvas/src/features/source-files/sourceFilesBootstrapReadiness.ts',
   'canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx',
   'canvas/src/features/three/XrMotionReferenceRuntimeBridge.tsx',
-  'canvas/src/features/three/XrGraphStage.tsx',
+  'canvas/src/features/three/XrCanonicalPhysicsStage.tsx',
+  'canvas/src/features/three/XrMotionReferenceGraphStage.tsx',
+  'canvas/src/features/three/XrSceneStage.tsx',
+  'canvas/src/features/three/useXrStageMotionControlCleanup.ts',
   'canvas/src/components/CanvasViewport.tsx',
   'canvas/src/features/workspace-fs/workspaceFsMutationTransaction.ts',
   'canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts',
@@ -120,6 +123,7 @@ await Promise.all([
 const forbiddenStandaloneSourcePaths = [
   'canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx',
   'canvas/src/features/game-fps/gameModeSceneComposition.ts',
+  'canvas/src/features/three/XrGraphStage.tsx',
   'canvas/src/__tests__/gameFpsPersistedSeed.test.ts',
   'canvas/src/__tests__/gameFpsRunReadyContract.test.ts',
   'canvas/src/tests/subsetGameFpsSmoke.ts',
@@ -128,7 +132,7 @@ const forbiddenStandaloneSourcePaths = [
 for (const relPath of forbiddenStandaloneSourcePaths) {
   try {
     await stat(path.join(root, relPath))
-    throw new Error(`the deleted standalone Game Mode source must remain absent: ${relPath}`)
+    throw new Error(`the deleted standalone or mixed XR source owner must remain absent: ${relPath}`)
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
   }
@@ -395,7 +399,8 @@ const canvasStartupRuntimes = await text('canvas/src/features/canvas/CanvasStart
 const canvasSourceAuthorityBoundary = await text('canvas/src/features/canvas/CanvasSourceAuthorityBoundary.tsx')
 const appSource = await text('canvas/src/App.tsx')
 const xrRuntimeBridge = await text('canvas/src/features/three/XrMotionReferenceRuntimeBridge.tsx')
-const xrGraphStage = await text('canvas/src/features/three/XrGraphStage.tsx')
+const xrCanonicalPhysicsStage = await text('canvas/src/features/three/XrCanonicalPhysicsStage.tsx')
+const xrMotionReferenceGraphStage = await text('canvas/src/features/three/XrMotionReferenceGraphStage.tsx')
 const canvasViewport = await text('canvas/src/components/CanvasViewport.tsx')
 const deepLinkRuntime = await text('canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx')
 const persistedWorkspaceFs = await text('canvas/src/features/workspace-fs/workspaceFsPersisted.ts')
@@ -432,15 +437,23 @@ if (!canvasViewport.includes("const sourceFilesBootstrapReady = sourceFilesBoots
   || !appSource.includes('<XrMotionReferenceRuntimeBridge />')) {
   throw new Error('Three, native XR, Game Mode, HUD, and hydration owners must remain fenced behind settled source authority')
 }
+const xrGraphStageAuthority = threeGraph.match(/const xrGraphStageAuthority = mode === 'xr'[\s\S]*?const xrSceneAuthority/)?.[0] || ''
 const xrSceneAuthority = threeGraph.match(/const xrSceneAuthority = mode !== 'xr'[\s\S]*?const xrStandaloneFit/)?.[0] || ''
-if (!/xrPhysicsRunReadyDemo\s*\? 'native-controller'\s*: hasGraph\s*\? 'motion-reference'/.test(xrSceneAuthority)
+if (!/xrPhysicsRunReadyDemo\s*\? 'native-controller'\s*: 'motion-reference'/.test(xrGraphStageAuthority)
+  || !xrSceneAuthority.includes(': xrGraphStageAuthority')
+  || !xrSceneAuthority.includes('? xrGraphStageAuthority')
   || !xrSceneAuthority.includes("? 'empty-world'")
   || !threeGraph.includes("const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo")
+  || !threeGraph.includes('xrGraphStageAuthority={xrGraphStageAuthority}')
   || (threeGraph.match(/data-kg-xr-scene-authority=\{xrSceneAuthority\}/g) || []).length !== 2) {
   throw new Error('canonical XR Physics must first mount native-controller; authored motion-reference and settled empty-world must remain disjoint')
 }
-if (!xrGraphStage.includes('{nativeControllerOwnsStage ? (')
-  || xrGraphStage.includes('visible={nativeControllerOwnsStage}')
+if (!xrCanonicalPhysicsStage.includes('<XrNativeControllerDemoStage')
+  || xrCanonicalPhysicsStage.includes('XrMotionReferenceStage')
+  || xrCanonicalPhysicsStage.includes('XrPhysicsStageRuntime')
+  || !xrMotionReferenceGraphStage.includes('<XrMotionReferenceStage')
+  || xrMotionReferenceGraphStage.includes('XrNativeControllerDemoStage')
+  || !threeGraph.includes("xrPhysicsRunReadyDemo ? 'native-controller' : 'motion-reference'")
   || !deepLinkRuntime.includes('createWorkspaceFsMutationTransaction(fs)')
   || !deepLinkRuntime.includes('cancelIntent: () => {')
   || !deepLinkRuntime.includes('mirrorToHost: false')

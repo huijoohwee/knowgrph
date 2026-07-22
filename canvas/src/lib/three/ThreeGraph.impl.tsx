@@ -210,19 +210,20 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const hasSpatialCaptureManifest = !!spatialCaptureManifest
   const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo
   const hasRenderableScene = gameFpsActive || hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld
+  const xrGraphStageAuthority = mode === 'xr' && hasGraph
+    ? xrPhysicsRunReadyDemo ? 'native-controller' : 'motion-reference'
+    : undefined
   const xrSceneAuthority = mode !== 'xr'
     ? undefined
-    : xrPhysicsRunReadyDemo
-      ? 'native-controller'
-      : hasGraph
-        ? 'motion-reference'
-        : hasGlbAsset
-          ? 'glb-asset'
-          : hasSpatialCaptureManifest
-            ? 'spatial-capture'
-            : hasXrEmptyWorld
-              ? 'empty-world'
-              : undefined
+    : xrGraphStageAuthority
+      ? xrGraphStageAuthority
+      : hasGlbAsset
+        ? 'glb-asset'
+        : hasSpatialCaptureManifest
+          ? 'spatial-capture'
+          : hasXrEmptyWorld
+            ? 'empty-world'
+            : undefined
   const xrStandaloneFit = hasSpatialCaptureManifest
     ? spatialCaptureFit
     : hasGlbAsset
@@ -517,6 +518,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                 dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
                 hiddenNodeIdSet={overlayHiddenNodeIdSet}
                 mode={mode}
+                xrGraphStageAuthority={xrGraphStageAuthority}
                 backgroundColor={sceneBackgroundColor}
               />
             ) : null}

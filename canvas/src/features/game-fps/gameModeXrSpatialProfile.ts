@@ -1,6 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
-import { readXrNativeControllerDemo } from '@/features/three/xrNativeControllerDemoRuntime'
 import { readXrMotionReferenceRuntime } from '@/features/three/xrMotionReferenceRuntime'
 import {
   resolveXrCanonicalSceneProjection,
@@ -28,7 +27,6 @@ function readSpatialSourceSelection() {
   const state = useGraphStore.getState()
   const motion = readXrMotionReferenceRuntime()
   const projection = resolveXrCanonicalSceneProjection({
-    controllerPhase: readXrNativeControllerDemo().phase,
     physicsRunReady: isXrPhysicsRunReadyDemoActive(
       state.markdownDocumentName,
       state.markdownDocumentText,
