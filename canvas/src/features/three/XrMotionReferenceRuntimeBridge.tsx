@@ -49,11 +49,10 @@ function physicsMotionSourceSignature(
 }
 
 export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
-  const sourceFilesBootstrapReady = readSourceFilesBootstrapReady()
-  if (!sourceFilesBootstrapReady) return false
+  if (!readSourceFilesBootstrapReady()) return false
   const state = useGraphStore.getState()
   const documentReady = resolveXrSceneDocumentReady({
-    sourceFilesBootstrapReady,
+    sourceFilesBootstrapReady: true,
     graphData: state.graphData,
     markdownDocumentName: state.markdownDocumentName,
     markdownDocumentText: state.markdownDocumentText,
@@ -72,11 +71,10 @@ export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
 }
 
 export function hydrateCanonicalXrPhysicsRuntime(): boolean {
-  const sourceFilesBootstrapReady = readSourceFilesBootstrapReady()
-  if (!sourceFilesBootstrapReady) return false
+  if (!readSourceFilesBootstrapReady()) return false
   const state = useGraphStore.getState()
   const documentReady = resolveXrSceneDocumentReady({
-    sourceFilesBootstrapReady,
+    sourceFilesBootstrapReady: true,
     graphData: state.graphData,
     markdownDocumentName: state.markdownDocumentName,
     markdownDocumentText: state.markdownDocumentText,
