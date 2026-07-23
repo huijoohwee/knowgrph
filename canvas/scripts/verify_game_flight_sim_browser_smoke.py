@@ -110,6 +110,11 @@ def position_distance(
     return sum((a - b) ** 2 for a, b in zip(left, right)) ** 0.5
 
 
+def aircraft_airspeed(snapshot: dict[str, Any]) -> float:
+    velocity = snapshot["aircraft"]["velocity"]
+    return sum(float(component) ** 2 for component in velocity) ** 0.5
+
+
 def request_record(request: Any) -> dict[str, str]:
     return {
         "method": str(request.method),
@@ -280,9 +285,10 @@ def main() -> None:
                     f"{source}"
                 )
             initial, ready_held = verify_initial_ready_hold(page)
+            initial_airspeed = aircraft_airspeed(initial)
             if (
                 initial["aircraft"]["position"][1] <= 0
-                or initial["aircraft"]["airspeed"] <= 0
+                or initial_airspeed <= 0
             ):
                 raise AssertionError(
                     "Flight first playable frame is not airborne-capable: "
@@ -513,11 +519,11 @@ def main() -> None:
                     **first_playable_frame,
                     "limitMs": FIRST_PLAYABLE_FRAME_LIMIT_MS,
                     "airborneCapable": (
-                        initial["aircraft"]["airspeed"] > 0
+                        initial_airspeed > 0
                         and initial["aircraft"]["position"][1] > 0
                     ),
                     "initialAltitude": initial["aircraft"]["position"][1],
-                    "initialAirspeed": initial["aircraft"]["airspeed"],
+                    "initialAirspeed": initial_airspeed,
                     "tickBefore": initial["tick"],
                     "tickAfterInput": moved["tick"],
                     "positionBefore": initial["aircraft"]["position"],
