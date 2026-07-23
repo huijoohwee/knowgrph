@@ -4,8 +4,15 @@ import path from 'node:path'
 export const WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH = 'docs/workspace-seeds'
 export const PHYSICS_SEED_BASENAME = 'knowgrph-physics-playground-demo.md'
 export const PHYSICS_SEED_RELATIVE_PATH = `${WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH}/${PHYSICS_SEED_BASENAME}`
+export const DRAFT_WORKSPACE_SEED_BASENAMES = Object.freeze([
+  'knowgrph-game-flight-sim-demo.companion.md',
+  'knowgrph-game-flight-sim-demo.md',
+  'knowgrph-game-mmorpg-demo.companion.md',
+  'knowgrph-game-mmorpg-demo.md',
+])
 export const KNOWGRPH_WORKSPACE_SEED_INVENTORY = Object.freeze([
   'README.md',
+  ...DRAFT_WORKSPACE_SEED_BASENAMES,
   PHYSICS_SEED_BASENAME,
 ])
 export const AGENTIC_WORKSPACE_SEED_PROJECTION_INVENTORY = Object.freeze([
@@ -73,6 +80,19 @@ const requireCanonicalIdentity = source => {
   }
 }
 
+const requireDraftIdentity = (basename, source) => {
+  const isCompanion = basename.endsWith('.companion.md')
+  const requiredMarkers = isCompanion
+    ? ['status: "draft"', 'activatable_seed: false', 'note_kind: "projection-contract"']
+    : ['status: "draft"', 'runtime_status: "draft"', 'planned_run_ready_demo:']
+  const missing = requiredMarkers.filter(marker => !source.includes(marker))
+  if (missing.length > 0 || /^run_ready_demo:/m.test(source)) {
+    throw new Error(
+      `draft workspace document ${basename} must remain non-activating; missing=${JSON.stringify(missing)}`,
+    )
+  }
+}
+
 export async function verifyWorkspaceSeedAuthority({
   knowgrphRoot,
   agenticDocsRoot,
@@ -87,6 +107,13 @@ export async function verifyWorkspaceSeedAuthority({
   if (!await isFile(canonicalPath)) throw new Error(`canonical workspace seed is missing: ${canonicalPath}`)
   const source = await readFile(canonicalPath, 'utf8')
   requireCanonicalIdentity(source)
+  for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
+    const draftSource = await readFile(
+      path.resolve(knowgrphRoot, WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH, basename),
+      'utf8',
+    )
+    requireDraftIdentity(basename, draftSource)
+  }
 
   let agenticInventory = null
   if (agenticDocsRoot) {

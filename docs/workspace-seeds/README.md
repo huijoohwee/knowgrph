@@ -7,20 +7,33 @@ source_root: "knowgrph/docs"
 
 # Workspace Seed Authority
 
-`knowgrph/docs/workspace-seeds` is the only authored source for runtime-backed Knowgrph workspace seeds. Its exact inventory is this authority contract plus `knowgrph-physics-playground-demo.md`. XR Physics is the only runtime-ready authored seed; its `run_ready_demo.id`, source identity, scene composition, Motion Control, and optional Game Mode projection are edited here first.
+`knowgrph/docs/workspace-seeds` is the only authored source for Knowgrph workspace seeds. The XR Physics source is `knowgrph-physics-playground-demo.md`; its `run_ready_demo.id`, source identity, scene composition, Motion Control, and optional Game Mode projection are edited here first. The Flight Sim source is `knowgrph-game-flight-sim-demo.md`; its planned `run_ready_demo.id` (`flight-sim`), source identity, native flight demo, asset pipeline, camera source, and Flight Sim projection are edited here first. The MMORPG source is `knowgrph-game-mmorpg-demo.md`; its planned `run_ready_demo.id` (`mmorpg`), source identity, native offline RPG world, three-track asset provenance pipeline, camera source, and MMORPG World projection are edited here first. Draft seeds use `planned_run_ready_demo` and do not become activation authorities until their runtime-readiness and browser-smoke gates exist and pass.
 
-Flight Sim and MMORPG do not have runtime-ready implementations. Their sole future design authorities are `docs/documents/knowgrph-game-flight-sim-prd-tad.md` and `docs/documents/knowgrph-game-mmorpg-prd-tad.md`. Until the corresponding runtime, focused tests, runtime-readiness gate, and browser smoke exist and pass, neither feature may add a workspace seed, companion, projection, activation registry entry, or fallback surface.
+## Source Files inventory
+
+Explorer → Source Files must reconcile this exact authored inventory in both repository-local Dev and the release-pinned Prod dataset:
+
+- `README.md`
+- `knowgrph-game-flight-sim-demo.companion.md`
+- `knowgrph-game-flight-sim-demo.md`
+- `knowgrph-game-mmorpg-demo.companion.md`
+- `knowgrph-game-mmorpg-demo.md`
+- `knowgrph-physics-playground-demo.md`
+
+The draft documents are visible, editable source records but remain non-activating. Their presence never grants a `run_ready_demo` identity, runtime readiness, projection authority, or deployment authority.
 
 ## Authored seed registry
 
 | Seed source | `run_ready_demo.id` | Surface | Status | Notes |
 |---|---|---|---|---|
 | `knowgrph-physics-playground-demo.md` | `xr-physics` | Shared XR Canvas (physics playground, optional Game Mode) | runtime-ready | Canonical XR terrain, controllers, Motion Control, camera source |
+| `knowgrph-game-flight-sim-demo.md` | planned `flight-sim` | Shared XR Canvas (Flight Sim companion) | draft | Non-activating design seed until its runtime-readiness and browser-smoke gates pass; reuses the shared XR terrain, camera source, and Motion Control boundary; native in-repo deterministic flight; assets are img2threejs TypeScript+JSON specs (primary) with a committed local TRELLIS.2 GLB fallback |
+| `knowgrph-game-mmorpg-demo.md` | planned `mmorpg` | Shared XR Canvas (MMORPG World companion) | draft | Non-activating design seed until its runtime-readiness and browser-smoke gates pass; offline single-player, MMO-style RPG world (no networked multiplayer, no Supabase); native in-repo deterministic movement/NPC/quest/inventory; three-track asset provenance (procedural + AI-generated + internet-sourced), license-gated, diffable-first |
 
-Every seed here is **native, runtime-backed, and in-repo**: `run_ready_demo.external_dependencies` must be empty, no runtime remote asset/provider/model call is permitted, and no external project source may be copied or depended upon. A future seed is added to this table only after its implementation and gates establish one source-backed activation owner. Draft, companion, stale, renamed, fallback, legacy, conditional, duplicate, or conflicting variants are forbidden rather than aliased, hidden, or suppressed downstream.
+Every seed here is **native and in-repo**: `run_ready_demo.external_dependencies` must be empty, no runtime remote asset/provider/model call is permitted, and no external project source may be copied or depended upon. New seeds are registered in this table; stale, renamed, fallback, legacy, conditional, or conflicting seed variants are forbidden rather than aliased or hidden.
 
-## Projection and publish inventory
+The projection contract for the Flight Sim seed is documented in `knowgrph-game-flight-sim-demo.companion.md`, and for the MMORPG seed in `knowgrph-game-mmorpg-demo.companion.md` (single-source, byte-identical projection to `agentic-canvas-os/docs/workspace-seeds`, refresh-only-from-source, drift rejected). Those companions are documentation notes only — they carry no `run_ready_demo` activation and are not seeds.
 
-The exact `agentic-canvas-os/docs/workspace-seeds` projection inventory is one byte-identical `knowgrph-physics-playground-demo.md`. It is a release-pinned default-storage projection, not an independent authoring surface. A protected docs update may refresh it only from this source, and cross-repository validation must reject byte drift or any additional entry.
+The byte-identical file under `agentic-canvas-os/docs/workspace-seeds` is a release-pinned default-storage projection. It is not an independent authoring surface. A protected docs update may refresh that projection only from this source, and cross-repository validation must reject any byte drift.
 
-Publish repositories must contain zero `docs/workspace-seeds` entries. Their runtime assets and public routes are generated by the protected release controller from the verified Knowgrph source.
+Publish repositories must not contain an editable `docs/workspace-seeds` copy. Their runtime assets and public routes are generated by the protected release controller from the verified Knowgrph source. Stale, renamed, fallback, legacy, conditional, or conflicting seed variants are forbidden rather than aliased or hidden.

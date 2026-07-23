@@ -184,11 +184,11 @@ export async function testWorkspaceSeedProviderOverlaysLocalInventoryOnPublished
   }
 }
 
-export async function testWorkspaceSeedReconciliationPrunesStaleCanonicalInventory() {
+export async function testWorkspaceSeedReconciliationRestoresCanonicalInventory() {
   const storage = new MemoryStorage()
   const { restore } = initWindowHarness({ storage })
   const desiredPath = '/docs/workspace-seeds/knowgrph-physics-playground-demo.md'
-  const stalePaths = [
+  const restoredPaths = [
     '/docs/workspace-seeds/knowgrph-game-flight-sim-demo.companion.md',
     '/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md',
     '/docs/workspace-seeds/knowgrph-game-mmorpg-demo.companion.md',
@@ -197,9 +197,9 @@ export async function testWorkspaceSeedReconciliationPrunesStaleCanonicalInvento
   const unrelatedPath = '/docs/private-note.md'
   const previousSourceIndex = loadWorkspaceSourceIndex()
   const previousDesiredSource = previousSourceIndex[desiredPath] || null
-  const previousStaleSources = new Map(stalePaths.map(stalePath => [
-    stalePath,
-    previousSourceIndex[stalePath] || null,
+  const previousRestoredSources = new Map(restoredPaths.map(restoredPath => [
+    restoredPath,
+    previousSourceIndex[restoredPath] || null,
   ] as const))
   const previousUnrelatedSource = previousSourceIndex[unrelatedPath] || null
   const db = createPersistedCollectionDb<{ entries: WorkspaceEntry }>({
@@ -210,28 +210,19 @@ export async function testWorkspaceSeedReconciliationPrunesStaleCanonicalInvento
   })
   try {
     const now = Date.now()
-    const staleEntries: WorkspaceEntry[] = stalePaths.map(stalePath => ({
-      path: stalePath,
-      parentPath: '/docs/workspace-seeds',
-      kind: 'file',
-      name: stalePath.slice(stalePath.lastIndexOf('/') + 1),
-      text: '# Removed stale draft surface\n',
-      updatedAtMs: now,
-    }))
     const initialEntries: WorkspaceEntry[] = [
       { path: '/', parentPath: '', kind: 'folder', name: '', updatedAtMs: now },
       { path: '/docs', parentPath: '/', kind: 'folder', name: 'docs', updatedAtMs: now },
       { path: '/docs/workspace-seeds', parentPath: '/docs', kind: 'folder', name: 'workspace-seeds', updatedAtMs: now },
       { path: desiredPath, parentPath: '/docs/workspace-seeds', kind: 'file', name: 'knowgrph-physics-playground-demo.md', text: '# Stale text\n', updatedAtMs: now },
-      ...staleEntries,
       { path: unrelatedPath, parentPath: '/docs', kind: 'file', name: 'private-note.md', text: '# Private\n', updatedAtMs: now },
     ]
     for (const entry of initialEntries) await db.collections.entries.incrementalUpsert(entry)
     setWorkspaceEntrySource(desiredPath, { kind: 'local', originalName: 'knowgrph-physics-playground-demo.md' }, { persist: 'sync' })
-    for (const stalePath of stalePaths) {
+    for (const restoredPath of restoredPaths) {
       setWorkspaceEntrySource(
-        stalePath,
-        { kind: 'local', originalName: stalePath.slice(stalePath.lastIndexOf('/') + 1) },
+        restoredPath,
+        { kind: 'local', originalName: restoredPath.slice(restoredPath.lastIndexOf('/') + 1) },
         { persist: 'sync' },
       )
     }
@@ -250,6 +241,12 @@ export async function testWorkspaceSeedReconciliationPrunesStaleCanonicalInvento
         updatedAtMs: now + 2,
         authority: 'knowgrph-workspace-seeds-local',
       },
+      ...restoredPaths.map((restoredPath, index): WorkspaceDocsMirrorEntry => ({
+        relPath: restoredPath.replace(/^\/docs\//, ''),
+        text: `# Restored draft ${index + 1}\n`,
+        updatedAtMs: now + 3 + index,
+        authority: 'knowgrph-workspace-seeds-local',
+      })),
     ]
     resetWorkspaceDocsMirrorSyncForPersistedFs()
     const changed = await syncWorkspaceDocsMirrorEntries(db.collections, authoritativeEntries)
@@ -260,6 +257,7 @@ export async function testWorkspaceSeedReconciliationPrunesStaleCanonicalInvento
     const expectedSeedPaths = [
       '/docs/workspace-seeds/README.md',
       desiredPath,
+      ...restoredPaths,
     ].sort((left, right) => left.localeCompare(right)).join('|')
 
     if (!changed) throw new Error('expected authoritative workspace-seed reconciliation to report a change')
@@ -269,18 +267,22 @@ export async function testWorkspaceSeedReconciliationPrunesStaleCanonicalInvento
     if (seedFiles.find(entry => entry.path === desiredPath)?.text !== '# Current text\n') {
       throw new Error('expected canonical seed text to replace stale source-owned text')
     }
+    if (restoredPaths.some((restoredPath, index) =>
+      seedFiles.find(entry => entry.path === restoredPath)?.text !== `# Restored draft ${index + 1}\n`)) {
+      throw new Error(`expected restored canonical draft inventory, got ${JSON.stringify(seedFiles)}`)
+    }
     if (!entries.some(entry => entry.path === unrelatedPath && entry.text === '# Private\n')) {
       throw new Error('expected reconciliation to preserve unrelated source-owned documents')
     }
     const sourceIndex = loadWorkspaceSourceIndex()
-    const staleOwnership = stalePaths.filter(stalePath => sourceIndex[stalePath])
-    if (sourceIndex[desiredPath] || staleOwnership.length > 0 || !sourceIndex[unrelatedPath]) {
+    const canonicalOwnership = restoredPaths.filter(restoredPath => sourceIndex[restoredPath])
+    if (sourceIndex[desiredPath] || canonicalOwnership.length > 0 || !sourceIndex[unrelatedPath]) {
       throw new Error(`expected only canonical seed source ownership to be cleared, got ${JSON.stringify(sourceIndex)}`)
     }
   } finally {
     setWorkspaceEntrySource(desiredPath, previousDesiredSource, { persist: 'sync' })
-    for (const [stalePath, previousStaleSource] of previousStaleSources) {
-      setWorkspaceEntrySource(stalePath, previousStaleSource, { persist: 'sync' })
+    for (const [restoredPath, previousRestoredSource] of previousRestoredSources) {
+      setWorkspaceEntrySource(restoredPath, previousRestoredSource, { persist: 'sync' })
     }
     setWorkspaceEntrySource(unrelatedPath, previousUnrelatedSource, { persist: 'sync' })
     await db.db.close()

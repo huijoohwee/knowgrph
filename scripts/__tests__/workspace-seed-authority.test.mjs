@@ -5,17 +5,11 @@ import path from 'node:path'
 import test from 'node:test'
 
 import {
+  DRAFT_WORKSPACE_SEED_BASENAMES,
   PHYSICS_SEED_RELATIVE_PATH,
   resolveWorkspaceSeedSiblingRootsFromGitCommonDir,
   verifyWorkspaceSeedAuthority,
 } from '../workspace-seed-authority.mjs'
-
-const removedDraftSeedBasenames = [
-  'knowgrph-game-flight-sim-demo.companion.md',
-  'knowgrph-game-flight-sim-demo.md',
-  'knowgrph-game-mmorpg-demo.companion.md',
-  'knowgrph-game-mmorpg-demo.md',
-]
 
 const canonicalSeed = `---
 canonical_source_file: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
@@ -36,6 +30,15 @@ const fixture = async () => {
   await mkdir(publishRoot, { recursive: true })
   await writeFile(path.join(path.dirname(canonicalPath), 'README.md'), '# Workspace Seed Authority\n')
   await writeFile(canonicalPath, canonicalSeed)
+  for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
+    const frontmatter = basename.endsWith('.companion.md')
+      ? 'status: "draft"\nactivatable_seed: false\nnote_kind: "projection-contract"'
+      : 'status: "draft"\nruntime_status: "draft"\nplanned_run_ready_demo:\n  id: "planned"'
+    await writeFile(
+      path.join(path.dirname(canonicalPath), basename),
+      `---\n${frontmatter}\n---\n`,
+    )
+  }
   await writeFile(projectionPath, canonicalSeed)
   return { root, knowgrphRoot, agenticDocsRoot, publishRoot }
 }
@@ -66,25 +69,35 @@ test('rejects a missing authored inventory entry', async t => {
   )
 })
 
-test('rejects every deleted draft surface reintroduced into Knowgrph', async t => {
-  for (const basename of removedDraftSeedBasenames) {
+test('rejects every missing authored draft document', async t => {
+  for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
     await t.test(basename, async t => {
       const roots = await fixture()
       t.after(() => rm(roots.root, { recursive: true, force: true }))
-      await writeFile(
-        path.join(roots.knowgrphRoot, 'docs/workspace-seeds', basename),
-        '# Forbidden stale draft surface\n',
-      )
+      await rm(path.join(roots.knowgrphRoot, 'docs/workspace-seeds', basename))
       await assert.rejects(
         () => verifyWorkspaceSeedAuthority(roots),
-        new RegExp(`Knowgrph authored workspace-seed directory must have exact file inventory.*${basename.replaceAll('.', '\\.')}`),
+        new RegExp(`Knowgrph authored workspace-seed directory must have exact file inventory.*missing=.*${basename.replaceAll('.', '\\.')}`),
       )
     })
   }
 })
 
-test('rejects deleted draft projections reintroduced into Agentic Canvas OS', async t => {
-  for (const basename of removedDraftSeedBasenames) {
+test('rejects a draft document that declares runtime activation', async t => {
+  const roots = await fixture()
+  t.after(() => rm(roots.root, { recursive: true, force: true }))
+  await writeFile(
+    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
+    '---\nstatus: "draft"\nruntime_status: "draft"\nrun_ready_demo:\n  id: "flight-sim"\n---\n',
+  )
+  await assert.rejects(
+    () => verifyWorkspaceSeedAuthority(roots),
+    /draft workspace document knowgrph-game-flight-sim-demo\.md must remain non-activating/,
+  )
+})
+
+test('rejects draft documents projected into Agentic Canvas OS', async t => {
+  for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
     await t.test(basename, async t => {
       const roots = await fixture()
       t.after(() => rm(roots.root, { recursive: true, force: true }))
