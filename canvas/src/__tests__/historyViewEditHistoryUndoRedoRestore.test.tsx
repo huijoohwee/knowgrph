@@ -330,9 +330,13 @@ export function testRichMediaInlineEditVersionsAndRestoresThroughSharedHistory()
   }
 
   versioned.restoreHistory(0)
-  const restoredBeforeNode = useGraphStore.getState().graphData?.nodes?.[0]
+  const restoredBefore = useGraphStore.getState()
+  const restoredBeforeNode = restoredBefore.graphData?.nodes?.[0]
   if (restoredBeforeNode?.properties?.output !== 'Before inline edit' || restoredBeforeNode?.properties?.keep !== 'yes') {
     throw new Error(`expected MainPanel History restore to recover the pre-edit Rich Media node, got ${JSON.stringify(restoredBeforeNode?.properties)}`)
+  }
+  if (restoredBefore.historyIndex !== 0 || restoredBefore.history.length !== 2) {
+    throw new Error(`expected Rich Media version navigation to select the restored entry without truncating shared history, got ${restoredBefore.history.length}@${restoredBefore.historyIndex}`)
   }
 
   useGraphStore.getState().restoreHistory(1)
