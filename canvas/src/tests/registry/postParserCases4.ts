@@ -333,7 +333,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["workspaceFs.seedProvider.projectsCanonicalWorkspaceSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testWorkspaceSeedProviderProjectsCanonicalLocalInventoryExactly"],
   ["workspaceFs.persisted.repoLocalReconcilesCanonicalWorkspaceSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testRepoLocalPersistedBootstrapReconcilesCanonicalSeedInventory"],
   ["workspaceFs.seedProvider.overlaysCanonicalLocalSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testWorkspaceSeedProviderOverlaysLocalInventoryOnPublishedDocs"],
-  ["workspaceFs.persisted.reconcilesCanonicalWorkspaceSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testWorkspaceSeedReconciliationPrunesStaleCanonicalInventory"],
+  ["workspaceFs.persisted.reconcilesCanonicalWorkspaceSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testWorkspaceSeedReconciliationRestoresCanonicalInventory"],
   ["workspaceFs.seedProvider.browserUpsertDocsMirrorSkipsHiddenDocumentWrites","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertDocsMirrorSkipsHiddenDocumentWrites"],
   ["workspaceFs.seedProvider.browserUpsertChatLogMirrorWritesViaKgFsProxy","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertChatLogMirrorWritesViaKgFsProxy"],
   ["workspaceFs.activeEntry.prefersCanonicalDocsMirrorForCorruptedLabelResidue","@/__tests__/workspaceSeedPersistence.test","testReadWorkspaceActiveEntrySnapshotPrefersCanonicalDocsMirrorForCorruptedFrontmatterLabelResidue"],
