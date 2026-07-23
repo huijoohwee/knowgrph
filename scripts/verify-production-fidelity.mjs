@@ -173,18 +173,33 @@ const readVisibleWorkspaceSeedInventory = async seedFolder => seedFolder.evaluat
     .sort()
 })
 
+const openWorkspaceFolder = async (parent, name) => {
+  const folderLabel = `Folder ${name}`
+  const folder = parent.locator(`section[aria-label="${folderLabel}"]`)
+  await folder.waitFor({ state: 'visible', timeout: 45_000 })
+  const isExpanded = await folder.evaluate(section => section.nextElementSibling instanceof HTMLUListElement)
+  if (!isExpanded) await folder.getByRole('button', { name: folderLabel, exact: true }).click()
+  await folder.locator('xpath=following-sibling::ul[1]').waitFor({ state: 'visible', timeout: 45_000 })
+  return folder
+}
+
 const waitForWorkspaceSeedInventory = async page => {
-  const sourceFilesSection = page.getByRole('region', { name: 'Source Files', exact: true })
+  const explorer = page.locator('aside[aria-label="Markdown Explorer"]')
+  if (!await explorer.isVisible()) {
+    await page.getByRole('button', { name: 'Workspace View', exact: true }).click()
+    const editorWorkspace = page.getByRole('button', { name: 'Editor Workspace', exact: true })
+    await editorWorkspace.waitFor({ state: 'visible', timeout: 45_000 })
+    await editorWorkspace.click()
+  }
+  await explorer.waitFor({ state: 'visible', timeout: 45_000 })
+  const sourceFilesSection = explorer.locator('section[aria-label="Source Files"]')
   await sourceFilesSection.waitFor({ state: 'visible', timeout: 45_000 })
   const sourceFilesToggle = sourceFilesSection.getByRole('button', { name: 'Source Files', exact: true })
   if (await sourceFilesToggle.getAttribute('aria-expanded') === 'false') await sourceFilesToggle.click()
-  const sourceFilesContent = page.getByRole('region', { name: 'Source Files content', exact: true })
+  const sourceFilesContent = sourceFilesSection.locator('section[aria-label="Source Files content"]')
   await sourceFilesContent.waitFor({ state: 'visible', timeout: 45_000 })
-  const seedFolder = sourceFilesContent.locator('section[aria-label="Folder workspace-seeds"]')
-  await seedFolder.waitFor({ state: 'visible', timeout: 45_000 })
-  if ((await readVisibleWorkspaceSeedInventory(seedFolder)).length === 0) {
-    await seedFolder.getByRole('button', { name: 'Folder workspace-seeds', exact: true }).click()
-  }
+  await openWorkspaceFolder(sourceFilesContent, 'docs')
+  const seedFolder = await openWorkspaceFolder(sourceFilesContent, 'workspace-seeds')
   const expected = [...KNOWGRPH_WORKSPACE_SEED_INVENTORY].sort()
   const deadline = Date.now() + 45_000
   let observed = []
