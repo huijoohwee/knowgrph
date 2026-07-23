@@ -38,4 +38,10 @@ const result = await verifyWorkspaceSeedAuthority({
   publishRoot,
 })
 
-console.log(`[knowgrph] workspace-seed SSOT passed (${result.sourceBytes} bytes; agenticProjection=${Boolean(agenticDocsRoot)}; publishMirror=${Boolean(publishRoot)})`)
+const formatInventory = inventory => inventory === null ? 'not-checked' : `[${inventory.join(',')}]`
+console.log(
+  `[knowgrph] workspace-seed SSOT passed (${result.sourceBytes} bytes; `
+  + `authored=${formatInventory(result.knowgrphInventory)}; `
+  + `agenticProjection=${formatInventory(result.agenticInventory)}; `
+  + `publishEntries=${formatInventory(result.publishInventory)})`,
+)
