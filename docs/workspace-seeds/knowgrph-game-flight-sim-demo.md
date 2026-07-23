@@ -22,6 +22,7 @@ run_ready_demo:
   identity_authority: "source-authored run_ready_demo.id"
   imported_path_alias_required: false
   identity_conflict: "fail closed when path and source identity disagree"
+  canonical_consumers: ["workspace", "xr-mode"]
   dev_command: "npm run dev"
   canonical_source_file: "/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md"
   env_selector: "VITE_KNOWGRPH_RUN_READY_DEMO=flight-sim"
@@ -38,8 +39,10 @@ run_ready_demo:
 shared_xr_scene:
   source_authority: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   world_ownership: "overlay-only"
+  surface_owner: "XR Mode"
   renderer_owner: "canvas/src/lib/three/ThreeGraph.impl.tsx"
   collider_owner: "canvas/src/features/three/xrCanonicalSceneSpatialSource.ts"
+  camera_owner: "canvas/src/features/three/useXrNativeControllerDemoCamera.ts"
   second_canvas_forbidden: true
 native_flight_demo:
   runtime_owner: "Flight Sim surface on the shared XR Canvas"
@@ -54,6 +57,10 @@ native_flight_demo:
     available: ["fixed-follow", "free-orbit"]
     invocation: "/camera.select @camera #camera camera=fixed-follow|free-orbit"
     timeline_override: "camera-mark playback temporarily owns framing"
+    catalog_owner: "canvas/src/features/three/xrNativeControllerCameraCatalog.ts"
+    selection_owner: "canvas/src/features/three/xrNativeControllerCameraRuntime.ts"
+    driver_owner: "canvas/src/features/three/useXrNativeControllerDemoCamera.ts"
+    follow_target: "Flight supplies a pure aircraft follow/framing descriptor; the shared Physics controller hook alone mutates the camera and OrbitControls"
   scene: "procedural Singapore waterfront terrain"
   terrain:
     default: "singapore"
@@ -111,8 +118,9 @@ flight_sim:
   inspect_tool: "knowgrph.inspect_local_flight_sim"
   control_tool: "knowgrph.control_local_flight_sim"
   lifecycle: "retain the authored XR scene while suspending its controller input and simulation; restore both on exit"
+  controller_handoff: "supply a pure aircraft follow/framing descriptor to the shared Physics controller camera; never mount a Flight-owned camera"
   renderer_owner: "the existing React Three Fiber Canvas in shared XR Mode; never a second Canvas"
-  scene_composition: "authored XR atmosphere, terrain, and props plus the Flight Sim aircraft, flight camera, and HUD overlay; no fallback arena"
+  scene_composition: "authored XR atmosphere, terrain, and props plus Flight aircraft and waypoint/objective actors with the HUD overlay; no fallback arena or Flight-owned camera"
   simulation_clock: "ready at tick zero until normalized desktop, pointer, touch, gamepad, Motion Control, or MCP input"
   webgl_gate: "synchronous probe; fail closed on the local fallback surface"
   stop_start: "resume the exact in-memory mission tick and state"
@@ -180,9 +188,9 @@ flow:
   edges:
 ---
 
-# Native Flight Sim
+# Native Flight Sim in XR Mode
 
-This Source Files document is the local runtime authority for one deterministic, browser-local flight mission. Applying it opens **Flight Sim** on the canonical authored XR world, prepares a healthy mission at tick zero, and waits for normalized input. It does not create another Canvas, renderer, terrain, collider catalog, persistence owner, or deployment surface.
+This Source Files document is the local XR Mode runtime authority for one deterministic, browser-local flight mission. Applying it opens **Flight Sim** on the canonical Physics-authored XR world, prepares a healthy mission at tick zero, and waits for normalized input. It does not create another Canvas, renderer, terrain, collider catalog, camera driver, rendered XR world or scene owner, persistence owner, or deployment surface.
 
 ## Run locally
 
@@ -201,7 +209,7 @@ The browser-local control contract uses `knowgrph.control_local_flight_sim` and 
 
 **FloatingPanel → Flight Sim** controls Open, Start, Stop, Restart, Throttle, Save, and Exit. The panel projects runtime state only; the aircraft stage remains actor-only inside the shared renderer.
 
-The camera-source contract remains independent of aircraft selection. **FloatingPanel Camera → SHOOT** offers **Fixed Follow** or **Free Orbit** through `/camera.select @camera #camera camera=fixed-follow|free-orbit`; Timeline camera-mark playback temporarily owns framing, then returns to the selected source. Motion Control is optional normalized player input only and never becomes flight policy.
+Camera source is independent of aircraft selection. In **FloatingPanel Camera → SHOOT**, choose **Fixed Follow** for stage-aware aircraft tracking or **Free Orbit** for direct pan, rotate, and zoom. The same shared catalog is invocable through `knowgrph.control_local_camera` with `/camera.select @camera #camera camera=fixed-follow` or `camera=free-orbit`. Flight supplies a pure aircraft follow/framing descriptor; the Physics controller hook alone mutates the camera and OrbitControls. Timeline camera-mark playback temporarily takes framing ownership, then returns to the selected source. Motion Control is optional normalized player input only and never becomes flight policy.
 
 Terminal results remain pending and never auto-save. **Save** is the only operation that persists validated Decisions through browser-local WorkspaceFs at `/game-flight-sim/mission-1-decisions.md`. Malformed bytes remain intact and block Start and Restart until **Reset local save** succeeds.
 
@@ -212,7 +220,8 @@ The aircraft loads from committed img2threejs-style TypeScript plus `vehicle-air
 ## Runtime-readiness gates
 
 - [x] Source identity is `flight-sim`, independent of import path, with conflict rejection.
-- [x] Flight is an overlay on the Physics source-authored XR world; it owns no second world or Canvas.
+- [x] Flight is an XR Mode overlay on the Physics source-authored world; it owns no second rendered XR world, scene owner, or Canvas.
+- [x] Fixed Follow and Free Orbit come from the shared Camera catalog, and the Physics controller hook is the sole camera/OrbitControls mutator for the pure Flight framing descriptor.
 - [x] `npm run game-flight-sim:runtime-ready` passes on the final candidate.
 - [x] `npm run game-flight-sim:browser-smoke` passes serially on the same exact candidate revision.
 - [ ] The protected PR integrates the verified candidate.

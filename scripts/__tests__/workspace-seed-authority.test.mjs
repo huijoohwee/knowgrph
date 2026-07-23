@@ -18,6 +18,14 @@ const canonicalSeed = `---
 canonical_source_file: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
 source_root: "knowgrph/docs"
 source_backed: true
+native_controller_demo:
+  camera_mode: "fixed-follow"
+  camera:
+    default: "fixed-follow"
+    selector: "FloatingPanel Camera / SHOOT / Camera source"
+    available: ["fixed-follow", "free-orbit"]
+    invocation: "/camera.select @camera #camera camera=fixed-follow|free-orbit"
+    timeline_override: "camera-mark playback temporarily owns framing"
 ---
 `
 const flightRuntimeSeed = `---
@@ -41,6 +49,19 @@ run_ready_demo:
 shared_xr_scene:
   source_authority: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   world_ownership: "overlay-only"
+  surface_owner: "XR Mode"
+  camera_owner: "canvas/src/features/three/useXrNativeControllerDemoCamera.ts"
+native_flight_demo:
+  camera_mode: "fixed-follow"
+  camera:
+    default: "fixed-follow"
+    selector: "FloatingPanel Camera / SHOOT / Camera source"
+    available: ["fixed-follow", "free-orbit"]
+    invocation: "/camera.select @camera #camera camera=fixed-follow|free-orbit"
+    timeline_override: "camera-mark playback temporarily owns framing"
+    catalog_owner: "canvas/src/features/three/xrNativeControllerCameraCatalog.ts"
+    selection_owner: "canvas/src/features/three/xrNativeControllerCameraRuntime.ts"
+    driver_owner: "canvas/src/features/three/useXrNativeControllerDemoCamera.ts"
 flight_sim:
   invocation: "/flight.sim @canvas #flight operation=open"
   inspect_tool: "knowgrph.inspect_local_flight_sim"
@@ -150,6 +171,57 @@ test('rejects a flight runtime source without canonical shared-XR overlay author
     () => verifyWorkspaceSeedAuthority(roots),
     /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
   )
+})
+
+test('rejects a flight runtime source with a private camera catalog', async t => {
+  const roots = await fixture()
+  t.after(() => rm(roots.root, { recursive: true, force: true }))
+  await writeFile(
+    path.join(roots.knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
+    flightRuntimeSeed.replace(
+      'catalog_owner: "canvas/src/features/three/xrNativeControllerCameraCatalog.ts"',
+      'catalog_owner: "canvas/src/features/game-flight-sim/flightCameraCatalog.ts"',
+    ),
+  )
+  await assert.rejects(
+    () => verifyWorkspaceSeedAuthority(roots),
+    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+  )
+})
+
+test('rejects drift from the shared Physics camera contract', async t => {
+  const mutations = [
+    ['camera mode', 'camera_mode: "fixed-follow"', 'camera_mode: "free-orbit"'],
+    [
+      'selector',
+      'selector: "FloatingPanel Camera / SHOOT / Camera source"',
+      'selector: "Flight Camera"',
+    ],
+    [
+      'invocation',
+      'invocation: "/camera.select @camera #camera camera=fixed-follow|free-orbit"',
+      'invocation: "/flight.camera camera=fixed-follow|free-orbit"',
+    ],
+    [
+      'Timeline override',
+      'timeline_override: "camera-mark playback temporarily owns framing"',
+      'timeline_override: "Flight always owns framing"',
+    ],
+  ]
+  for (const [label, from, to] of mutations) {
+    await t.test(label, async t => {
+      const roots = await fixture()
+      t.after(() => rm(roots.root, { recursive: true, force: true }))
+      await writeFile(
+        path.join(roots.knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
+        flightRuntimeSeed.replace(from, to),
+      )
+      await assert.rejects(
+        () => verifyWorkspaceSeedAuthority(roots),
+        /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+      )
+    })
+  }
 })
 
 test('rejects every live canvas or runtime claim in a draft document', async t => {

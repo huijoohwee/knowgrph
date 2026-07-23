@@ -29,7 +29,7 @@ constraints:
   - "asset authoring is an offline step; no image-to-3D model is called at runtime"
   - "browser-local WebMCP only; no new stdio, HTTP gateway, or deployment transport"
   - "no automatic Git operation or production deployment"
-  - "one authored scene owner on the single React Three Fiber Canvas; no second renderer, Canvas, or world"
+  - "one authored scene owner on the single React Three Fiber Canvas; no second renderer, Canvas, rendered XR world, or scene owner"
 constraints_inspiration:
   - "refer to github.com/Arnie016/flight-simulator-fable5 for inspiration only; FORBID source copy and FORBID any runtime/build dependency on it"
 source_references:
@@ -159,7 +159,7 @@ Given an invocation, exactly one `/flight.sim`, one `@canvas`, and one `#flight`
 
 #### AC-9: shared Canvas and XR ownership
 
-Given a running XR surface, entering Flight Sim keeps the authored atmosphere, terrain, and scene graph visibly mounted inside the same Canvas and overlays only the aircraft, flight camera, and HUD. No fallback scene, second renderer, alternate world, or renderer branch is introduced. Camera source (fixed-follow / free-orbit) and Timeline camera-marks are reused; immersive first-person entry is not required to fly.
+Given a running XR surface, entering Flight Sim keeps the authored atmosphere, terrain, and scene graph visibly mounted inside the same Canvas and overlays the aircraft and waypoint/objective actors plus the HUD. No fallback scene, second renderer, alternate rendered XR world, renderer branch, or Flight-owned camera is introduced. The shared Camera catalog supplies Fixed Follow / Free Orbit, the canonical Physics controller hook consumes the pure aircraft follow/framing descriptor and alone mutates the camera and OrbitControls, and Timeline camera-marks may temporarily take framing ownership; immersive first-person entry is not required to fly.
 
 #### AC-10: synchronous admission and resumable lifecycle
 
@@ -200,8 +200,8 @@ WebGL support is resolved synchronously before mission start; unsupported WebGL 
 | Entity simulation | `ecs/` | Reuse the native Agentic ECS API and its transactional `worldTick`; ephemeral runtime state |
 | Flight dynamics & collision | `canvas/src/features/game-flight-sim/flightModel.ts` | In-repo deterministic integration and AABB terrain resolution; no external physics engine |
 | Asset representation | `canvas/src/features/game-flight-sim/assetSpec/` | Validate the current TypeScript+JSON aircraft spec, resolve the canonical procedural renderer, and reject non-null opaque fallback metadata |
-| Rendering | `canvas/src/lib/three/ThreeGraph.impl.tsx` plus the canonical XR stage owners | Reuse the single React Three Fiber Canvas and authored XR world; add only the aircraft, flight camera, and HUD |
-| Camera/input arbitration | Existing Three controls, camera source, Timeline camera-marks, and Motion Control adapter | Flight Sim owns default framing while active; Timeline playback may temporarily override it; Motion Control contributes normalized input only |
+| Rendering | `canvas/src/lib/three/ThreeGraph.impl.tsx` plus the canonical XR stage owners | Reuse the single React Three Fiber Canvas, authored XR world, Camera catalog, and Physics controller camera; add the aircraft and waypoint/objective actors plus the HUD |
+| Camera/input arbitration | `xrNativeControllerCameraCatalog.ts`, `xrNativeControllerCameraRuntime.ts`, `useXrNativeControllerDemoCamera.ts`, Timeline camera-marks, and Motion Control adapter | Flight supplies a pure aircraft follow/framing descriptor; the shared Physics controller hook alone mutates the camera and OrbitControls for Fixed Follow / Free Orbit, Timeline playback may temporarily override it, and Motion Control contributes normalized input only |
 | Browser persistence | `canvas/src/features/workspace-fs/` | Use WorkspaceFs and its existing source-file bridge; add no storage or Git owner |
 | Cost truth | `contracts/cost-log.schema.js` | Accept only the canonical model-free zero record for the no-reasoning tick |
 | Activation | `docs/workspace-seeds/knowgrph-game-flight-sim-demo.md` with Physics as `shared_xr_scene.source_authority` | Source-backed run-ready activation; overlay-only world ownership |

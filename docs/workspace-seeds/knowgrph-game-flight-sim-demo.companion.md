@@ -29,7 +29,7 @@ This is a **documentation note**, not a workspace seed. It has no `run_ready_dem
 
 ## Authority and direction
 
-- **Single authored source (edit here):** `knowgrph/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md`. Its source-authored `run_ready_demo.id` (`flight-sim`), local runtime, asset pipeline, camera source, Motion Control boundary, and Flight Sim projection are edited there first, per `knowgrph/docs/workspace-seeds/README.md`.
+- **Single authored source (edit here):** `knowgrph/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md`. Its source-authored `run_ready_demo.id` (`flight-sim`), XR Mode runtime, asset pipeline, shared Fixed Follow / Free Orbit Camera catalog, Physics controller camera boundary, Motion Control boundary, and Flight Sim projection are edited there first, per `knowgrph/docs/workspace-seeds/README.md`.
 - **Future release-pinned projection (not generated):** `agentic-canvas-os/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md`. Only a later operator-authorized protected release may generate the byte-identical default-storage projection. It will not be an independent authoring surface.
 - **Direction of truth:** authored source → protected docs refresh → byte-identical projection. Never the reverse; never a parallel edit on the projection.
 
@@ -52,7 +52,7 @@ This is a **documentation note**, not a workspace seed. It has no `run_ready_dem
 
 Any future projection must preserve the authored seed's planned guarantees verbatim (see the source seed and `docs/documents/knowgrph-game-flight-sim-prd-tad.md`):
 
-- **Assets:** img2threejs-style small, diffable TypeScript + JSON scene specs are primary; a TRELLIS.2 opaque binary GLB may be a committed local fallback only. No runtime image-to-3D model, network fetch, or Cloudflare resource obtains an asset.
+- **Assets:** the Must aircraft uses the exact img2threejs-style, diffable TypeScript + JSON scene spec; non-null opaque fallback metadata is rejected and the GLB fallback count is zero. A future local GLB exception would require separate implementation and proof. No runtime image-to-3D model, network fetch, or Cloudflare resource obtains an asset.
 - **Invocation:** strict native `/flight.sim @canvas #flight` and browser-local WebMCP `knowgrph.inspect_local_flight_sim` / `knowgrph.control_local_flight_sim`; no stdio, HTTP, gateway, or deployment surface is added.
 - **Runtime:** browser-based, mobile-first, local-first, offline-first, deterministic, Decisions-only WorkspaceFs persistence; no sign-in, network, or Cloudflare service is required for core play.
 

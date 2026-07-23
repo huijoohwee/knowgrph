@@ -3,6 +3,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import { load as loadYaml } from 'js-yaml'
+import { assertFlightSimCameraReadiness } from './game-flight-sim-camera-readiness.mjs'
 const repositoryRoot = process.cwd()
 const flightFeatureRoot = 'canvas/src/features/game-flight-sim'
 const flightSeedPath = 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'
@@ -15,6 +16,7 @@ const requiredPaths = [
   `${flightFeatureRoot}/assetSpec/flightSimAssetSpec.ts`,
   `${flightFeatureRoot}/assetSpec/vehicle-airplane.scene.json`,
   `${flightFeatureRoot}/flightModel.ts`,
+  `${flightFeatureRoot}/flightSimFollowTarget.ts`,
   `${flightFeatureRoot}/flightSimDecisionAdmission.ts`,
   `${flightFeatureRoot}/flightSimDecisionStore.ts`,
   `${flightFeatureRoot}/flightSimHydrationGate.ts`,
@@ -34,7 +36,9 @@ const requiredPaths = [
   'canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs',
   'canvas/src/features/agent-ready/webMcpRuntime.ts',
   'canvas/src/features/canvas/FlightSimRunReadyDemoRuntime.tsx',
-  'canvas/src/features/three/useFlightSimCamera.ts',
+  'canvas/src/features/three/useXrNativeControllerDemoCamera.ts',
+  'canvas/src/features/three/xrNativeControllerCameraCatalog.ts',
+  'canvas/src/features/three/xrNativeControllerCameraRuntime.ts',
   'canvas/src/features/workspace-fs/workspaceDecisionStore.ts',
   'canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts',
   'canvas/src/lib/three/ThreeGameplayOverlay.tsx',
@@ -49,6 +53,7 @@ const requiredPaths = [
   'ecs/worldTick.js',
   flightSeedPath,
   physicsSeedPath,
+  'scripts/game-flight-sim-camera-readiness.mjs',
   'scripts/workspace-seed-authority.mjs',
   'package.json',
   'canvas/package.json',
@@ -95,14 +100,12 @@ async function listFiles(relativeDirectory) {
   }))
   return nested.flat().sort()
 }
-
 function requireMarkers(source, markers, label) {
   const missing = markers.filter(marker => !source.includes(marker))
   if (missing.length > 0) {
     throw new Error(`${label} is missing required source markers: ${missing.join(', ')}`)
   }
 }
-
 function parseFrontmatter(source, relativePath) {
   const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
   if (!match) throw new Error(`${relativePath} must begin with YAML frontmatter`)
@@ -117,7 +120,6 @@ function parseFrontmatter(source, relativePath) {
   }
   return value
 }
-
 function requireOrderedMarkers(source, markers, label) {
   let cursor = -1
   for (const marker of markers) {
@@ -231,23 +233,18 @@ requireMarkers(threeGraphSource, [
   'flightSimActive={flightStageActive}',
   'gameplayCoordinateScale={gameplayCoordinateScale}',
 ], 'shared Three renderer')
-const flightCameraSource = await readText('canvas/src/features/three/useFlightSimCamera.ts')
-requireMarkers(flightCameraSource, [
-  "from '@/features/game-flight-sim/flightSimRuntime'",
-  'readXrNativeControllerCamera().mode === \'fixed-follow\'',
-  'controls.enablePan = false',
-  'controls.enableRotate = false',
-  'controls.enableZoom = false',
-  'renderer.xr.isPresenting',
-], 'shared Flight camera owner')
 const controlsSource = await readText('canvas/src/features/three/Controls.tsx') + await readText('canvas/src/features/three/threeViewportInputOwnership.ts') + await readText('canvas/src/features/three/xrCameraPlaybackControlsRuntime.ts')
 requireMarkers(controlsSource, [
-  "from './useFlightSimCamera'",
-  'useXrGameplayCameraArbitration({',
+  "from './useXrNativeControllerDemoCamera'",
+  'useXrNativeControllerDemoCamera({',
   'flightSimActive,',
   'coordinateScale: gameplayCoordinateScale',
   'blocksProgrammaticCamera: options.blocksProgrammaticCamera !== false', 'viewportInputOwnership.blocksProgrammaticCamera',
 ], 'shared camera arbitration')
+const seedSource = await readText(flightSeedPath)
+const seed = parseFrontmatter(seedSource, flightSeedPath)
+const physicsSeed = parseFrontmatter(await readText(physicsSeedPath), physicsSeedPath)
+await assertFlightSimCameraReadiness({ flightSeed: seed, physicsSeed, readText })
 
 const missionSource = await readText(`${flightFeatureRoot}/flightSimMission.ts`) + await readText(`${flightFeatureRoot}/flightSimDecisionAdmission.ts`)
 requireMarkers(missionSource, [
@@ -360,8 +357,6 @@ requireMarkers(cameraPanelSource, [
   'if (state.floatingPanelOpen) return true',
 ], 'shared Camera companion continuity')
 
-const seedSource = await readText(flightSeedPath)
-const seed = parseFrontmatter(seedSource, flightSeedPath)
 const runReadyDemo = seed.run_ready_demo
 const sharedScene = seed.shared_xr_scene
 const assetPipeline = seed.asset_pipeline
@@ -371,6 +366,9 @@ if (
   || seed.runtime_status !== 'runtime-ready'
   || seed.runtime_claim !== 'local-runtime-ready'
   || seed.publish_scope !== 'local-only'
+  || seed.kgCanvasSurfaceMode !== 'xr'
+  || seed.kgCanvasRenderMode !== '3d'
+  || seed.kgCanvas3dMode !== 'xr'
   || !runReadyDemo
   || runReadyDemo.id !== 'flight-sim'
   || runReadyDemo.activation !== 'applied-source-document'
@@ -382,8 +380,10 @@ if (
   || !sharedScene
   || sharedScene.source_authority !== `/${physicsSeedPath}`
   || sharedScene.world_ownership !== 'overlay-only'
+  || sharedScene.surface_owner !== 'XR Mode'
   || sharedScene.renderer_owner !== 'canvas/src/lib/three/ThreeGraph.impl.tsx'
   || sharedScene.collider_owner !== 'canvas/src/features/three/xrCanonicalSceneSpatialSource.ts'
+  || sharedScene.camera_owner !== 'canvas/src/features/three/useXrNativeControllerDemoCamera.ts'
   || sharedScene.second_canvas_forbidden !== true
   || !flightSim
   || flightSim.invocation !== '/flight.sim @canvas #flight operation=open'

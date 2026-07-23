@@ -150,10 +150,22 @@ const requireCanonicalIdentity = source => {
   }
 }
 
-const requireFlightRuntimeIdentity = source => {
+const requireFlightRuntimeIdentity = (source, physicsSource) => {
   const frontmatter = parseYamlFrontmatter(FLIGHT_SEED_BASENAME, source)
+  const physicsFrontmatter = parseYamlFrontmatter(
+    PHYSICS_SEED_BASENAME,
+    physicsSource,
+  )
   const runReadyDemo = isRecord(frontmatter.run_ready_demo) ? frontmatter.run_ready_demo : {}
   const sharedScene = isRecord(frontmatter.shared_xr_scene) ? frontmatter.shared_xr_scene : {}
+  const nativeFlightDemo = isRecord(frontmatter.native_flight_demo) ? frontmatter.native_flight_demo : {}
+  const camera = isRecord(nativeFlightDemo.camera) ? nativeFlightDemo.camera : {}
+  const nativeControllerDemo = isRecord(physicsFrontmatter.native_controller_demo)
+    ? physicsFrontmatter.native_controller_demo
+    : {}
+  const physicsCamera = isRecord(nativeControllerDemo.camera)
+    ? nativeControllerDemo.camera
+    : {}
   const flightSim = isRecord(frontmatter.flight_sim) ? frontmatter.flight_sim : {}
   const missing = []
   const requireValue = (label, actual, expected) => {
@@ -188,6 +200,48 @@ const requireFlightRuntimeIdentity = source => {
     `/${PHYSICS_SEED_RELATIVE_PATH}`,
   )
   requireValue('shared_xr_scene.world_ownership', sharedScene.world_ownership, 'overlay-only')
+  requireValue('shared_xr_scene.surface_owner', sharedScene.surface_owner, 'XR Mode')
+  requireValue(
+    'shared_xr_scene.camera_owner',
+    sharedScene.camera_owner,
+    'canvas/src/features/three/useXrNativeControllerDemoCamera.ts',
+  )
+  requireValue(
+    'native_flight_demo.camera_mode',
+    nativeFlightDemo.camera_mode,
+    nativeControllerDemo.camera_mode,
+  )
+  for (const key of [
+    'default',
+    'selector',
+    'available',
+    'invocation',
+    'timeline_override',
+  ]) {
+    if (JSON.stringify(camera[key]) !== JSON.stringify(physicsCamera[key])) {
+      missing.push(`native_flight_demo.camera.${key}=Physics source`)
+    }
+  }
+  requireValue('native_flight_demo.camera.default', camera.default, 'fixed-follow')
+  requireValue('native_flight_demo.camera_mode', nativeFlightDemo.camera_mode, camera.default)
+  if (JSON.stringify(camera.available) !== JSON.stringify(['fixed-follow', 'free-orbit'])) {
+    missing.push('native_flight_demo.camera.available=["fixed-follow","free-orbit"]')
+  }
+  requireValue(
+    'native_flight_demo.camera.catalog_owner',
+    camera.catalog_owner,
+    'canvas/src/features/three/xrNativeControllerCameraCatalog.ts',
+  )
+  requireValue(
+    'native_flight_demo.camera.selection_owner',
+    camera.selection_owner,
+    'canvas/src/features/three/xrNativeControllerCameraRuntime.ts',
+  )
+  requireValue(
+    'native_flight_demo.camera.driver_owner',
+    camera.driver_owner,
+    'canvas/src/features/three/useXrNativeControllerDemoCamera.ts',
+  )
   requireValue('flight_sim.invocation', flightSim.invocation, '/flight.sim @canvas #flight operation=open')
   requireValue('flight_sim.inspect_tool', flightSim.inspect_tool, 'knowgrph.inspect_local_flight_sim')
   requireValue('flight_sim.control_tool', flightSim.control_tool, 'knowgrph.control_local_flight_sim')
@@ -294,7 +348,7 @@ export async function verifyWorkspaceSeedAuthority({
     path.resolve(knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
     'utf8',
   )
-  requireFlightRuntimeIdentity(flightSource)
+  requireFlightRuntimeIdentity(flightSource, source)
   const flightCompanionSource = await readFile(
     path.resolve(knowgrphRoot, WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH, FLIGHT_COMPANION_BASENAME),
     'utf8',

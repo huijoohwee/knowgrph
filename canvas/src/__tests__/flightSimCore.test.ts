@@ -22,8 +22,10 @@ import {
   FLIGHT_SIM_ZERO_COST_LOG,
   flightSimDecisionId,
   flightSimDecisionProducedAt,
+  type FlightSimSnapshot,
   type FlightSimSpatialProfile,
 } from '../features/game-flight-sim/flightSimModel'
+import { resolveFlightSimFollowTarget } from '../features/game-flight-sim/flightSimFollowTarget'
 import {
   flightSimHeadingDegrees,
   integrateFlightModel,
@@ -151,6 +153,41 @@ test('source-authored aircraft JSON is validated as the local spec-primary asset
     }),
     /no opaque binary fallback/,
   )
+})
+
+test('Flight supplies a pure scaled follow target to the shared controller camera', () => {
+  const snapshot: FlightSimSnapshot = Object.freeze({
+    active: true,
+    surfaceMode: 'xr',
+    webglSupported: true,
+    phase: 'flying',
+    runId: 7,
+    aircraft: Object.freeze({
+      position: Object.freeze([1, 2, 3] as const),
+      velocity: Object.freeze([0, 0, -10] as const),
+      pitch: 0,
+      roll: 0,
+      yaw: 0,
+      throttle: 0.6,
+    }),
+    waypointIndex: 0,
+    waypointCount: 1,
+    currentWaypointId: 'waypoint-1',
+    tick: 42,
+    elapsedSeconds: 0.7,
+    collisionId: null,
+    pendingDecisions: Object.freeze([]),
+    lastCostLog: FLIGHT_SIM_ZERO_COST_LOG,
+    runtimeError: null,
+    revision: 1,
+  })
+  assert.deepEqual(resolveFlightSimFollowTarget(snapshot, 2), {
+    position: [2, 12, 22],
+    target: [2, 5.6, 6],
+    fovDegrees: 58,
+    resetKey: 7,
+    sequence: 42,
+  })
 })
 
 test('keyboard and standard gamepad controls normalize into one immutable bounded input', () => {

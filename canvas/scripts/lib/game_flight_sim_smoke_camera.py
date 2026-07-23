@@ -57,6 +57,49 @@ def _read_camera_state(page: Page) -> dict[str, Any]:
     )
 
 
+def _read_fixed_follow_state(page: Page) -> dict[str, Any]:
+    return page.evaluate(
+        """
+        async () => {
+          const source = await import(
+            '/src/features/strybldr/cameraSourceMcpRuntime.ts'
+          )
+          const flight = await import(
+            '/src/features/game-flight-sim/flightSimRuntime.ts'
+          )
+          const native = await import(
+            '/src/features/three/xrNativeControllerDemoRuntime.ts'
+          )
+          const store = await import('/src/hooks/useGraphStore.ts')
+          const snapshot = flight.readFlightSimSnapshot()
+          const scale = native.XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
+          const horizontal = Math.cos(snapshot.aircraft.pitch)
+          const forward = [
+            -Math.sin(snapshot.aircraft.yaw) * horizontal,
+            Math.sin(snapshot.aircraft.pitch),
+            -Math.cos(snapshot.aircraft.yaw) * horizontal,
+          ]
+          const target = {
+            x: snapshot.aircraft.position[0] * scale,
+            y: (snapshot.aircraft.position[1] + 0.8) * scale,
+            z: snapshot.aircraft.position[2] * scale,
+          }
+          const position = {
+            x: target.x - forward[0] * 8 * scale,
+            y: target.y - forward[1] * 2 * scale + 3.2 * scale,
+            z: target.z - forward[2] * 8 * scale,
+          }
+          return {
+            source: source.inspectLocalCameraSource(),
+            flight: snapshot,
+            pose: store.useGraphStore.getState().captureThreeCameraPose(),
+            expectedPose: { position, target },
+          }
+        }
+        """
+    )
+
+
 def _pose_changed(
     left: dict[str, Any] | None,
     right: dict[str, Any] | None,
@@ -72,7 +115,7 @@ def _pose_changed(
 
 
 def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
-    source_transition = page.evaluate(
+    transition_setup = page.evaluate(
         """
         async () => {
           const camera = await import(
@@ -95,6 +138,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
           const before = {
             ...source.inspectLocalCameraSource(),
             flight: flight.readFlightSimSnapshot(),
+            pose: store.useGraphStore.getState().captureThreeCameraPose(),
           }
           camera.selectXrNativeControllerCameraMode('free-orbit')
           const canvas = document.querySelector(
@@ -108,37 +152,88 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
             flight: flight.readFlightSimSnapshot(),
             pointerLocked: document.pointerLockElement !== null,
             panelView: store.useGraphStore.getState().floatingPanelView,
+            pose: store.useGraphStore.getState().captureThreeCameraPose(),
           }
-          camera.selectXrNativeControllerCameraMode('fixed-follow')
-          await waitFrames(3)
-          return {
-            before,
-            during,
-            restored: {
-              ...source.inspectLocalCameraSource(),
-              flight: flight.readFlightSimSnapshot(),
-            },
-          }
+          return { before, during }
         }
         """
     )
-    before = source_transition["before"]
-    free_orbit = source_transition["during"]
-    restored = source_transition["restored"]
+    before = transition_setup["before"]
+    free_orbit_before_drag = transition_setup["during"]
+    if not free_orbit_before_drag.get("pose"):
+        raise AssertionError(
+            f"Free Orbit did not expose a camera pose: {transition_setup}"
+        )
+    canvas = page.locator(
+        'canvas[data-kg-flight-sim-first-frame="1"]'
+    ).first
+    box = canvas.bounding_box()
+    if not box:
+        raise AssertionError("Flight canvas was not measurable for Free Orbit")
+    start_x = box["x"] + box["width"] * 0.5
+    start_y = box["y"] + box["height"] * 0.5
+    page.mouse.move(start_x, start_y)
+    page.mouse.down()
+    page.mouse.move(start_x + 96, start_y + 36, steps=8)
+    page.mouse.up()
+    free_orbit = _poll(
+        page,
+        lambda: _read_camera_state(page),
+        lambda value: (
+            value.get("pose") is not None
+            and value["source"]["selected"] == "free-orbit"
+            and value["source"]["effectiveOwner"] == "free-orbit"
+            and _vector_distance(
+                free_orbit_before_drag["pose"]["position"],
+                value["pose"]["position"],
+            ) > 0.25
+            and value["flight"]["tick"] > before["flight"]["tick"]
+        ),
+        label="Free Orbit camera rotation",
+    )
+    page.evaluate(
+        """
+        async () => {
+          const camera = await import(
+            '/src/features/three/xrNativeControllerCameraRuntime.ts'
+          )
+          camera.selectXrNativeControllerCameraMode('fixed-follow')
+        }
+        """
+    )
+    restored = _poll(
+        page,
+        lambda: _read_camera_state(page),
+        lambda value: (
+            value["source"]["selected"] == "fixed-follow"
+            and value["source"]["effectiveOwner"] == "fixed-follow"
+        ),
+        label="Fixed Follow camera restoration",
+    )
+    expected_catalog = [
+        {"id": "fixed-follow", "label": "Fixed Follow"},
+        {"id": "free-orbit", "label": "Free Orbit"},
+    ]
+    catalog = [
+        {"id": item["id"], "label": item["label"]}
+        for item in before["available"]
+    ]
     if (
         before["selected"] != "fixed-follow"
-        or free_orbit["selected"] != "free-orbit"
-        or free_orbit["effectiveOwner"] != "free-orbit"
-        or free_orbit["pointerLocked"] is not False
-        or free_orbit["panelView"] != "flightSim"
+        or before["effectiveOwner"] != "fixed-follow"
+        or catalog != expected_catalog
+        or free_orbit["source"]["available"] != before["available"]
+        or free_orbit_before_drag["pointerLocked"] is not False
+        or free_orbit_before_drag["panelView"] != "flightSim"
         or free_orbit["flight"]["active"] is not True
         or free_orbit["flight"]["phase"] != "flying"
-        or free_orbit["flight"]["tick"] <= before["flight"]["tick"]
-        or restored["selected"] != "fixed-follow"
+        or restored["source"]["available"] != before["available"]
         or restored["flight"]["active"] is not True
     ):
         raise AssertionError(
-            f"Flight camera-source transition was not isolated: {source_transition}"
+            "Flight camera-source transition was not isolated: "
+            f"setup={transition_setup} free_orbit={free_orbit} "
+            f"restored={restored}"
         )
 
     timeline_setup = page.evaluate(
@@ -295,48 +390,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
 
     returned = _poll(
         page,
-        lambda: page.evaluate(
-            """
-            async () => {
-              const source = await import(
-                '/src/features/strybldr/cameraSourceMcpRuntime.ts'
-              )
-              const flight = await import(
-                '/src/features/game-flight-sim/flightSimRuntime.ts'
-              )
-              const model = await import(
-                '/src/features/game-flight-sim/flightModel.ts'
-              )
-              const native = await import(
-                '/src/features/three/xrNativeControllerDemoRuntime.ts'
-              )
-              const store = await import('/src/hooks/useGraphStore.ts')
-              const snapshot = flight.readFlightSimSnapshot()
-              const scale = native.XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
-              const forward = model.flightSimForwardVector(
-                snapshot.aircraft.pitch,
-                snapshot.aircraft.yaw,
-              )
-              const expectedTarget = {
-                x: snapshot.aircraft.position[0] * scale,
-                y: (snapshot.aircraft.position[1] + 0.8) * scale,
-                z: snapshot.aircraft.position[2] * scale,
-              }
-              const expectedPosition = {
-                x: expectedTarget.x - forward[0] * 8 * scale,
-                y: expectedTarget.y - forward[1] * 2 * scale + 3.2 * scale,
-                z: expectedTarget.z - forward[2] * 8 * scale,
-              }
-              return {
-                source: source.inspectLocalCameraSource(),
-                flight: snapshot,
-                pose: store.useGraphStore.getState().captureThreeCameraPose(),
-                expectedPosition,
-                expectedTarget,
-              }
-            }
-            """
-        ),
+        lambda: _read_fixed_follow_state(page),
         lambda value: (
             value.get("pose") is not None
             and value["source"]["selected"] == "fixed-follow"
@@ -346,11 +400,11 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
             and _pose_changed(timeline_end["pose"], value["pose"])
             and _vector_distance(
                 value["pose"]["position"],
-                value["expectedPosition"],
+                value["expectedPose"]["position"],
             ) < 0.35
             and _vector_distance(
                 value["pose"]["target"],
-                value["expectedTarget"],
+                value["expectedPose"]["target"],
             ) < 0.35
         ),
         label="fixed-follow camera pose after Timeline playback",
@@ -412,22 +466,76 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
           const flight = await import(
             '/src/features/game-flight-sim/flightSimRuntime.ts'
           )
+          flight.restartFlightSim()
           return flight.startFlightSim()
         }
         """
     )
-    resumed_state = _poll(
-        page,
-        lambda: _read_camera_state(page),
-        lambda value: value["flight"]["phase"] == "flying"
-        and value["flight"]["tick"] > resumed["tick"],
-        label="Flight ticks after fixed-follow camera return",
-    )
+    page.keyboard.down("KeyW")
+    try:
+        live_start = _poll(
+            page,
+            lambda: _read_fixed_follow_state(page),
+            lambda value: (
+                value.get("pose") is not None
+                and value["source"]["selected"] == "fixed-follow"
+                and value["source"]["effectiveOwner"] == "fixed-follow"
+                and value["flight"]["phase"] == "flying"
+                and value["flight"]["tick"] > resumed["tick"]
+                and _vector_distance(
+                    value["pose"]["position"],
+                    value["expectedPose"]["position"],
+                ) < 4.5
+                and _vector_distance(
+                    value["pose"]["target"],
+                    value["expectedPose"]["target"],
+                ) < 3
+            ),
+            label="first running fixed-follow sample",
+        )
+        page.keyboard.down("KeyD")
+        live_end = _poll(
+            page,
+            lambda: _read_fixed_follow_state(page),
+            lambda value: (
+                value.get("pose") is not None
+                and value["source"]["effectiveOwner"] == "fixed-follow"
+                and value["flight"]["phase"] == "flying"
+                and value["flight"]["tick"] >= live_start["flight"]["tick"] + 20
+                and _pose_changed(
+                    live_start["expectedPose"],
+                    value["expectedPose"],
+                    minimum_distance=1,
+                )
+                and _pose_changed(
+                    live_start["pose"],
+                    value["pose"],
+                    minimum_distance=0.75,
+                )
+                and _vector_distance(
+                    value["pose"]["position"],
+                    value["expectedPose"]["position"],
+                ) < 8
+                and _vector_distance(
+                    value["pose"]["target"],
+                    value["expectedPose"]["target"],
+                ) < 5
+            ),
+            label="second running fixed-follow sample",
+        )
+    finally:
+        page.keyboard.up("KeyD")
+        page.keyboard.up("KeyW")
 
     return {
         "before": before["selected"],
-        "during": free_orbit["selected"],
-        "pointerLocked": free_orbit["pointerLocked"],
+        "during": free_orbit["source"]["selected"],
+        "catalog": catalog,
+        "pointerLocked": free_orbit_before_drag["pointerLocked"],
+        "freeOrbit": {
+            "poseBefore": free_orbit_before_drag["pose"],
+            "poseAfter": free_orbit["pose"],
+        },
         "timeline": {
             "anchorIds": timeline_setup["anchorIds"],
             "cameraMarks": timeline_setup["cameraMarks"],
@@ -442,8 +550,20 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
             "selected": returned["source"]["selected"],
             "effectiveOwner": returned["source"]["effectiveOwner"],
             "pose": returned["pose"],
-            "expectedPosition": returned["expectedPosition"],
-            "expectedTarget": returned["expectedTarget"],
-            "tickAfterResume": resumed_state["flight"]["tick"],
+            "expectedPosition": returned["expectedPose"]["position"],
+            "expectedTarget": returned["expectedPose"]["target"],
+            "tickAfterResume": live_end["flight"]["tick"],
+            "liveTracking": {
+                "first": {
+                    "tick": live_start["flight"]["tick"],
+                    "pose": live_start["pose"],
+                    "expectedPose": live_start["expectedPose"],
+                },
+                "second": {
+                    "tick": live_end["flight"]["tick"],
+                    "pose": live_end["pose"],
+                    "expectedPose": live_end["expectedPose"],
+                },
+            },
         },
     }

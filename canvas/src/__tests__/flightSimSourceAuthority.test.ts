@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import test from 'node:test'
 import { load as loadYaml } from 'js-yaml'
+import {
+  XR_NATIVE_CONTROLLER_CAMERA_DEFAULT_MODE,
+  XR_NATIVE_CONTROLLER_CAMERA_OPTIONS,
+} from '@/features/three/xrNativeControllerCameraCatalog'
 import {
   FLIGHT_SIM_DEMO_REPO_REL_PATH,
   FLIGHT_SIM_DEMO_WORKSPACE_SEED_BASENAME,
@@ -15,6 +19,10 @@ import {
 const repoRoot = resolve(process.cwd(), '..')
 const seedPath = resolve(repoRoot, FLIGHT_SIM_DEMO_REPO_REL_PATH)
 const seedSource = readFileSync(seedPath, 'utf8')
+const physicsSeedSource = readFileSync(
+  resolve(repoRoot, XR_PHYSICS_DEMO_REPO_REL_PATH),
+  'utf8',
+)
 
 function frontmatter(source: string): Record<string, unknown> {
   const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)
@@ -51,6 +59,7 @@ test('Flight Sim source declares an overlay on the canonical XR world', () => {
     identity_authority: 'source-authored run_ready_demo.id',
     imported_path_alias_required: false,
     identity_conflict: 'fail closed when path and source identity disagree',
+    canonical_consumers: ['workspace', 'xr-mode'],
     dev_command: 'npm run dev',
     canonical_source_file: '/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md',
     env_selector: 'VITE_KNOWGRPH_RUN_READY_DEMO=flight-sim',
@@ -68,8 +77,10 @@ test('Flight Sim source declares an overlay on the canonical XR world', () => {
   assert.deepEqual(meta.shared_xr_scene, {
     source_authority: '/docs/workspace-seeds/knowgrph-physics-playground-demo.md',
     world_ownership: 'overlay-only',
+    surface_owner: 'XR Mode',
     renderer_owner: 'canvas/src/lib/three/ThreeGraph.impl.tsx',
     collider_owner: 'canvas/src/features/three/xrCanonicalSceneSpatialSource.ts',
+    camera_owner: 'canvas/src/features/three/useXrNativeControllerDemoCamera.ts',
     second_canvas_forbidden: true,
   })
   const authority = readFileSync(resolve(repoRoot, 'scripts/workspace-seed-authority.mjs'), 'utf8')
@@ -81,17 +92,80 @@ test('Flight Sim source declares an overlay on the canonical XR world', () => {
 })
 
 test('Flight Sim reuses shared fixed-follow and free-orbit camera ownership', () => {
+  const meta = frontmatter(seedSource)
+  const physicsMeta = frontmatter(physicsSeedSource)
+  const flightCamera = (
+    meta.native_flight_demo as { camera?: Record<string, unknown> }
+  ).camera!
+  const physicsCamera = (
+    physicsMeta.native_controller_demo as { camera?: Record<string, unknown> }
+  ).camera!
+  for (const key of [
+    'default',
+    'selector',
+    'available',
+    'invocation',
+    'timeline_override',
+  ]) {
+    assert.deepEqual(flightCamera[key], physicsCamera[key])
+  }
+  assert.equal(
+    flightCamera.catalog_owner,
+    'canvas/src/features/three/xrNativeControllerCameraCatalog.ts',
+  )
+  assert.equal(
+    flightCamera.selection_owner,
+    'canvas/src/features/three/xrNativeControllerCameraRuntime.ts',
+  )
+  assert.equal(
+    flightCamera.driver_owner,
+    'canvas/src/features/three/useXrNativeControllerDemoCamera.ts',
+  )
+  assert.deepEqual(
+    XR_NATIVE_CONTROLLER_CAMERA_OPTIONS.map(option => option.id),
+    flightCamera.available,
+  )
+  assert.equal(XR_NATIVE_CONTROLLER_CAMERA_DEFAULT_MODE, flightCamera.default)
   const controls = readFileSync(
     resolve(repoRoot, 'canvas/src/features/three/Controls.tsx'),
     'utf8',
   )
-  const flightCamera = readFileSync(
-    resolve(repoRoot, 'canvas/src/features/three/useFlightSimCamera.ts'),
+  const controllerCamera = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/src/features/three/useXrNativeControllerDemoCamera.ts',
+    ),
     'utf8',
   )
-  assert.match(controls, /useXrGameplayCameraArbitration\(\{/)
+  const flightTarget = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/src/features/game-flight-sim/flightSimFollowTarget.ts',
+    ),
+    'utf8',
+  )
+  assert.match(
+    controls,
+    /from '\.\/useXrNativeControllerDemoCamera'/,
+  )
+  assert.match(controls, /useXrNativeControllerDemoCamera\(\{/)
   assert.match(controls, /flightSimActive,/)
-  assert.match(flightCamera, /readXrNativeControllerCamera\(\)\.mode === 'fixed-follow'/)
-  assert.match(flightCamera, /renderer\.xr\.isPresenting/)
-  assert.doesNotMatch(flightCamera, /new\s+(?:THREE\.)?PerspectiveCamera/)
+  assert.match(
+    controllerCamera,
+    /readXrNativeControllerCamera\(\)\.mode === 'fixed-follow'/,
+  )
+  assert.match(controllerCamera, /flightSimActive\s*\?\s*readFlightFollowTarget\(true,/)
+  assert.match(controllerCamera, /renderer\.xr\.isPresenting/)
+  assert.match(flightTarget, /resolveFlightSimFollowTarget/)
+  assert.doesNotMatch(
+    flightTarget,
+    /\b(?:camera|controls)\.(?:position|target|enablePan|enableRotate|enableZoom)/,
+  )
+  assert.equal(
+    existsSync(
+      resolve(repoRoot, 'canvas/src/features/three/useFlightSimCamera.ts'),
+    ),
+    false,
+  )
+  assert.doesNotMatch(controllerCamera, /new\s+(?:THREE\.)?PerspectiveCamera/)
 })

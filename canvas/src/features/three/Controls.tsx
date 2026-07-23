@@ -27,7 +27,7 @@ import { readXrMotionReferenceRuntime, subscribeXrMotionReferenceRuntime } from 
 import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCameraControlOwnership'
 import { readThreeObjectInputOwnership, useThreeObjectInputOwnership } from './threeObjectInputOwnership'
 import { useThreeObjectCameraInputOwnership } from './useThreeObjectCameraInputOwnership'
-import { useXrGameplayCameraArbitration } from './useFlightSimCamera'
+import { useXrNativeControllerDemoCamera } from './useXrNativeControllerDemoCamera'
 export function Controls({
   schema, positions, paused, mode = '3d', modelAssetRenderKey, modelAssetFit,
   xrEmptyWorld = false, flightSimActive = false, gameplayCoordinateScale = 1,
@@ -88,7 +88,7 @@ export function Controls({
     controls,
     baseEnabled: !paused && !choreographyOwnsCamera,
   })
-  useXrGameplayCameraArbitration({
+  useXrNativeControllerDemoCamera({
     camera: perspectiveCamera,
     controls,
     coordinateScale: gameplayCoordinateScale,
