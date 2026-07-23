@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Schemas and Route Contracts"
 id: "md:knowgrph-storage-schemas-document"
-version: "2.2.0"
+version: "2.3.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Schema and Route Reference"
@@ -27,7 +27,7 @@ invocation:
 
 ---
 
-**Version**: 2.2.0
+**Version**: 2.3.0
 **Date**: 2026-07-23
 **Canonical index**: `knowgrph-storage-sync-document.md`
 **See also**: `knowgrph-storage-schemas-extensions-document.md` (deferred auth relay and PostgreSQL extensions), `knowgrph-multi-user-collaboration-prd.tad.md` (auth tables, role-based access extension)
@@ -134,6 +134,27 @@ type KnowgrphStorageOutboxRecord = {
   updatedAtMs: number
 }
 ```
+
+### Collaboration Update Outbox Shape
+
+The Yjs collaboration outbox is browser-local and separate from the D1 document sync outbox. A failed PocketBase write must remain durable and visible to retry logic; it must never be swallowed.
+
+```ts
+type CollaborationUpdateOutboxRecord = {
+  updateId: string
+  workspaceId: string
+  documentKey: string
+  provider: 'pocketbase' | 'durable-object'
+  clientSeq: number
+  updateBase64: string
+  attemptCount: number
+  acknowledgedAtMs: number | null
+  createdAtMs: number
+  updatedAtMs: number
+}
+```
+
+Replay is idempotent by `updateId`, ordered per document, and retained until provider acknowledgement. Joining a room applies its compacted snapshot and ordered remote updates before replaying unacknowledged local records.
 
 ---
 
@@ -328,7 +349,7 @@ CREATE TABLE IF NOT EXISTS sync_events (
 
 ### Planned Authenticated Collaboration And Chat Relay Extension
 
-Deferred authenticated relay tables, route inputs, index guidance, and authorization rules live in `knowgrph-storage-schemas-extensions-document.md`. The shipped anonymous storage baseline remains `workspaces`, `documents`, `document_chunks`, `graph_snapshots`, `sync_devices`, and `sync_events`.
+Deferred authenticated relay tables, PocketBase provider-owned collaboration collections, route inputs, index guidance, and authorization rules live in `knowgrph-storage-schemas-extensions-document.md`. PocketBase collections are not D1 tables. The shipped anonymous D1 baseline remains `workspaces`, `documents`, `document_chunks`, `graph_snapshots`, `sync_devices`, and `sync_events`.
 
 ### Indexes
 
@@ -475,7 +496,7 @@ Error handling: 400 on malformed request; 500 on worker/database failures.
 - **Method**: `POST`
 - **Path**: `/api/storage/collab/save`
 - **Purpose**: Commit a saved PocketBase/Yjs document snapshot to its path-scoped GitHub `docs/**` root
-- **Behavior**: Validate the saved snapshot, re-derive repository authority from `documentKey`, reject a mismatched `repositoryTarget`, read PocketBase room state when configured, canonicalize JSON with two-space formatting, reject concurrent JSON saves without Yjs state, and write through GitHub Contents API using a server-owned token. D1 is not touched.
+- **Behavior**: Validate the saved snapshot and authenticated membership, re-derive repository authority from `documentKey`, reject a mismatched `repositoryTarget`, read the selected room provider state when configured, canonicalize JSON with two-space formatting, reject concurrent JSON saves without Yjs state, and write through a GitHub App/server identity using compare-and-set content SHA. D1 is not touched.
 
 Request:
 
@@ -513,7 +534,7 @@ Response:
 
 Repository selection: `knowgrph-docs` reads `KNOWGRPH_STORAGE_GITHUB_KNOWGRPH_REPO`; `workspace-docs` reads `KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO`. Both use the server-owned owner, branch, and token. Agentic Canvas OS paths are read-only in this bridge.
 
-Error handling: 400 on malformed request, unsupported path, or target/path mismatch; 409 when concurrent JSON lacks Yjs CRDT state; 403 when the Worker has no GitHub bridge token; 500 on missing target-specific repository config or GitHub API failures.
+Error handling: 400 on malformed request, unsupported path, or target/path mismatch; 401/403 on missing identity or inactive workspace membership; 409 when concurrent JSON lacks Yjs CRDT state or the GitHub content SHA changed; 500 on missing target-specific repository config or GitHub API failures.
 
 The Source Files row upload client uses this route only for explicit Markdown saves, including a newly created empty `.md`. A successful bridge response is necessary but not sufficient for the cloud icon: the client next pushes the same text through the D1 document sync contract and requires exact `GET /api/storage/doc/:workspaceId/:canonicalPath*` read-back. If the GitHub bridge fails, D1 is untouched; if D1 or read-back fails after the commit, the row remains in a retryable failure state.
 

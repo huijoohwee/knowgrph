@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Source Files Import"
 id: "md:knowgrph-source-files-import-document"
-version: "1.1.0"
+version: "1.2.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Workflow and Runtime Reference"
@@ -40,6 +40,10 @@ invocation:
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
 **Storage And Sync Settings**: MainPanel Settings → `Document Storage & Sync` exposes Online/Offline only mode, the `GitHub/knowgrph/docs` and `GitHub/huijoohwee/docs` roots, offline fallback state, and explicit `Sync now`. Import remains local-first: Offline only never discards imported content, and online publication routes Knowgrph product/workspace-seed paths to `knowgrph-docs`, collaborative workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths as write targets.
+
+**Collaboration Admission**: Fetching, parsing, and first persistence always complete locally before an import can join a live room. When Online mode, authenticated workspace membership, a canonical document path, and one configured room provider are all available, Source Files may hydrate the Yjs document from a compacted provider snapshot plus ordered updates, then replay its IndexedDB-backed local update outbox. PocketBase is the recommended small-team provider after production gates pass; a Durable Object is a replacement provider, never a simultaneous second owner. Import credentials, local paths, and remote-source authorization headers are never transmitted to the room provider.
+
+**Checkpoint Publication**: Imported collaborative text reaches GitHub only at explicit save or bounded autosave checkpoints through the server bridge with path-derived repository authority and compare-and-set content SHA. D1 projection follows a successful GitHub checkpoint; room updates are never committed per keystroke, and failed online delivery leaves the local import and outbox available offline.
 
 **Initialization-File Bootstrap Contract**: The canonical family contains the three legacy root seeds sourced from `huijoohwee/docs`—`/workspace-readme.md`, `/knowgrph-agentic-video-canvas-demo.md`, and `/knowgrph-maps-places.md`—plus `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, sourced from Knowgrph and published under the same path in Agentic Canvas OS. A cold unselected workspace starts from the physics seed; its frontmatter owns XR/3D and Motion Control initialization. Explicit deep links, imported embeds, persisted non-initialization documents, and a custom validation-seed environment remain authoritative in their declared scopes.
 

@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Spreadsheet Storage"
 id: "md:knowgrph-spreadsheet-storage-document"
-version: "2.0.0"
+version: "2.1.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Storage Surface Reference"
@@ -40,6 +40,15 @@ invocation:
 There is no dedicated spreadsheet database, route, or independent sync loop. Browser continuity, GitHub save, D1 read-cache publication, collaboration, and offline fallback follow the shared storage contract.
 
 MainPanel `Document Storage & Sync` therefore applies unchanged to spreadsheet-authored source: Online mode uses the owning GitHub docs root plus configured cloud transports, Offline only retains IndexedDB state and queued mutations, and the spreadsheet surface never asks for repository credentials.
+
+## Concurrent Spreadsheet Contract
+
+- Textual spreadsheet sources such as CSV or structured JSON may enter a selected Yjs collaboration room after local persistence and authenticated workspace admission.
+- Concurrent cell/row edits use structured shared types or field-level operations; two clients never overwrite one raw serialized table blob.
+- Binary workbook imports remain local immutable source artifacts until normalized to a collaborative textual model. Saving an unnormalized binary workbook requires an explicit exclusive checkpoint.
+- Failed collaboration updates stay in the IndexedDB update outbox with stable ids until acknowledged, including across Offline only transitions and reloads.
+- PocketBase is the recommended small-team provider only after the shared production gates pass. A Durable Object may replace it, but both providers must never own the same spreadsheet room.
+- GitHub receives explicit or bounded autosave checkpoints with compare-and-set content SHA; D1 remains the read/index projection and never receives per-cell writes.
 
 ## Bounded Proof
 

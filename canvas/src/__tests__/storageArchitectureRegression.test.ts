@@ -70,6 +70,9 @@ export function testStorageSyncDocumentDeclaresPocketBaseYjsGitHubSsotContract()
     'GitHub Contents API (or GitHub App): PUT /repos/{owner}/{repo}/contents/docs/{path}',
     'GitHub docs branch/main stays SSOT',
     'D1 remains the runtime export/read cache; it does not serve as the concurrent edit store.',
+    '### PocketBase Production Recommendation',
+    'an IndexedDB-backed idempotent Yjs update outbox with acknowledgements/retry/deduplication',
+    'never dual-write PocketBase and Durable Objects as competing room authorities',
   ]
   for (const fragment of requiredStorageDocFragments) {
     if (!storageDocText.includes(fragment)) {
@@ -80,12 +83,14 @@ export function testStorageSyncDocumentDeclaresPocketBaseYjsGitHubSsotContract()
     throw new Error('expected storage sync document to avoid D1-as-SSOT and update-event commit wording for concurrent editing')
   }
   const requiredCompanionFragments = [
-    '`Storage Sync` is on and two users edit the same `*.md`',
-    '`Storage Sync` is on and two users edit the same `*.json`',
+    'MainPanel document storage mode is `Online` and two users edit the same `*.md`',
+    'MainPanel document storage mode is `Online` and two users edit the same `*.json`',
     'raw JSON editing is blocked; Yjs shared JSON types own the edit',
     'collaborators never touch Git credentials or Git commands',
-    '### ADR-010: Use PocketBase + Yjs For Same-File Collaboration, Not Git Merge',
-    'D1 remains a runtime read/export cache and must not be promoted to collaboration SSOT.',
+    '### PocketBase Production Gate',
+    'Persist each local Yjs update in IndexedDB with a stable update id',
+    'PocketBase and Durable Objects must never own the same room concurrently',
+    '| ADR-016 | Select one collaboration room provider; replace PocketBase with Durable Objects instead of dual-owning rooms. |',
   ]
   for (const fragment of requiredCompanionFragments) {
     if (!companionText.includes(fragment)) {
