@@ -72,6 +72,49 @@ export async function testWorkspaceSeedProviderProjectsCanonicalLocalInventoryEx
   }
 }
 
+export async function testRepoLocalPersistedBootstrapReconcilesCanonicalSeedInventory() {
+  const repoRoot = path.resolve(process.cwd(), '..')
+  const docsRoot = path.join(repoRoot, 'docs')
+  const seedsRoot = path.join(docsRoot, 'workspace-seeds')
+  const previousRepoLocal = process.env[REPO_LOCAL_ENV]
+  const previousDocsRoot = process.env[DOCS_ROOT_ENV]
+  const previousSeedsRoot = process.env[SEEDS_ROOT_ENV]
+  const globals = globalThis as typeof globalThis & { window?: Window }
+  const previousWindow = globals.window
+  try {
+    process.env[REPO_LOCAL_ENV] = '1'
+    process.env[DOCS_ROOT_ENV] = docsRoot
+    process.env[SEEDS_ROOT_ENV] = seedsRoot
+    delete globals.window
+
+    const persistedModuleUrl = new URL(
+      `../features/workspace-fs/workspaceFsPersisted.ts?canonical-seed-inventory=${Date.now()}`,
+      import.meta.url,
+    ).href
+    const persistedModule = await import(persistedModuleUrl) as typeof import('@/features/workspace-fs/workspaceFsPersisted')
+    const workspaceFs = persistedModule.createWorkspacePersistedFs()
+    await workspaceFs.ensureSeed()
+
+    const expected = (await fsPromises.readdir(seedsRoot, { withFileTypes: true }))
+      .filter(entry => entry.isFile())
+      .map(entry => `/docs/workspace-seeds/${entry.name}`)
+      .sort()
+    const actual = (await workspaceFs.listEntries())
+      .filter(entry => entry.kind === 'file' && entry.path.startsWith('/docs/workspace-seeds/'))
+      .map(entry => entry.path)
+      .sort()
+
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      throw new Error(`expected repo-local persisted Source Files seed inventory ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
+    }
+  } finally {
+    restoreEnv(REPO_LOCAL_ENV, previousRepoLocal)
+    restoreEnv(DOCS_ROOT_ENV, previousDocsRoot)
+    restoreEnv(SEEDS_ROOT_ENV, previousSeedsRoot)
+    if (previousWindow) globals.window = previousWindow
+  }
+}
+
 export async function testWorkspaceSeedProviderOverlaysLocalInventoryOnPublishedDocs() {
   const docsRoot = '/workspace/huijoohwee/docs'
   const seedsRoot = '/workspace/knowgrph/docs/workspace-seeds'

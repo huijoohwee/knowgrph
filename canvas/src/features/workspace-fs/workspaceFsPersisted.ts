@@ -19,7 +19,13 @@ import {
   XR_PHYSICS_WORKSPACE_SEED_PATH,
 } from './workspaceFs'
 import { isWorkspaceRepoLocalRunReadyBootstrap } from './workspaceRunReadyDemos'
-import { ensureWorkspaceDocsMirrorFolder, readWorkspaceInitializationDocsMirrorEntries, upsertWorkspaceDocsMirrorText, upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
+import {
+  ensureWorkspaceDocsMirrorFolder,
+  readCanonicalLocalWorkspaceSeedMirrorEntries,
+  readWorkspaceInitializationDocsMirrorEntries,
+  upsertWorkspaceDocsMirrorText,
+  upsertWorkspaceInitializationSeedText,
+} from './workspaceSeedProvider'
 import { deleteWorkspaceDocsMirrorEntry } from './workspaceSeedLocalMirrorAuthority'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import {
@@ -205,9 +211,11 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     if (await removeLegacyWorkspaceSourceEntries(collections)) changed = true
     if (await migrateLegacyAuthoredMarkdownNotes(collections)) changed = true
     const docsOnlyMode = readWorkspaceSourceFilesDocsOnlySetting()
-    const sourceDocsMirrorEntries = docsOnlyMode && !isWorkspaceRepoLocalRunReadyBootstrap()
-      ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
-      : []
+    const sourceDocsMirrorEntries = !docsOnlyMode
+      ? []
+      : isWorkspaceRepoLocalRunReadyBootstrap()
+        ? await readCanonicalLocalWorkspaceSeedMirrorEntries()
+        : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
     const docsMirrorEntries = docsOnlyMode
       ? sourceDocsMirrorEntries.every(entry => entry.authority === 'agentic-canvas-os-storage')
         ? sourceDocsMirrorEntries
