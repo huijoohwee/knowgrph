@@ -12,6 +12,7 @@ export type KnowgrphStorageRuntimeDependencies = {
   cancelKnowgrphStorageSync: KnowgrphStorageClientSyncModule['cancelKnowgrphStorageSync']
   scheduleKnowgrphStorageSync: KnowgrphStorageClientSyncModule['scheduleKnowgrphStorageSync']
   startKnowgrphStorageSyncLoop: KnowgrphStorageClientSyncModule['startKnowgrphStorageSyncLoop']
+  syncKnowgrphStorageNow: KnowgrphStorageClientSyncModule['syncKnowgrphStorageNow']
   notifyKnowgrphStorageConflictUx: KnowgrphStorageConflictUxModule['notifyKnowgrphStorageConflictUx']
 }
 
@@ -36,6 +37,7 @@ export const loadKnowgrphStorageRuntimeDependencies = async (): Promise<Knowgrph
       cancelKnowgrphStorageSync: clientSyncModule.cancelKnowgrphStorageSync,
       scheduleKnowgrphStorageSync: clientSyncModule.scheduleKnowgrphStorageSync,
       startKnowgrphStorageSyncLoop: clientSyncModule.startKnowgrphStorageSyncLoop,
+      syncKnowgrphStorageNow: clientSyncModule.syncKnowgrphStorageNow,
       notifyKnowgrphStorageConflictUx: conflictUxModule.notifyKnowgrphStorageConflictUx,
     }))
   }

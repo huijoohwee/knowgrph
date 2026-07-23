@@ -16,6 +16,7 @@ import {
   serializeCollaborationYDoc,
   type CollaborationDocumentKind,
 } from 'grph-shared/collaboration/yjsSnapshot'
+import { resolveDocumentRepositoryAuthority } from 'grph-shared/collaboration/documentRepositoryAuthority'
 
 type PocketBaseRecord = Record<string, unknown> & { id?: string }
 
@@ -407,6 +408,8 @@ export const createPocketBaseYjsSourceFileRoom = async (
         })
       }
       const snapshot = readSnapshot()
+      const authority = resolveDocumentRepositoryAuthority({ documentKey, documentKind })
+      if (!authority) throw new Error('Collaboration save is read-only for this document source.')
       const serializedText = snapshot.serializedText
       const yjsStateBase64 = snapshot.yjsStateBase64
       await roomService.update(roomId, {
@@ -419,6 +422,7 @@ export const createPocketBaseYjsSourceFileRoom = async (
         workspaceId,
         documentKey,
         documentKind,
+        repositoryTarget: authority.repositoryTarget,
         serializedText,
         yjsStateBase64,
         activePeerCount,

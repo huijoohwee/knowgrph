@@ -97,6 +97,8 @@ The document family is invocable through `knowgrph.agentic_canvas_os.docs.invoke
 
 There is no undifferentiated repository-wide `docs/**` SSOT. Authority is path-scoped: `knowgrph/docs` owns product/runtime contracts, `huijoohwee/docs` owns collaborative workspace documents, and `agentic-canvas-os/docs` owns global invocation/governance documents and the current published runtime-doc catalog.
 
+`knowgrph/docs/workspace-seeds` is the only writable seed root. Duplicate `agentic-canvas-os/docs/workspace-seeds` and `huijoohwee/docs/workspace-seeds` directories are removal candidates after all bootstrap/publication references point to Knowgrph; the collaboration bridge rejects those duplicate roots instead of maintaining write aliases.
+
 - **Single-user workspace**: Source Files reads the configured GitHub source and uses the sibling `huijoohwee/docs` root as the default local Dev mirror when present. Browser persistence is the offline fallback, not an inventory owner.
 - **Multi-user workspace**: PocketBase + Yjs becomes the live collaboration layer only while concurrent same-file editing is active. On save, the bridge serializes Yjs state and commits to the path's owning GitHub docs root. D1 remains a runtime read/export cache and never becomes the collaboration SSOT.
 
@@ -127,8 +129,9 @@ PocketBase owns authentication/session state, room metadata, membership, and rea
 User save / autosave boundary
   → bridge reads current PocketBase room membership and Y.Doc state
   → serialize Y.Text / Y.Map snapshot to *.md / canonical formatted *.json
-  → GitHub Contents API (or GitHub App): PUT /repos/{owner}/{repo}/contents/docs/{path}
-  → commit: "chore(sync): save {path} from collaboration bridge"
+  → resolve repositoryTarget from the document path and reject target/path mismatches
+  → GitHub Contents API (or GitHub App): PUT /repos/{owner}/{target-repo}/contents/docs/{path}
+  → commit: "chore(sync): save {path} from {repositoryTarget} collaboration bridge"
   → collaborators never touch Git — bridge owns all commits
   → GitHub docs branch/main stays SSOT
 ```
@@ -143,16 +146,16 @@ Users can configure a default import source URL via Settings → Workspace → `
 
 Supported URL types: GitHub repo/folder/blob, any webpage, raw markdown URL, local dev path (via Vite proxy), and explicit Cloudflare D1 export endpoints for Worker/runtime validation.
 
-### Toolbar Storage Sync
+### Document Storage And Sync Controls
 
-Toolbar → Workspace View → `Storage Sync` is the runtime gate for two storage paths that share GitHub as SSOT:
+MainPanel → Settings → `Document Storage & Sync` controls online collaboration independently from the existing Toolbar → Workspace View → `Storage Sync` local mirror refresh:
 
 1. **Solo/local path**: Editor Workspace `/docs/**` ⇄ Source Files ⇄ configured local docs mirror, defaulting to sibling `huijoohwee/docs` in local Dev when available.
 2. **Concurrent path**: Editor Workspace `/docs/**` ⇄ Yjs document room ⇄ PocketBase realtime relay ⇄ GitHub save bridge.
 3. **Explicit Source Files cloud path**: a Markdown row's local/cloud icon commits the saved local file through the GitHub save bridge, pushes that exact text to D1 only after GitHub succeeds, and shows cloud-synced only after the public D1 document read-back matches.
 4. **Generated artifact publication path**: Generated workspace artifact blob ⇄ `/api/storage/blob/:workspaceId/:canonicalPath*` ⇄ R2 object, plus a sibling Markdown manifest pushed through the Source Files storage publication helper into D1.
 
-When on, the app keeps the workspace seed refresh loop active and allows same-file collaborative rooms to sync through PocketBase + Yjs. When off, seed refresh and collaboration room sync are paused; local Source Files persistence and graph composition remain local.
+`Storage Sync` controls only the configured local docs-mirror refresh. `Document Storage & Sync` defaults to **Online** when the runtime endpoint is configured; **Offline only** pauses D1 and PocketBase/Yjs transport while IndexedDB persistence and the queued outbox remain active. `Sync now` pushes queued mutations, pulls remote changes, and reports `synced` or `offline-queued` without discarding local work.
 
 Generated artifact publication remains explicitly opt-in through the runtime storage setting. A generated image/video/binary artifact is considered synced across Dev, Prod, and Cloudflare only when both checks pass: the Worker blob URL responds through `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*`, and the sibling manifest is readable through the D1 document route. AI/LLM generated media that participates in collaborative canvas state additionally uses `/api/storage/media/assets` to confirm the R2 object, persist D1 metadata/provenance, cache an operator-supplied access URL in KV when `KNOWGRPH_MEDIA_ACCESS_KV` is bound, and notify `KNOWGRPH_CANVAS_ROOM` when a collaboration room id is present. Local generated files, browser object URLs, provider URLs, and embedded `srcdoc` alone are proof of Dev output only, not Cloudflare persistence.
 
@@ -299,8 +302,8 @@ flowchart TB
 ### Path A — Canonical GitHub Bootstrap (Every Device)
 
 ```
-1. Agentic Canvas OS changes merge into GitHub `huijoohwee/agentic-canvas-os/docs/**`
-2. Workspace bootstrap reads that GitHub tree before device-local or D1 fallback data
+1. Agentic Canvas OS publication changes merge into GitHub `huijoohwee/agentic-canvas-os/docs/**`
+2. Published-catalog bootstrap reads that tree before device-local or D1 fallback data; it does not make Agentic Canvas OS a writable workspace-document target
 3. Source Files materializes the exact canonical files under `/docs/**`
 4. Authoritative reconciliation deletes cached `/docs/**` entries absent from GitHub
 5. An authorized release seeds the same files as `agentic-canvas-os/docs/**` D1 canonical paths
@@ -329,10 +332,11 @@ The collaboration readiness harness uses `/docs/workspace-seeds/knowgrph-physics
 2. Source Files compares the saved row text with the canonical D1 export snapshot
 3. A hard-drive icon means the saved local text is not verified in the Cloudflare projection
 4. User clicks the icon
-5. POST /api/storage/collab/save normalizes workspace-root paths once, verifies `docs/{path}` through the server-owned GitHub bridge, and treats byte-identical canonical content as success without creating a no-op commit
-6. Only after GitHub succeeds, the client force-queues the same text under agentic-canvas-os/docs/{path} and pushes D1
-7. GET /api/storage/doc/:workspaceId/:canonicalPath must return the exact saved text
-8. The row changes to a cloud icon only after that read-back; GitHub failure skips D1, and partial/read-back failure stays visible as retryable failure
+5. The shared authority resolver selects `knowgrph-docs` for `knowgrph/docs/**` and `/docs/workspace-seeds/**`, selects `workspace-docs` for collaborative workspace paths, and rejects `agentic-canvas-os/**` writes
+6. POST /api/storage/collab/save verifies the supplied `repositoryTarget`, writes `docs/{path}` in the selected GitHub repository, and treats byte-identical canonical content as success without creating a no-op commit
+7. Only after GitHub succeeds, the client queues the same text under `knowgrph/docs/{path}` or `huijoohwee/docs/{path}` and pushes D1
+8. GET /api/storage/doc/:workspaceId/:canonicalPath must return the exact saved text
+9. The row changes to a cloud icon only after that read-back; GitHub failure skips D1, and partial/read-back failure stays visible as retryable failure
 ```
 
 Local browser proof must set `KNOWGRPH_STORAGE_DEV_PROXY_TARGET` to a local Wrangler origin. Vite loads this server-only value from `.env.local` with `loadEnv`; local Worker credentials stay in an ignored `.dev.vars` file. The Vite default remains `https://airvio.co`, but explicit local verification must never click a mutating Source Files icon while that production default is active. The docs seeder forbids direct remote-D1 fallback whenever `--base-url` is not the canonical production origin.
@@ -373,15 +377,16 @@ Local browser proof must set `KNOWGRPH_STORAGE_DEV_PROXY_TARGET` to a local Wran
 
 ```
 1. User A and User B open same *.md or *.json in workspace
-2. Storage Sync is on, so the editor joins a PocketBase-backed Yjs room for that file
+2. MainPanel `Document Storage & Sync` is Online, so the editor joins a PocketBase-backed Yjs room for that file
 3. PocketBase realtime relay broadcasts Yjs update envelopes and awareness (cursor, selection)
 4. Y.Text (*.md) / Y.Map (*.json) CRDTs merge edits character/field-level — zero conflict
    ⚠ Raw minified JSON must never be Git-merged across simultaneous sessions — route through Y.Map
 5. On explicit save or autosave boundary:
    → GitHub save bridge serializes Y.Doc snapshot
    → Markdown writes from Y.Text; JSON writes from canonical formatted Y.Map/Y.Array projection
-   → GitHub Contents API or GitHub App writes docs/{path}
-   → commit: "chore(sync): save {path} from collaboration bridge"
+   → shared authority selects `knowgrph-docs` or `workspace-docs` from the document path
+   → GitHub Contents API or GitHub App writes docs/{path} in the selected repository
+   → commit: "chore(sync): save {path} from {repositoryTarget} collaboration bridge"
 6. Neither User A nor User B touches Git — bridge owns all commits
 7. GitHub docs branch/main stays SSOT; D1 stays runtime export/read cache
 ```
@@ -527,8 +532,10 @@ flowchart TB
 | Conflict UX | Action buttons | `components/ui/UiActionButtons.tsx` | Built |
 | Collaboration | Yjs document rooms (`Y.Doc`, `Y.Text`, `Y.Map`) | `features/source-files/sourceFilesCollaborationYjs.ts` | Built |
 | Collaboration | PocketBase auth, room metadata, realtime update relay | `features/source-files/sourceFilesPocketBaseYjsRoom.ts` + PocketBase collections: `collab_rooms`, `collab_updates`, `collab_awareness` | Built in Dev; requires PocketBase collection deployment |
-| Collaboration | Markdown Workspace collaboration runtime | `features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime.ts` + `lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` | Built; gated by Storage Sync and `VITE_KNOWGRPH_COLLAB_POCKETBASE_URL` |
-| Collaboration | GitHub save bridge with server-owned token/App identity | `POST /api/storage/collab/save` in `workers/knowgrph-storage/index.ts` | Built; requires Worker `KNOWGRPH_STORAGE_GITHUB_TOKEN`, owner, and repo config; reads PocketBase room state when `KNOWGRPH_STORAGE_POCKETBASE_URL` is set |
+| Collaboration | Markdown Workspace collaboration runtime | `features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime.ts` + `lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` | Built; gated by MainPanel online mode and `VITE_KNOWGRPH_COLLAB_POCKETBASE_URL` |
+| Repository authority | Path-scoped GitHub target resolver | `grph-shared/src/collaboration/documentRepositoryAuthority.ts` | Built; routes product/seeds to `knowgrph-docs`, workspace docs to `workspace-docs`, and rejects Agentic Canvas OS writes |
+| Collaboration | GitHub save bridge with server-owned token/App identity | `POST /api/storage/collab/save` in `workers/knowgrph-storage/index.ts` | Built; requires token, owner, and target-specific Knowgrph/workspace repo config; validates `repositoryTarget` before GitHub access |
+| Settings | Document storage mode, roots, fallback, and manual sync | `features/panels/views/DocumentStorageSyncSettingsRows.tsx` + `features/source-files/documentStorageSyncRuntime.ts` | Built; no browser credential fields |
 | Source Files cloud status/action | `SourceFileCloudSyncIndicator` + `syncWorkspaceEntryToCanonicalCloud` | `features/markdown-workspace/SourceFileCloudSyncIndicator.tsx` + `features/source-files/sourceFileCanonicalCloudSync.ts` | Built in Dev; supports explicit Markdown uploads including empty new files, GitHub-before-D1 ordering, exact D1 read-back, focus/120s status refresh, and retryable failure state |
 | Collaboration | JSON CRDT guardrail | raw JSON editor gate + structured `Y.Map` owner | Built; bridge rejects concurrent JSON saves without Yjs state |
 

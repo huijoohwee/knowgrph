@@ -474,8 +474,8 @@ Error handling: 400 on malformed request; 500 on worker/database failures.
 
 - **Method**: `POST`
 - **Path**: `/api/storage/collab/save`
-- **Purpose**: Commit a saved PocketBase/Yjs document snapshot back to GitHub `docs/**`
-- **Behavior**: Validate the saved snapshot, read PocketBase room state when `KNOWGRPH_STORAGE_POCKETBASE_URL` is configured, canonicalize JSON with two-space formatting, reject concurrent JSON saves without Yjs state, and write through GitHub Contents API using a server-owned token. D1 is not touched.
+- **Purpose**: Commit a saved PocketBase/Yjs document snapshot to its path-scoped GitHub `docs/**` root
+- **Behavior**: Validate the saved snapshot, re-derive repository authority from `documentKey`, reject a mismatched `repositoryTarget`, read PocketBase room state when configured, canonicalize JSON with two-space formatting, reject concurrent JSON saves without Yjs state, and write through GitHub Contents API using a server-owned token. D1 is not touched.
 
 Request:
 
@@ -485,6 +485,7 @@ Request:
   "workspaceId": "kgws:abc123",
   "documentKey": "/docs/shared.json",
   "documentKind": "json",
+  "repositoryTarget": "workspace-docs",
   "serializedText": "{\n  \"name\": \"Shared\"\n}\n",
   "yjsStateBase64": "AQID",
   "activePeerCount": 2,
@@ -502,6 +503,7 @@ Response:
   "apiVersion": "2026-05-04",
   "workspaceId": "kgws:abc123",
   "documentKey": "/docs/shared.json",
+  "repositoryTarget": "workspace-docs",
   "githubPath": "docs/shared.json",
   "commitSha": "commit_sha",
   "contentSha": "content_sha",
@@ -509,7 +511,9 @@ Response:
 }
 ```
 
-Error handling: 400 on malformed request or unsupported path; 409 when concurrent JSON lacks Yjs CRDT state; 403 when the Worker has no GitHub bridge token; 500 on missing repository config or GitHub API failures.
+Repository selection: `knowgrph-docs` reads `KNOWGRPH_STORAGE_GITHUB_KNOWGRPH_REPO`; `workspace-docs` reads `KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO`. Both use the server-owned owner, branch, and token. Agentic Canvas OS paths are read-only in this bridge.
+
+Error handling: 400 on malformed request, unsupported path, or target/path mismatch; 409 when concurrent JSON lacks Yjs CRDT state; 403 when the Worker has no GitHub bridge token; 500 on missing target-specific repository config or GitHub API failures.
 
 The Source Files row upload client uses this route only for explicit Markdown saves, including a newly created empty `.md`. A successful bridge response is necessary but not sufficient for the cloud icon: the client next pushes the same text through the D1 document sync contract and requires exact `GET /api/storage/doc/:workspaceId/:canonicalPath*` read-back. If the GitHub bridge fails, D1 is untouched; if D1 or read-back fails after the commit, the row remains in a retryable failure state.
 

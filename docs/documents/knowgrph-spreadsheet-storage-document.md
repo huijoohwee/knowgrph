@@ -39,6 +39,8 @@ invocation:
 
 There is no dedicated spreadsheet database, route, or independent sync loop. Browser continuity, GitHub save, D1 read-cache publication, collaboration, and offline fallback follow the shared storage contract.
 
+MainPanel `Document Storage & Sync` therefore applies unchanged to spreadsheet-authored source: Online mode uses the owning GitHub docs root plus configured cloud transports, Offline only retains IndexedDB state and queued mutations, and the spreadsheet surface never asks for repository credentials.
+
 ## Bounded Proof
 
 - `canvas/src/__tests__/spreadsheetFiltersSorts.test.ts` verifies filter and sort invariants over unified rows.

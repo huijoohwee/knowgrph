@@ -52,6 +52,11 @@ import {
   CrossDeviceIdentitySettingsRows,
 } from './CrossDeviceIdentitySettingsRows'
 import {
+  DOCUMENT_STORAGE_SYNC_SETTINGS_ROW_COUNT,
+  DocumentStorageSyncSettingsRows,
+  matchesDocumentStorageSyncQuery,
+} from './DocumentStorageSyncSettingsRows'
+import {
   CROSS_DEVICE_IDENTITY_SETTINGS_ROW_COUNT,
   matchesCrossDeviceIdentityQuery,
 } from './crossDeviceIdentitySettingsContract'
@@ -60,6 +65,7 @@ const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',
 const SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS = 'top-9'
 const CANVAS_EMBED_SETTINGS_AREA = 'Canvas Embed'
 const CROSS_DEVICE_IDENTITY_SETTINGS_AREA = 'Cross-device Identity Gate'
+const DOCUMENT_STORAGE_SYNC_SETTINGS_AREA = 'Document Storage & Sync'
 
 export default function SettingsView({
   searchQuery,
@@ -318,6 +324,15 @@ export default function SettingsView({
         showDensityPresets: false,
       })
     }
+    if (mode === 'all' && matchesDocumentStorageSyncQuery(normalizedQuery)) {
+      descriptors.splice(descriptors[0]?.area === CROSS_DEVICE_IDENTITY_SETTINGS_AREA ? 1 : 0, 0, {
+        area: DOCUMENT_STORAGE_SYNC_SETTINGS_AREA,
+        collapsed: normalizedQuery ? false : !!collapsedByArea[DOCUMENT_STORAGE_SYNC_SETTINGS_AREA],
+        entries: [],
+        sectionMeta: undefined,
+        showDensityPresets: false,
+      })
+    }
     if (mode === 'all' && matchesCanvasEmbedQuery(normalizedQuery)) {
       descriptors.push({
         area: CANVAS_EMBED_SETTINGS_AREA,
@@ -336,11 +351,13 @@ export default function SettingsView({
   }, [mode, normalizedQuery])
   const getSettingsAreaIntroItemCount = React.useCallback((area: string) => {
     if (area === CROSS_DEVICE_IDENTITY_SETTINGS_AREA) return CROSS_DEVICE_IDENTITY_SETTINGS_ROW_COUNT
+    if (area === DOCUMENT_STORAGE_SYNC_SETTINGS_AREA) return DOCUMENT_STORAGE_SYNC_SETTINGS_ROW_COUNT
     if (area === CANVAS_EMBED_SETTINGS_AREA) return CANVAS_EMBED_SETTINGS_ROW_COUNT
     return shouldRenderSourceFileManagementRows(area) ? SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT : 0
   }, [shouldRenderSourceFileManagementRows])
   const renderSettingsAreaIntro = React.useCallback((area: string) => {
     if (area === CROSS_DEVICE_IDENTITY_SETTINGS_AREA) return <CrossDeviceIdentitySettingsRows />
+    if (area === DOCUMENT_STORAGE_SYNC_SETTINGS_AREA) return <DocumentStorageSyncSettingsRows />
     if (area === CANVAS_EMBED_SETTINGS_AREA) return <CanvasEmbedSettingsRows />
     if (!shouldRenderSourceFileManagementRows(area)) return null
     return (

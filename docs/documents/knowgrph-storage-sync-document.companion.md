@@ -113,9 +113,10 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | Developer edits a source file | autosave debounce fires | document upsert queued in local outbox and pushed to `/api/storage/push` | `Verify: sourceFilesStorageSync.test.ts passes and outbox row cleared after push` |
 | Push endpoint receives a mutation | D1 `documents` table upserted by `(workspace_id, canonical_path)` | response confirms stored revision; client clears outbox entry | `Verify: knowgrphStorageWorker.test.ts push assertions pass and no orphaned outbox rows remain` |
 | Second device opens same workspace | client polls `/api/storage/pull` with last cursor | receives all mutations newer than cursor, applies to the local persisted cache | `Verify: knowgrphStorageClientSync.test.ts pull-to-apply assertions pass` |
-| `Storage Sync` is off | Source Files change or workspace selection changes | configured docs mirror refresh loop stays paused | `Verify: sourceFilesBootstrapStartup does not trigger seed refresh when Storage Sync is off` |
-| `Storage Sync` is on and two users edit the same `*.md` | both type at the same time | `Y.Text` merges character-level edits through PocketBase realtime; save bridge commits saved snapshot to GitHub | `Verify: sourceFilesPocketBaseYjsCollaboration.test.ts Markdown CRDT merge assertions pass` |
-| `Storage Sync` is on and two users edit the same `*.json` | both edit at the same time | raw JSON editing is blocked; Yjs shared JSON types own the edit; save bridge commits canonical formatted JSON to GitHub | `Verify: sourceFilesPocketBaseYjsCollaboration.test.ts JSON guardrail assertions pass` |
+| Toolbar `Storage Sync` is off | Source Files change or workspace selection changes | configured local docs mirror refresh stays paused without changing the online collaboration preference | `Verify: sourceFilesBootstrapStartup does not trigger seed refresh when Storage Sync is off` |
+| MainPanel document storage mode is `Offline only` | local edits continue | IndexedDB and the outbox retain work; D1 and PocketBase/Yjs transport remain paused | `Verify: settings.documentStorage.offlinePreference and sourceFiles.storageSync pass` |
+| MainPanel document storage mode is `Online` and two users edit the same `*.md` | both type at the same time | `Y.Text` merges character-level edits through PocketBase realtime; save bridge commits saved snapshot to the owning GitHub docs root | `Verify: sourceFilesPocketBaseYjsCollaboration.test.ts Markdown CRDT merge assertions pass` |
+| MainPanel document storage mode is `Online` and two users edit the same `*.json` | both edit at the same time | raw JSON editing is blocked; Yjs shared JSON types own the edit; save bridge commits canonical formatted JSON to the owning GitHub docs root | `Verify: sourceFilesPocketBaseYjsCollaboration.test.ts JSON guardrail assertions pass` |
 | A collaborator saves a concurrent document | bridge persists the save | bridge owns the GitHub commit; collaborators never touch Git credentials or Git commands | `Verify: collab save bridge e2e test creates GitHub commit and no browser-side credential is accessed` |
 | A generated image/video/binary artifact exists as a local Blob | runtime storage sync is explicitly enabled and the output owner publishes it | bytes upload to R2 through `/api/storage/blob/`; a sibling manifest document is written to D1; Cloudflare persistence is claimed only after both routes read successfully | `Verify: chat.responseContract.storage.kgcBinaryOutputPublishesR2Manifest, chat.responseContract.storage.richMediaBinaryOutputPublishesR2Manifest, and sourceFiles.storageSync.r2BlobRoute.storesBinaryObject pass` |
 
@@ -125,7 +126,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 |---|---|---|---|
 | **Must** | Client push/pull + D1 Worker | 5×5/2 = 12.5 | Enables cross-device continuity; deployed; zero incremental build cost |
 | **Must** | Auto-clear stale outbox conflicts | 4×5/0.5 = 40 | Eliminates manual resolution after re-seed; deployed; < 1 day to build |
-| **Must** | Toolbar Storage Sync gate | 4×4/1 = 16 | User controls sync; prevents accidental seed refresh; deployed |
+| **Must** | Independent local refresh and online collaboration controls | 4×4/1 = 16 | Local mirror refresh remains separate from cloud transport; offline work is retained |
 | **Must** | Generated binary artifact R2 + D1 manifest publication | 4×4/1 = 16 | Required for replayable image/video outputs; built; reuses existing Worker and Source Files owners |
 | **Should** | PocketBase + Yjs concurrent editing | 4×3/3 = 4 | Eliminates Git merge conflict risk for teams; built in Dev; requires PocketBase collection deploy |
 | **Should** | GitHub save bridge | 4×3/2 = 6 | Keeps GitHub SSOT without requiring collaborators to use Git; built in Dev; requires Worker secret |
@@ -193,7 +194,7 @@ Local field names differ from remote to preserve the existing browser-local cont
 - `GET /api/storage/doc/:workspaceId/:canonicalPath*` — public single-document view (text/markdown)
 - `POST /api/storage/blob/:workspaceId/:canonicalPath*` — store generated binary artifacts in R2 under the same workspace/canonical-path identity
 - `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*` — read generated binary artifact bodies or metadata from R2
-- `POST /api/storage/collab/save` — GitHub save bridge; accepts saved Yjs snapshots; requires Worker `KNOWGRPH_STORAGE_GITHUB_TOKEN`, owner, and repo config
+- `POST /api/storage/collab/save` — GitHub save bridge; accepts saved Yjs snapshots; requires Worker token, owner, `KNOWGRPH_STORAGE_GITHUB_KNOWGRPH_REPO`, and `KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO`; validates the request target against path-derived authority
 - Source Files explicit cloud upload reuses that bridge for saved Markdown, including an empty new `.md`, then pushes the identical document to D1 and requires `GET /api/storage/doc/:workspaceId/:canonicalPath*` byte equality before presenting the row as cloud-synced. A bridge failure must not enqueue or push D1.
 
 **Harness Contract — Client Sync Engine**
@@ -203,8 +204,8 @@ The sync client is not an LLM component, but it conforms to a bounded harness pa
 ```
 Input schema: { workspaceId, mutations: KnowgrphStorageMutation[], cursor: string | null }
 Output schema: { pushed: number, pulled: KnowgrphStorageMutation[], newCursor: string, conflicts: ConflictSummary[] }
-Max iterations: 3 push retries per mutation (exponential backoff); poll loop bounded by 120s interval and explicit Storage Sync gate
-Circuit-breaker: Storage Sync off → loop paused; push retry count >= 3 → conflict surfaced to UX
+Max iterations: 3 push retries per mutation (exponential backoff); poll loop bounded by 120s interval and explicit MainPanel online-mode gate
+Circuit-breaker: Offline-only mode → cloud loop paused with outbox retained; push retry count >= 3 → conflict surfaced to UX
 Fallback path: on Worker 5xx → retain outbox; on pull failure → keep last cursor; never silently discard mutations
 ```
 
@@ -262,7 +263,8 @@ sequenceDiagram
 - source-file edits enqueue storage mutations
 - generated workspace artifacts such as `/chat-log/{session}/kgc_{session}.md` promote through the server-owned GitHub write route first, then through the shared Source Files storage publication helper as a secondary read/share cache; generated binary artifacts store bytes in R2 and promote a sibling Markdown manifest through the same secondary D1 document path; `workspace:` entries stay skipped by background sync unless explicitly promoted
 - sync loop starts per active workspace
-- Toolbar → Workspace View → `Storage Sync` gates the configured docs mirror refresh loop and PocketBase/Yjs collaboration rooms
+- Toolbar → Workspace View → `Storage Sync` gates only the configured local docs-mirror refresh loop
+- MainPanel → Settings → `Document Storage & Sync` selects Online or Offline only, exposes both GitHub docs roots, reports fallback state, and runs explicit push/pull without exposing credentials
 - pulled remote records applied back into visible `sourceFiles`
 - graph recomposition follows pulled updates
 - conflict notifications reuse shared toasts and logs
@@ -274,7 +276,7 @@ PocketBase owns auth/session state, collaboration room metadata, membership, and
 - Markdown uses `Y.Text`.
 - JSON uses `Y.Map` / nested shared JSON types and serializes to stable formatted JSON only on save.
 - Yjs document updates are exchanged through the PocketBase collaboration relay; Yjs update events are applied with `Y.applyUpdate()`.
-- The GitHub save bridge is server-side only. It accepts saved Yjs snapshots at explicit save/autosave boundaries, reads PocketBase room state when the Worker PocketBase URL is configured, writes `docs/{path}` through GitHub Contents API or a GitHub App, and owns all commits.
+- The GitHub save bridge is server-side only. It accepts saved Yjs snapshots at explicit save/autosave boundaries, derives repository authority from the document path, rejects mismatched `repositoryTarget` values, and writes `docs/{path}` to either `knowgrph-docs` or `workspace-docs` through GitHub Contents API or a GitHub App.
 - D1 is not a concurrent edit store. It remains a runtime read/export cache.
 
 ---
@@ -348,6 +350,8 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 | ADR-011 | Promote generated chat Markdown through GitHub first, storage second. |
 | ADR-012 | Store generated binary artifacts in R2 with Markdown manifests. |
 | ADR-013 | Persist collaborative AI media through R2, D1, KV, and Durable Objects. |
+| ADR-014 | Use one canonical storage workspace by default across devices. |
+| ADR-015 | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. |
 
 ---
 
@@ -382,7 +386,7 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 1. Add PocketBase collections for collaboration rooms, update envelopes, awareness state, and membership — collection deployment required outside the repo
 2. ~~Add client Yjs room owner for Source Files (`Y.Text` for Markdown, `Y.Map` for JSON)~~ ✅
 3. ~~Add JSON raw-editor guard so multiple active collaborators can only edit JSON through CRDT-backed structured controls~~ ✅
-4. ~~Add GitHub save bridge with server-owned token/App identity, per-file save queue, and commit audit metadata~~ ✅ — `POST /api/storage/collab/save`, requires Worker GitHub token, owner, and repo config; reads PocketBase room state with `KNOWGRPH_STORAGE_POCKETBASE_URL`
+4. ~~Add GitHub save bridge with server-owned token/App identity, per-file save queue, commit audit metadata, and path-scoped repository targets~~ ✅ — `POST /api/storage/collab/save` validates `repositoryTarget`; target-specific repository deployment values and PocketBase remain operator-owned
 5. Extend conflict UX with richer user identity display and bridge save status beyond status/toast messages
 6. See `knowgrph-multi-user-collaboration-prd.tad.md` for full specification
 

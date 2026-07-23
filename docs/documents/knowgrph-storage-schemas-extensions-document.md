@@ -35,6 +35,8 @@ invocation:
 
 The tables below are the concrete D1 extension required before multi-user collaboration can claim authenticated membership, workspace authorization, or server-managed provider relay isolation. They are not part of the shipped anonymous storage baseline until their Worker owners and focused tests exist.
 
+Repository routing is not a deferred schema extension. The shipped collaboration bridge resolves `knowgrph-docs` or `workspace-docs` from the canonical document path, validates the client-supplied target, and uses target-specific server configuration. Repository credentials, local mirror paths, and online/offline preferences must not be stored in these D1 tables.
+
 ```sql
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -156,6 +158,7 @@ type ChatRelayResolvedContext = {
 - `provider-admin` can rotate provider policy defaults without changing workspace ownership.
 - `serverManaged` relay mode must fail closed unless `workspace_provider_policies.allow_server_managed = 1`.
 - BYOK mode remains a per-request browser input and must never be written to D1.
+- GitHub bridge credentials remain Worker-only; browser settings expose repository roots and transport state, never tokens or repository secrets.
 
 ---
 

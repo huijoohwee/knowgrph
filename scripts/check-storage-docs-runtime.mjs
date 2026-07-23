@@ -31,11 +31,14 @@ const requiredRuntimeOwnerPaths = Object.freeze([
   'canvas/src/features/graph-data-table/graphDataTable.ts',
   'canvas/src/features/graph-data-table/graphDataTableFilters.ts',
   'canvas/src/features/graph-data-table/graphDataTableSorts.ts',
+  'canvas/src/features/panels/views/DocumentStorageSyncSettingsRows.tsx',
+  'canvas/src/features/source-files/documentStorageSyncRuntime.ts',
   'canvas/src/features/source-files/sourceFilesGitHubWrite.ts',
   'canvas/src/features/source-files/sourceFilesPocketBaseYjsRoom.ts',
   'canvas/src/features/workspace-fs/workspaceSeedProvider.ts',
   'canvas/src/features/workspace-table/workspaceTableSsot.ts',
   'cloudflare/workers/knowgrph-storage/index.ts',
+  'grph-shared/src/collaboration/documentRepositoryAuthority.ts',
   'grph-shared/src/spreadsheet/types.ts',
   'gympgrph/src/datasets.ts',
   'gympgrph/src/GeospatialPanelHost.tsx',
@@ -170,6 +173,16 @@ if (!sourceAuthority || typeof sourceAuthority !== 'object'
   || sourceAuthority.production_mirror_root !== 'huijoohwee/content/knowgrph'
   || sourceAuthority.production_mirror_editable !== false) {
   fail('primary storage document must preserve the path-scoped source authority contract')
+}
+for (const requiredText of [
+  'Document Storage & Sync',
+  'knowgrph-docs',
+  'workspace-docs',
+  'Offline only',
+]) {
+  if (!documents.some(document => document.markdown.includes(requiredText))) {
+    fail(`storage documents must describe the implemented runtime contract: ${requiredText}`)
+  }
 }
 
 const spreadsheet = documents.find(document => document.relativePath.includes('spreadsheet-storage'))

@@ -49,6 +49,7 @@ invocation:
 | ADR-012 | Accepted | Store generated binary artifacts in R2 with Markdown manifests. | `cloudflare/workers/knowgrph-storage/index.ts` |
 | ADR-013 | Accepted | Persist collaborative AI media through R2, D1, KV, and Durable Objects. | `cloudflare/workers/knowgrph-storage/index.ts` |
 | ADR-014 | Accepted | Use one canonical storage workspace by default across devices. | `canvas/src/features/source-files/sourceFilesStorageSync.ts` |
+| ADR-015 | Accepted | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. | `grph-shared/src/collaboration/documentRepositoryAuthority.ts` |
 
 ## ADR-001: Minimal Persisted Client Working Store
 
@@ -105,3 +106,7 @@ AI media persistence combines R2 bytes, D1 metadata, optional KV access-cache en
 ## ADR-014: Canonical Cross-Device Source Files Workspace
 
 The default Source Files storage workspace is `kgws:canonical-docs` on every installation. Browser-local folder cache IDs and selected paths remain local workspace preferences, never remote storage identity, so Dev, Prod, and other devices converge on the same Source Files inventory. `VITE_KNOWGRPH_STORAGE_WORKSPACE_ID` is the explicit opt-in boundary for an isolated workspace.
+
+## ADR-015: Path-Scoped GitHub Repository Authority
+
+The shared authority resolver maps Knowgrph product documents and `/docs/workspace-seeds/**` to `knowgrph-docs`, maps user-created and imported workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths plus the duplicate `huijoohwee/docs/workspace-seeds/**` root as collaboration write targets. Every browser save request carries the resolved target, and the Worker re-derives it before selecting target-specific repository configuration. IndexedDB and the outbox remain available when online transport is disabled or unavailable.
