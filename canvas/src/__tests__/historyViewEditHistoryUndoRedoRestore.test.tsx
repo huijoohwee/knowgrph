@@ -344,6 +344,14 @@ export function testRichMediaInlineEditVersionsAndRestoresThroughSharedHistory()
   if (restoredAfterNode?.properties?.output !== 'After inline edit') {
     throw new Error(`expected shared GitGraph/History restore to recover the edited Rich Media node, got ${JSON.stringify(restoredAfterNode?.properties)}`)
   }
+  useGraphStore.getState().undoHistory()
+  if (useGraphStore.getState().graphData?.nodes?.[0]?.properties?.output !== 'Before inline edit') {
+    throw new Error('expected shared Undo to restore the Rich Media text before the inline edit')
+  }
+  useGraphStore.getState().redoHistory()
+  if (useGraphStore.getState().graphData?.nodes?.[0]?.properties?.output !== 'After inline edit') {
+    throw new Error('expected shared Redo to restore the versioned Rich Media inline edit')
+  }
 
   const historyLengthBeforeNoop = useGraphStore.getState().history.length
   const noopCommitted = commitRichMediaInlineEditVersion({
