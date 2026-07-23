@@ -40,7 +40,9 @@ export type RichMediaPanelProps = {
   onPointerDownCapture?: React.PointerEventHandler<HTMLElement>
   onPointerUpCapture?: React.PointerEventHandler<HTMLElement>
   onWheelCapture?: React.WheelEventHandler<HTMLElement>
+  onClick?: React.MouseEventHandler<HTMLElement>
   onClickCapture?: React.MouseEventHandler<HTMLElement>
+  onDoubleClick?: React.MouseEventHandler<HTMLElement>
   onDoubleClickCapture?: React.MouseEventHandler<HTMLElement>
   onContextMenuCapture?: React.MouseEventHandler<HTMLElement>
   widgetToolbarActive?: boolean
