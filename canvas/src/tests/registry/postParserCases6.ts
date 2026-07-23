@@ -137,6 +137,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.widgetRun.rejectsOverboundedProviderCards","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUsesMcpResult"],
   ["canvas.probeTree.widgetRun.refusesGenericNoModelFallback","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRefusesGenericNoModelFallback"],
   ["canvas.probeTree.widgetRun.repairsRejectedFoodStallCardsOnce","@/__tests__/probeTreeWidgetRunProviderRepair.test","testProbeTreeWidgetRunRepairsRejectedFoodStallCardsOnce"],
+  ["canvas.probeTree.widgetRun.completesSecondBoundedRepairWithinFirstRun","@/__tests__/probeTreeWidgetRunProviderRepair.test","testProbeTreeWidgetRunCompletesSecondBoundedRepairWithinFirstRun"],
   ["canvas.probeTree.widgetRun.acceptsMalayAffixGrounding","@/__tests__/probeTreeWidgetRunProviderRepair.test","testProbeTreeWidgetRunAcceptsMalayAffixGrounding"],
   ["canvas.probeTree.widgetRun.multilingualContinuationSwitch","@/__tests__/probeTreeWidgetRunMultilingualContinuation.test","testProbeTreeWidgetRunFollowsUserAuthoredContinuationLanguageSwitch"],
   ["canvas.probeTree.widgetRun.surfacesProviderTransportFailure","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunSurfacesProviderTransportFailure"],
