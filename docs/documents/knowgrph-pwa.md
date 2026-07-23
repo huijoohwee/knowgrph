@@ -136,10 +136,28 @@ release from conflicting HTML and chunk generations.
 
 The build emits one imported worker authority containing the exact 40-character source
 revision. Cache cleanup asks the activated controller for that revision, refuses to mutate
-while another worker is installing or waiting, and then deletes every scoped cached HTML
-response plus every `/knowgrph/assets/*` entry outside the controller's namespace across all
-CacheStorage caches. This also removes prior-revision entries retained by the shared
-`kg-assets` runtime cache without letting an old document delete its successor's assets.
+while another worker is installing or waiting, and then deletes cached HTML from
+Knowgrph-owned caches plus every scoped `/knowgrph` HTML response and every stale
+`/knowgrph/assets/*` entry wherever found. This removes response-typed HTML poison stored
+under root asset-shaped paths in `kg-static` while preserving valid HTML owned by sibling
+application cache namespaces such as Singabldr. It also removes prior-revision entries
+retained by the shared `kg-assets` runtime cache without letting an old document delete its
+successor's assets.
+
+Each generated `kg-assets`, `kg-static`, and `kg-data` route also rejects HTML and XHTML on
+both cache admission and cache reads. The write policy retains Workbox's HTTP 200 requirement.
+This prevents a scoped deep-link rewrite or an old root fallback response from re-entering a
+non-navigation runtime cache after cleanup.
+
+The apex Pages Function has no alternate Home or XR renderer. It rewrites only the canonical
+published `/knowgrph/` app shell and fails closed if that shell is unavailable or invalid.
+Publish sync also removes the superseded static root shell and installs one top-level
+`404.html`. This disables Cloudflare Pages' implicit whole-site SPA fallback, so a missing
+image or script returns HTTP 404 instead of a 200 Home document, while the release gate
+proves the explicit Singabldr routes still resolve. The sync owner also removes the obsolete
+`/` and `/index.html` static-shell rewrites plus standalone Hackamap redirects whose published
+target no longer exists; the root Function and canonical `/knowgrph/` application remain the
+only Home owners.
 
 The generated `sw.js` entry and both mutable imports,
 `knowgrph-service-worker-revision.js` and `knowgrph-chat-stream-sw.js`, use `no-store`

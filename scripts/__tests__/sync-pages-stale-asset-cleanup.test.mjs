@@ -6,6 +6,10 @@ import path from "node:path";
 const repoRoot = path.resolve(import.meta.dirname, "..", "..");
 const syncScriptPath = path.resolve(repoRoot, "scripts", "sync-pages-knowgrph.mjs");
 const syncScript = fs.readFileSync(syncScriptPath, "utf8");
+const routingSource = fs.readFileSync(
+  path.resolve(repoRoot, "scripts", "production-pages-routing.mjs"),
+  "utf8",
+);
 
 test("publish sync removes stale generated assets from both mirror trees", () => {
   assert.equal(
@@ -76,6 +80,35 @@ test("publish sync includes the motion-control tool contract dependency", () => 
 
 test("publish sync keeps the live canvas hero markdown route in the root-managed file set", () => {
   assert.match(syncScript, /'knowgrph-live-canvas-hero\.md'/);
+});
+
+test("publish sync replaces the implicit Pages SPA fallback with one managed 404 boundary", () => {
+  assert.match(
+    syncScript,
+    /const publishRootManagedSourceFiles = \[\{\s+rel: '404\.html',\s+src: path\.resolve\(knowgrphRoot, 'cloudflare', 'pages', '404\.html'\),\s+\}\]/m,
+  );
+  assert.match(syncScript, /publishRootManagedFilesToCopy/);
+  assert.match(
+    syncScript,
+    /copyPlainFile\(entry\.src, path\.resolve\(mirrorRoot, entry\.rel\)\)/,
+  );
+  assert.match(
+    syncScript,
+    /const obsoleteGeneratedMirrorFiles = new Set\(\[\s+'index\.html',/m,
+    "expected publish sync to remove the superseded static root shell",
+  );
+  for (const staleRedirect of [
+    "/ /content/knowgrph/index.html 200",
+    "/index.html /content/knowgrph/index.html 200",
+    "/hackamap /hackamap/ 301",
+    "/hackamap/ /content/hackamap/index.html 200",
+    "/hackamap/* /content/hackamap/:splat 200",
+    "/user-secrets*.json /404 404",
+    "/content/singabldr/user-secrets*.json /404 404",
+  ]) {
+    assert.match(routingSource, new RegExp(staleRedirect.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(routingSource, /\.filter\(line => !obsoleteRedirectLines\.has\(line\.trim\(\)\)\)/);
 });
 
 test("publish sync prevents HTTP caching of every mutable service-worker script", () => {

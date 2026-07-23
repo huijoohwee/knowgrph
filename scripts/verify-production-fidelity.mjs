@@ -170,6 +170,36 @@ await validateProductionRuntimeReadiness(markerAtApex.marker, {
   sourceRevision: expectedSourceRevision,
   immutableManifestDigest: expectedManifestDigest,
 })
+for (const missingPath of [
+  `/knowgrph-release-missing-${expectedSourceRevision}.png`,
+  `/knowgrph-release-missing-${expectedSourceRevision}.js`,
+  `/knowgrph-release-missing-${expectedSourceRevision}/`,
+  '/index.html',
+  '/hackamap/',
+]) {
+  const missingResponse = await fetch(`${markerOrigin}${missingPath}`, {
+    cache: 'no-store',
+    redirect: 'manual',
+  })
+  const missingBody = await missingResponse.text()
+  assert.equal(missingResponse.status, 404, 'missing assets must not resolve through the apex Home app shell')
+  assert.match(missingResponse.headers.get('content-type') || '', /^text\/html\b/i)
+  assert.match(missingBody, /<h1>Not found<\/h1>/)
+  assert.doesNotMatch(missingBody, /\/knowgrph\/assets\//)
+}
+const siblingAppResponse = await fetch(`${markerOrigin}/singabldr/`, { cache: 'no-store' })
+const siblingAppBody = await siblingAppResponse.text()
+assert.equal(siblingAppResponse.status, 200, 'the Pages 404 boundary must preserve the sibling Singabldr app')
+assert.match(siblingAppResponse.headers.get('content-type') || '', /^text\/html\b/i)
+assert.match(siblingAppBody, /<title>Singabldr<\/title>/)
+const siblingManifestResponse = await fetch(`${markerOrigin}/singabldr/manifest.webmanifest`, {
+  cache: 'no-store',
+})
+assert.equal(siblingManifestResponse.status, 200, 'the Pages 404 boundary must preserve sibling static assets')
+assert.equal((await siblingManifestResponse.json()).name, 'Singabldr')
+const siblingWorkerResponse = await fetch(`${markerOrigin}/singabldr/sw.js`, { cache: 'no-store' })
+assert.equal(siblingWorkerResponse.status, 200, 'the Pages 404 boundary must preserve the sibling worker')
+assert.match(siblingWorkerResponse.headers.get('content-type') || '', /javascript/i)
 
 const browser = await chromium.launch({
   channel: 'chrome',

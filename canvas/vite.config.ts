@@ -44,7 +44,7 @@ import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBas
 import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
 import { loadChatProxyServerManagedEnv, resolveViteRuntimeIdentity } from './viteChatProxyEnv'
 import { forwardChatProxyUpstreamHead, forwardChatProxyUpstreamResponse } from './viteChatProxyResponse'; import { createProbeTreeMcpBridgePlugin } from './viteProbeTreeMcpBridge'
-import { createExternalMcpBridgePlugin } from './viteExternalMcpBridge'; import { resolveKnowgrphStorageDevProxyTarget } from './viteStorageProxyEnv'
+import { createExternalMcpBridgePlugin } from './viteExternalMcpBridge'; import { resolveKnowgrphStorageDevProxyTarget } from './viteStorageProxyEnv'; import { nonHtmlRuntimeCachePlugin } from './vitePwaRuntimeCachePolicy'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..'), workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname }); const runtimeIdentity = resolveViteRuntimeIdentity(repoRoot)
@@ -7090,7 +7090,7 @@ export default defineConfig(({ command, mode }) => {
               || request.destination === 'worker',
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'kg-assets',
+              cacheName: 'kg-assets', plugins: [nonHtmlRuntimeCachePlugin],
               expiration: { maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 14 },
             },
           },
@@ -7098,7 +7098,7 @@ export default defineConfig(({ command, mode }) => {
             urlPattern: ({ request }) => request.destination === 'image' || request.destination === 'font',
             handler: 'CacheFirst',
             options: {
-              cacheName: 'kg-static',
+              cacheName: 'kg-static', plugins: [nonHtmlRuntimeCachePlugin],
               expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
@@ -7114,7 +7114,7 @@ export default defineConfig(({ command, mode }) => {
               ),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'kg-data',
+              cacheName: 'kg-data', plugins: [nonHtmlRuntimeCachePlugin],
               expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },
