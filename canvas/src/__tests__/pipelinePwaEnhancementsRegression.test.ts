@@ -106,8 +106,14 @@ export function testPwaRuntimeTracksStandaloneInstallAndUpdateState() {
   if (!runtimeText.includes('onOfflineReady()')) {
     throw new Error('Expected PWA runtime to surface offline-ready state')
   }
-  if (!runtimeText.includes('onRegisteredSW(_scriptUrl, registration)')) {
-    throw new Error('Expected PWA runtime to bind revision checks to the registered canonical worker')
+  if (!runtimeText.includes('registerCanonicalServiceWorker({')) {
+    throw new Error('Expected PWA runtime to register the canonical worker through the app-owned update policy')
+  }
+  const registrationOwnerText = readUtf8(
+    path.resolve(process.cwd(), 'src/lib/pwa/serviceWorkerRegistrationOwner.ts'),
+  )
+  if (!registrationOwnerText.includes("updateViaCache: 'none'")) {
+    throw new Error('Expected canonical worker registration to bypass caches for rapid release convergence')
   }
   if (!runtimeText.includes('installServiceWorkerRevisionUpdateOwner({')) {
     throw new Error('Expected PWA runtime to refresh the canonical worker on registration and bounded recovery events')

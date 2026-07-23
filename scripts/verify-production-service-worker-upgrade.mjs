@@ -276,6 +276,7 @@ const readServiceWorkerRevisionEvidence = async page => page.evaluate(async () =
   return {
     registrations: registrations.map(registration => ({
       scope: registration.scope,
+      updateViaCache: registration.updateViaCache,
       activeState: registration.active?.state || '',
       activeScriptUrl: registration.active?.scriptURL || '',
       installingScriptUrl: registration.installing?.scriptURL || '',
@@ -305,10 +306,12 @@ const isExpectedServiceWorkerRevision = (
   expectedRevision,
   requireNoCachedHtml,
   requireActiveAttestation,
+  requireNetworkOnlyRegistration,
 ) => {
   if (evidence.registrations.length !== 1) return false
   const [registration] = evidence.registrations
   return registration.scope === canonicalWorkerScope
+    && (!requireNetworkOnlyRegistration || registration.updateViaCache === 'none')
     && registration.activeState === 'activated'
     && registration.activeScriptUrl === canonicalWorkerScriptUrl
     && registration.installingScriptUrl === ''
@@ -339,6 +342,7 @@ const waitForServiceWorkerRevision = async (
   expectedRevision,
   requireNoCachedHtml,
   requireActiveAttestation,
+  requireNetworkOnlyRegistration = false,
 ) => {
   const deadline = Date.now() + WAIT_TIMEOUT_MS
   let evidence = null
@@ -350,6 +354,7 @@ const waitForServiceWorkerRevision = async (
         expectedRevision,
         requireNoCachedHtml,
         requireActiveAttestation,
+        requireNetworkOnlyRegistration,
       )) return evidence
     } catch {
       // The controlled document may reload while the new worker claims it.
@@ -503,6 +508,7 @@ const verify = async () => {
       expectedRevision,
       true,
       true,
+      true,
     )
     assert.deepEqual(
       upgradeServiceWorker.preservedSiblingHtmlPaths,
@@ -537,6 +543,7 @@ const verify = async () => {
     const finalServiceWorker = await waitForServiceWorkerRevision(
       finalPage,
       expectedRevision,
+      true,
       true,
       true,
     )
