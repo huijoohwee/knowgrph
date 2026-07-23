@@ -200,24 +200,21 @@ def verify_stop_start_lifecycle(
         calls,
     )
     resumed = start_result["flight"]["flightSim"]
-    if start_result.get("ok") is not True or resumed.get("phase") != "flying":
+    if (
+        start_result.get("ok") is not True
+        or resumed.get("phase") != before_stop.get("phase")
+    ):
         raise AssertionError(f"Flight start failed: {start_result}")
     assert_simulation_unchanged(
         stopped,
         resumed,
         label="explicit Flight stop-to-start",
     )
-    advanced = _poll(
-        page,
-        lambda value: value.get("tick", 0) > resumed.get("tick", 0),
-        label="resumed Flight ticks",
-    )
     return {
         "before": before_stop,
         "stopped": stopped,
         "frozen": frozen,
         "resumed": resumed,
-        "advanced": advanced,
     }
 
 

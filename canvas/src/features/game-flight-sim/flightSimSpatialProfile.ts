@@ -22,6 +22,10 @@ import {
   type FlightSimSpatialProfile,
   type FlightSimWaypoint,
 } from './flightSimModel'
+import {
+  FLIGHT_SIM_SPATIAL_SCALE_ID,
+  flightSimAuthoredWorldUnitsToMeters,
+} from './flightSimSpatialScale'
 
 export type FlightSimCollisionResolution = Readonly<{
   state: FlightSimAircraftState
@@ -31,6 +35,10 @@ export type FlightSimCollisionResolution = Readonly<{
 
 function vector(value: readonly number[]): SpatialVector {
   return Object.freeze([...value]) as SpatialVector
+}
+
+function missionVector(value: readonly number[]): SpatialVector {
+  return vector(value.map(flightSimAuthoredWorldUnitsToMeters))
 }
 
 function blockerCuboid(blocker: FlightSimBlocker): SpatialWorldCuboid {
@@ -48,57 +56,70 @@ function compareIds(left: { id: string }, right: { id: string }): number {
 export function createFlightSimSpatialProfile(
   source: XrCanonicalSceneSpatialSource,
 ): FlightSimSpatialProfile {
-  const [centerX, centerZ] = source.perimeter.centerMeters
-  const halfWidth = source.perimeter.halfWidthMeters
-  const halfDepth = source.perimeter.halfDepthMeters
+  const [sourceCenterX, sourceCenterZ] = source.perimeter.centerMeters
+  const centerX = flightSimAuthoredWorldUnitsToMeters(sourceCenterX)
+  const centerZ = flightSimAuthoredWorldUnitsToMeters(sourceCenterZ)
+  const halfWidth = flightSimAuthoredWorldUnitsToMeters(source.perimeter.halfWidthMeters)
+  const halfDepth = flightSimAuthoredWorldUnitsToMeters(source.perimeter.halfDepthMeters)
   const authoredBlockers = source.staticColliders
     .filter(collider => !collider.trigger)
     .map<FlightSimBlocker>(collider => Object.freeze({
       id: collider.id,
-      center: vector(collider.center),
-      halfSize: vector(collider.sizeMeters.map(size => size / 2)),
+      center: missionVector(collider.center),
+      halfSize: missionVector(collider.sizeMeters.map(size => size / 2)),
     }))
     .sort(compareIds)
+  const boundaryHalfThickness = flightSimAuthoredWorldUnitsToMeters(0.5)
   const ground = Object.freeze({
     id: 'flight-sim:terrain-ground',
-    center: vector([centerX, -0.5, centerZ]),
-    halfSize: vector([halfWidth, 0.5, halfDepth]),
+    center: vector([centerX, -boundaryHalfThickness, centerZ]),
+    halfSize: vector([halfWidth, boundaryHalfThickness, halfDepth]),
   })
   const authoredTop = authoredBlockers.reduce(
     (maximum, blocker) => Math.max(maximum, blocker.center[1] + blocker.halfSize[1]),
     0,
   )
-  const ceilingHeight = Math.max(32, authoredTop + 12)
-  const boundaryHalfHeight = ceilingHeight / 2 + 0.5
+  const ceilingHeight = Math.max(
+    flightSimAuthoredWorldUnitsToMeters(32),
+    authoredTop + flightSimAuthoredWorldUnitsToMeters(12),
+  )
+  const boundaryHalfHeight = ceilingHeight / 2 + boundaryHalfThickness
+  const boundaryPadding = boundaryHalfThickness * 2
   const boundaries: readonly FlightSimBlocker[] = Object.freeze([
     Object.freeze({
       id: 'flight-sim:boundary-west',
-      center: vector([centerX - halfWidth - 0.5, ceilingHeight / 2, centerZ]),
-      halfSize: vector([0.5, boundaryHalfHeight, halfDepth + 1]),
+      center: vector([centerX - halfWidth - boundaryHalfThickness, ceilingHeight / 2, centerZ]),
+      halfSize: vector([boundaryHalfThickness, boundaryHalfHeight, halfDepth + boundaryPadding]),
     }),
     Object.freeze({
       id: 'flight-sim:boundary-east',
-      center: vector([centerX + halfWidth + 0.5, ceilingHeight / 2, centerZ]),
-      halfSize: vector([0.5, boundaryHalfHeight, halfDepth + 1]),
+      center: vector([centerX + halfWidth + boundaryHalfThickness, ceilingHeight / 2, centerZ]),
+      halfSize: vector([boundaryHalfThickness, boundaryHalfHeight, halfDepth + boundaryPadding]),
     }),
     Object.freeze({
       id: 'flight-sim:boundary-north',
-      center: vector([centerX, ceilingHeight / 2, centerZ - halfDepth - 0.5]),
-      halfSize: vector([halfWidth + 1, boundaryHalfHeight, 0.5]),
+      center: vector([centerX, ceilingHeight / 2, centerZ - halfDepth - boundaryHalfThickness]),
+      halfSize: vector([halfWidth + boundaryPadding, boundaryHalfHeight, boundaryHalfThickness]),
     }),
     Object.freeze({
       id: 'flight-sim:boundary-south',
-      center: vector([centerX, ceilingHeight / 2, centerZ + halfDepth + 0.5]),
-      halfSize: vector([halfWidth + 1, boundaryHalfHeight, 0.5]),
+      center: vector([centerX, ceilingHeight / 2, centerZ + halfDepth + boundaryHalfThickness]),
+      halfSize: vector([halfWidth + boundaryPadding, boundaryHalfHeight, boundaryHalfThickness]),
     }),
     Object.freeze({
       id: 'flight-sim:boundary-ceiling',
-      center: vector([centerX, ceilingHeight + 0.5, centerZ]),
-      halfSize: vector([halfWidth + 1, 0.5, halfDepth + 1]),
+      center: vector([centerX, ceilingHeight + boundaryHalfThickness, centerZ]),
+      halfSize: vector([halfWidth + boundaryPadding, boundaryHalfThickness, halfDepth + boundaryPadding]),
     }),
   ])
   const blockers = Object.freeze([...authoredBlockers, ...boundaries, ground].sort(compareIds))
-  const cruiseAltitude = Math.max(7, Math.min(20, authoredTop + 3))
+  const cruiseAltitude = Math.max(
+    flightSimAuthoredWorldUnitsToMeters(7),
+    Math.min(
+      flightSimAuthoredWorldUnitsToMeters(20),
+      authoredTop + flightSimAuthoredWorldUnitsToMeters(3),
+    ),
+  )
   const spawn = freezeFlightSimAircraftState({
     position: vector([centerX, cruiseAltitude, centerZ + halfDepth * 0.34]),
     velocity: vector([0, 0, -12]),
@@ -109,8 +130,8 @@ export function createFlightSimSpatialProfile(
   })
   const waypointSeeds: readonly [string, number, number, number][] = [
     ['departure', centerX, cruiseAltitude, centerZ - halfDepth * 0.12],
-    ['harbour-west', centerX - halfWidth * 0.32, cruiseAltitude + 2, centerZ - halfDepth * 0.38],
-    ['home-leg', centerX + halfWidth * 0.28, cruiseAltitude + 1, centerZ + halfDepth * 0.04],
+    ['harbour-west', centerX - halfWidth * 0.32, cruiseAltitude + flightSimAuthoredWorldUnitsToMeters(2), centerZ - halfDepth * 0.38],
+    ['home-leg', centerX + halfWidth * 0.28, cruiseAltitude + flightSimAuthoredWorldUnitsToMeters(1), centerZ + halfDepth * 0.04],
   ]
   const waypoints = Object.freeze(waypointSeeds.map<FlightSimWaypoint>((seed, index) => Object.freeze({
     id: `flight-sim:waypoint:${index + 1}:${seed[0]}`,
@@ -119,12 +140,16 @@ export function createFlightSimSpatialProfile(
   })))
   const landingPad = Object.freeze({
     id: 'flight-sim:landing-pad:home',
-    position: vector([centerX, 0.25, centerZ + halfDepth * 0.24]),
+    position: vector([
+      centerX,
+      flightSimAuthoredWorldUnitsToMeters(0.25),
+      centerZ + halfDepth * 0.24,
+    ]),
     radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
   })
   return Object.freeze({
-    id: `flight-sim:${source.projection}:${source.stage.id}`,
-    sourceKey: `${source.projection}:${source.stage.id}`,
+    id: `flight-sim:${source.projection}:${source.stage.id}:${FLIGHT_SIM_SPATIAL_SCALE_ID}`,
+    sourceKey: `${source.projection}:${source.stage.id}:${FLIGHT_SIM_SPATIAL_SCALE_ID}`,
     aircraftHalfSize: FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.collisionHalfSizeMeters,
     spawn,
     blockers,
@@ -149,7 +174,7 @@ function readSpatialSelection() {
 
 export function readFlightSimXrSpatialSourceKey(): string {
   const selection = readSpatialSelection()
-  return `${selection.projection}:${selection.stageId}`
+  return `${selection.projection}:${selection.stageId}:${FLIGHT_SIM_SPATIAL_SCALE_ID}`
 }
 
 export function readFlightSimXrSpatialProfile(): FlightSimSpatialProfile {

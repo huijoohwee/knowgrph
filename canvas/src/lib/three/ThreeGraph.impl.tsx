@@ -34,6 +34,7 @@ import {
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { XrRendererClearController } from '@/lib/three/XrRendererClearController'
 import { GAME_FPS_SHARED_XR_PROFILE_ID } from '@/features/game-fps/gameFpsModel'
+import { resolveFlightSimGameplayCoordinateScale } from '@/features/game-flight-sim/flightSimSpatialScale'
 import { useCanvasGameplayOverlayState } from '@/features/canvas/useCanvasGameplayOverlayState'
 import {
   ThreeGameplayMissionStage,
@@ -60,7 +61,6 @@ const ControlsLazy = React.lazy(() =>
   })),
 )
 const XR_PHYSICS_RUN_READY_GRAPH: GraphData = { type: 'Graph', nodes: [], edges: [] }
-
 function XrWorldPlacement({
   active,
   children,
@@ -78,7 +78,6 @@ function XrWorldPlacement({
     </XrArPlacementStage>
   ) : <>{children}</>
 }
-
 export default function ThreeGraph({ active = true, mode = '3d' }: { active?: boolean; mode?: Canvas3dModeId }) {
   const {
     schema,
@@ -420,9 +419,10 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       </section>
     )
   }
-  const gameplayCoordinateScale = nativeXrRunReadyDemo
-    ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
-    : 1 / xrStageMetersPerUnit
+  const gameplayCoordinateScale = resolveFlightSimGameplayCoordinateScale(
+    nativeXrRunReadyDemo ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE : 1 / xrStageMetersPerUnit,
+    flightStageActive,
+  )
   const gameplayStage = <ThreeGameplayMissionStage
     coordinateScale={gameplayCoordinateScale}
     flightSimActive={flightStageActive}

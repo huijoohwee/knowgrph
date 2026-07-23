@@ -306,6 +306,11 @@ def main() -> None:
             web_mcp = verify_flight_web_mcp(page, initial)
             web_mcp_calls.extend(web_mcp["calls"])
 
+            stop_start = verify_stop_start_lifecycle(page, web_mcp_calls)
+            stopped = stop_start["stopped"]
+            frozen = stop_start["frozen"]
+            resumed = stop_start["resumed"]
+
             page.keyboard.down("KeyW")
             page.keyboard.down("KeyD")
             moved = poll(
@@ -323,6 +328,7 @@ def main() -> None:
             )
             page.keyboard.up("KeyD")
             page.keyboard.up("KeyW")
+            resumed_advanced = moved
             hud_pitch = float(
                 hud.get_attribute("data-kg-flight-sim-pitch") or "nan"
             )
@@ -358,12 +364,6 @@ def main() -> None:
                 raise AssertionError(
                     f"strict absolute throttle control failed: {throttle_result}"
                 )
-
-            stop_start = verify_stop_start_lifecycle(page, web_mcp_calls)
-            stopped = stop_start["stopped"]
-            frozen = stop_start["frozen"]
-            resumed = stop_start["resumed"]
-            resumed_advanced = stop_start["advanced"]
 
             restarted_result = control_flight_via_web_mcp(
                 page,
