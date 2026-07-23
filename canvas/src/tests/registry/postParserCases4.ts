@@ -331,6 +331,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["workspaceFs.seedProvider.browserUpsertDocsMirrorWritesViaKgFsProxy","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertDocsMirrorWritesViaKgFsProxy"],
   ["workspaceFs.seedProvider.enforcesCanonicalWorkspaceSeedsMutations","@/__tests__/workspaceSeedStorageAuthority.test","testWorkspaceSeedProviderEnforcesCanonicalWorkspaceSeedsMutations"],
   ["workspaceFs.seedProvider.projectsCanonicalWorkspaceSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testWorkspaceSeedProviderProjectsCanonicalLocalInventoryExactly"],
+  ["workspaceFs.persisted.repoLocalReconcilesCanonicalWorkspaceSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testRepoLocalPersistedBootstrapReconcilesCanonicalSeedInventory"],
   ["workspaceFs.seedProvider.overlaysCanonicalLocalSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testWorkspaceSeedProviderOverlaysLocalInventoryOnPublishedDocs"],
   ["workspaceFs.persisted.reconcilesCanonicalWorkspaceSeedInventory","@/__tests__/workspaceSeedInventorySync.test","testWorkspaceSeedReconciliationPrunesStaleCanonicalInventory"],
   ["workspaceFs.seedProvider.browserUpsertDocsMirrorSkipsHiddenDocumentWrites","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertDocsMirrorSkipsHiddenDocumentWrites"],
