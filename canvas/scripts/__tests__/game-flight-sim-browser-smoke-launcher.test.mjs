@@ -1,13 +1,32 @@
+import assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { resolveGameFlightSimBrowserPaths } from '../lib/game-flight-sim-browser-paths.mjs'
 import { runLocalViteBrowserSmoke } from '../lib/run-local-vite-browser-smoke.mjs'
 
 const canvasRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+
+test('Flight browser smoke owns build output from the Canvas package root', () => {
+  const runnerPath = join(
+    canvasRoot,
+    'scripts',
+    'run_game_flight_sim_browser_smoke.mjs',
+  )
+  const paths = resolveGameFlightSimBrowserPaths(pathToFileURL(runnerPath))
+
+  assert.equal(paths.canvasRoot, canvasRoot)
+  assert.equal(paths.repoRoot, resolve(canvasRoot, '..'))
+  assert.equal(paths.distIndexPath, join(canvasRoot, 'dist', 'index.html'))
+  assert.notEqual(
+    paths.distIndexPath,
+    join(canvasRoot, 'scripts', 'dist', 'index.html'),
+  )
+})
 
 function reserveLocalPort() {
   return new Promise((resolvePromise, reject) => {

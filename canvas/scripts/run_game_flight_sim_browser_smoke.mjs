@@ -28,10 +28,16 @@ import {
 import {
   assertGitVerificationWorkspace,
 } from '../../scripts/lib/git-verification-workspace.mjs'
+import {
+  resolveGameFlightSimBrowserPaths,
+} from './lib/game-flight-sim-browser-paths.mjs'
 
 const scriptPath = fileURLToPath(import.meta.url)
-const canvasRoot = path.dirname(scriptPath)
-const repoRoot = path.resolve(canvasRoot, '..', '..')
+const {
+  canvasRoot,
+  distIndexPath,
+  repoRoot,
+} = resolveGameFlightSimBrowserPaths(import.meta.url)
 const outputRoot = path.join(repoRoot, 'data', 'outputs')
 const sourcePath = path.join(
   repoRoot,
@@ -145,7 +151,7 @@ async function buildExactProductionPreview(candidate) {
     })
   })
   await assertCandidateState(candidate)
-  const indexBytes = await readFile(path.join(canvasRoot, 'dist', 'index.html'))
+  const indexBytes = await readFile(distIndexPath)
   const indexSource = indexBytes.toString('utf8')
   if (
     !indexSource.includes('<main id="root"></main>')

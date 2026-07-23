@@ -302,11 +302,17 @@ export async function assertFlightSimVerificationReadiness({ readText }) {
     'prepareEvidence: prepareIsolatedEvidence',
     'assertGitVerificationWorkspace({',
     'buildExactProductionPreview(candidate)',
+    'resolveGameFlightSimBrowserPaths(import.meta.url)',
     "KG_SKIP_DOCS_UPDATE: '1'",
     "VITE_BASE_PATH: '/'",
+    'cwd: canvasRoot',
+    'const indexBytes = await readFile(distIndexPath)',
     "indexSource.includes('/@vite/client')",
     "devServerStartMode: 'vite-preview-runner'",
     'productionBuild,',
+  ], 'Flight Sim exact deadline evidence aggregate')
+  forbidMarkers(browserAggregateSource, [
+    'const canvasRoot = path.dirname(scriptPath)',
   ], 'Flight Sim exact deadline evidence aggregate')
   const productionBuildCalls = (
     browserAggregateSource.match(
