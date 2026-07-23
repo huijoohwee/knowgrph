@@ -83,6 +83,9 @@ export async function testRichMediaWorkspaceViewerRetainsCommittedDraftUntilPare
 
     const committedQuestion = Array.from(container.querySelectorAll('strong') as NodeListOf<HTMLElement>)
       .find(element => String(element.textContent || '').includes(editedQuestion))
+    if (container.querySelector('[contenteditable="true"][aria-label="Edit markdown block"]')) {
+      throw new Error('expected the committed question to return to the Viewer surface')
+    }
     if (!committedQuestion?.closest('li[data-kg-list-item-index="0"]')) {
       throw new Error(`expected the committed question to remain visible in its first ordered-list row while parent persistence catches up, html=${container.innerHTML}`)
     }
