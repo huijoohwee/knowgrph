@@ -7,7 +7,7 @@ import { KNOWGRPH_STORAGE_DEVICE_ID_KEY } from '../src/lib/storage/knowgrphStora
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '../src/lib/routing/queryParams'
 import { LOCAL_DOC_PARAM } from '../src/features/canvas/canvasDocDeepLink'
 
-const DEFAULT_OWNER_APP_URL = 'http://127.0.0.1:5173/'
+const DEFAULT_OWNER_APP_URL = 'http://127.0.0.1:5175/'
 const DEFAULT_GUEST_APP_URL = 'http://127.0.0.1:5174/'
 const DEFAULT_WORKER_URL = 'http://127.0.0.1:8787'
 const DEFAULT_WORKSPACE_ID = 'kgws:test-room'
