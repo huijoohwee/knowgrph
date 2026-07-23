@@ -1,7 +1,7 @@
 import type { Canvas3dModeId } from '@/lib/config.render'
 
 export type ThreeCanvasSurfaceMountInput = Readonly<{
-  sourceFilesBootstrapReady: boolean
+  sourceFilesBootstrapAdmitted: boolean
   geospatialOverlayOwnsViewport: boolean
   liveCanvasHeroVisible: boolean
   canvasRenderMode: '2d' | '3d'
@@ -15,12 +15,13 @@ export type ThreeRendererMountInput = Readonly<{
 }>
 
 export type ThreeCanvasSurfaceLifecycleInput = ThreeCanvasSurfaceMountInput & Readonly<{
+  sourceFilesBootstrapReady: boolean
   activeSurface: '2d' | '3d' | 'geo'
   documentSwitchOwnsViewport: boolean
 }>
 
 export function shouldMountThreeCanvasSurface(input: ThreeCanvasSurfaceMountInput): boolean {
-  return input.sourceFilesBootstrapReady
+  return input.sourceFilesBootstrapAdmitted
     && !input.geospatialOverlayOwnsViewport
     && !input.liveCanvasHeroVisible
     && input.canvasRenderMode === '3d'
@@ -29,10 +30,12 @@ export function shouldMountThreeCanvasSurface(input: ThreeCanvasSurfaceMountInpu
 
 export function shouldActivateThreeCanvasSurface(input: Readonly<{
   surfaceMounted: boolean
+  sourceFilesBootstrapReady: boolean
   activeSurface: '2d' | '3d' | 'geo'
   documentSwitchOwnsViewport: boolean
 }>): boolean {
   return input.surfaceMounted
+    && input.sourceFilesBootstrapReady
     && input.activeSurface === '3d'
     && !input.documentSwitchOwnsViewport
 }
@@ -46,10 +49,15 @@ export function resolveThreeCanvasSurfaceLifecycle(input: ThreeCanvasSurfaceLife
     mounted,
     active: shouldActivateThreeCanvasSurface({
       surfaceMounted: mounted,
+      sourceFilesBootstrapReady: input.sourceFilesBootstrapReady,
       activeSurface: input.activeSurface,
       documentSwitchOwnsViewport: input.documentSwitchOwnsViewport,
     }),
   }
+}
+
+export function retainThreeCanvasSourceAdmission(previouslyAdmitted: boolean, sourceFilesBootstrapReady: boolean): boolean {
+  return previouslyAdmitted || sourceFilesBootstrapReady
 }
 
 export function shouldMountThreeRenderer(input: ThreeRendererMountInput): boolean {

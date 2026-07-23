@@ -6,6 +6,7 @@ import {
   resolveThreeRendererLifecycleKey,
   resolveThreeCanvasSurfaceLifecycle,
   shouldMountThreeRenderer,
+  retainThreeCanvasSourceAdmission,
   type ThreeRendererMountInput,
 } from '@/lib/three/threeRendererLifecycle'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -13,6 +14,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 type RendererTransitionPhase = ThreeRendererMountInput & Readonly<{
   name: 'physics' | 'document-transition' | 'flight'
   documentSwitchOwnsViewport: boolean
+  sourceFilesBootstrapReady: boolean
 }>
 
 const XR_RENDERER_TRANSITION: readonly RendererTransitionPhase[] = [
@@ -22,6 +24,7 @@ const XR_RENDERER_TRANSITION: readonly RendererTransitionPhase[] = [
     hasRenderableScene: true,
     webglSupported: true,
     documentSwitchOwnsViewport: false,
+    sourceFilesBootstrapReady: true,
   },
   {
     name: 'document-transition',
@@ -29,6 +32,7 @@ const XR_RENDERER_TRANSITION: readonly RendererTransitionPhase[] = [
     hasRenderableScene: false,
     webglSupported: true,
     documentSwitchOwnsViewport: true,
+    sourceFilesBootstrapReady: false,
   },
   {
     name: 'flight',
@@ -36,12 +40,19 @@ const XR_RENDERER_TRANSITION: readonly RendererTransitionPhase[] = [
     hasRenderableScene: true,
     webglSupported: true,
     documentSwitchOwnsViewport: false,
+    sourceFilesBootstrapReady: true,
   },
 ]
 
 function RendererBoundary(props: { phase: RendererTransitionPhase }): React.ReactNode {
+  const sourceAdmissionRef = React.useRef(false)
+  sourceAdmissionRef.current = retainThreeCanvasSourceAdmission(
+    sourceAdmissionRef.current,
+    props.phase.sourceFilesBootstrapReady,
+  )
   const surface = resolveThreeCanvasSurfaceLifecycle({
-    sourceFilesBootstrapReady: true,
+    sourceFilesBootstrapAdmitted: sourceAdmissionRef.current,
+    sourceFilesBootstrapReady: props.phase.sourceFilesBootstrapReady,
     geospatialOverlayOwnsViewport: false,
     liveCanvasHeroVisible: false,
     canvasRenderMode: '3d',

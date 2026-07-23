@@ -13,7 +13,7 @@ import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { isNativeXrRunReadyDemoActive, isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { useCanvasGameplayOverlayState } from '@/features/canvas/useCanvasGameplayOverlayState'
 import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
-import { resolveThreeCanvasSurfaceLifecycle } from '@/lib/three/threeRendererLifecycle'
+import { resolveThreeCanvasSurfaceLifecycle, retainThreeCanvasSourceAdmission } from '@/lib/three/threeRendererLifecycle'
 import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
@@ -89,7 +89,6 @@ const HEAVY_RUNTIME_INTENT_COPY = {
     action: 'Load map view',
   },
 } as const
-
 export type CanvasViewportVariant = 'workspace' | 'embeddedPreview'
 export type CanvasViewportProps = {
   variant: CanvasViewportVariant
@@ -104,7 +103,6 @@ export type CanvasViewportProps = {
   documentSwitchPendingLabel?: string
   onLiveCanvasHeroVisibilityChange?: (visible: boolean) => void
 }
-
 function isLiveCanvasHeroEmbedPreview(variant: CanvasViewportVariant): boolean {
   if (variant !== 'embeddedPreview' || typeof window === 'undefined') return false
   return new URLSearchParams(window.location.search).get('kgLiveHero') === '1'
@@ -114,7 +112,6 @@ function resolveLiveCanvasHeroEmbedPreviewSurface(variant: CanvasViewportVariant
   const renderer = new URLSearchParams(window.location.search).get('kgCanvas2dRenderer')
   return isCanvas2dRendererId(renderer) ? getCanvas2dSurfaceId(renderer) : null
 }
-
 export function CanvasViewport(props: CanvasViewportProps) {
   useEmbeddedCanvasChatCommandReceiver()
   const {
@@ -299,8 +296,11 @@ export function CanvasViewport(props: CanvasViewportProps) {
     canvasRenderMode,
   })
   const heavyRuntimeIntentBlocked = heavyRuntimeIntentSurface !== null && activatedHeavyRuntimeSurfaces[heavyRuntimeIntentSurface] !== true
+  const threeCanvasSourceAdmissionRef = React.useRef(false)
+  threeCanvasSourceAdmissionRef.current = retainThreeCanvasSourceAdmission(threeCanvasSourceAdmissionRef.current, sourceFilesBootstrapReady)
   const threeCanvasSurface = resolveThreeCanvasSurfaceLifecycle({
-    sourceFilesBootstrapReady, geospatialOverlayOwnsViewport, liveCanvasHeroVisible, canvasRenderMode,
+    sourceFilesBootstrapAdmitted: threeCanvasSourceAdmissionRef.current, sourceFilesBootstrapReady,
+    geospatialOverlayOwnsViewport, liveCanvasHeroVisible, canvasRenderMode,
     heavyRuntimeIntentBlocked, activeSurface, documentSwitchOwnsViewport,
   })
   const activateHeavyRuntimeIntentSurface = React.useCallback(() => {
