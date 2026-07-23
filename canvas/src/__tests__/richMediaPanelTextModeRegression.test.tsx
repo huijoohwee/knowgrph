@@ -7,7 +7,10 @@ import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildRichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
-import { UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
+import {
+  UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES,
+  UI_VIEW_EDIT_SURFACE_VIEWER_CLASS_NAME,
+} from '@/lib/ui/surfaceClasses'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
 
@@ -364,6 +367,9 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
     }
     if (workspaceViewer.getAttribute('data-kg-view-edit-surface-area') !== UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES['data-kg-view-edit-surface-area']) {
       throw new Error(`expected the Rich Media Workspace Viewer to expose the shared view/edit surface contract, html=${container.innerHTML}`)
+    }
+    if (!UI_VIEW_EDIT_SURFACE_VIEWER_CLASS_NAME.split(/\s+/).includes('flex-col') || !workspaceViewer.classList.contains('flex-col')) {
+      throw new Error(`expected the shared Workspace Viewer surface to stack its preview vertically so narrow panes do not preserve the preview's intrinsic width, html=${container.innerHTML}`)
     }
     if (workspaceViewer.querySelector('[data-kg-card-inline-edit="1"], [data-kg-card-markdown-viewer="1"]')) {
       throw new Error('expected Probe-Tree output to avoid the compact Card markdown read/edit renderer')
