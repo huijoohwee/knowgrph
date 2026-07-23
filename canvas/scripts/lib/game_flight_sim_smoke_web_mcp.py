@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import Any
 
 from playwright.sync_api import Page
@@ -314,6 +313,7 @@ def verify_flight_web_mcp(
             diagnostics,
             timeoutDiagnostics,
           }
+        }
         """,
         STRICT_INVOCATION_CASES,
     )
