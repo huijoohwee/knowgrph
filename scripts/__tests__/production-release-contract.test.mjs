@@ -261,6 +261,7 @@ test('verified production mirror is published only after live smoke', () => {
   assert.match(productionServiceWorkerUpgradeScript, /registrations\.length !== 1/)
   assert.match(productionServiceWorkerUpgradeScript, /canonicalWorkerScope/)
   assert.match(productionServiceWorkerUpgradeScript, /canonicalWorkerScriptUrl/)
+  assert.match(productionServiceWorkerUpgradeScript, /registration\.updateViaCache === 'none'/)
   assert.match(productionServiceWorkerUpgradeScript, /registration\.activeState === 'activated'/)
   assert.match(productionServiceWorkerUpgradeScript, /registration\.installingScriptUrl === ''/)
   assert.match(productionServiceWorkerUpgradeScript, /registration\.waitingScriptUrl === ''/)

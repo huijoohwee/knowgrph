@@ -2,10 +2,24 @@ import React from 'react'
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import { commitRichMediaInlineEditVersion } from '@/features/history/richMediaInlineEditHistory'
 import { RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID } from '@/lib/render/richMediaOutputVersions'
+import {
+  UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES,
+  UI_VIEW_EDIT_SURFACE_VIEWER_CLASS_NAME,
+} from '@/lib/ui/surfaceClasses'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
 
-const MarkdownPreview = React.lazy(() => import('@/features/markdown/ui/MarkdownPreview'))
+const MarkdownWorkspaceViewerSurface = React.lazy(() =>
+  import('@/features/markdown-workspace/main/viewer/MarkdownWorkspaceViewerSurface')
+    .then(module => ({ default: module.MarkdownWorkspaceViewerSurface })),
+)
+
+const RICH_MEDIA_WORKSPACE_VIEWER_DATA_ATTRIBUTES = {
+  'data-kg-rich-media-workspace-viewer': '1',
+  'data-kg-canvas-pointer-ignore': 'true',
+  'data-kg-canvas-wheel-ignore': 'true',
+  'data-kg-media-scroll-surface': '1',
+} as const
 
 export function RichMediaPanelWorkspaceViewerSurface(args: {
   model: RichMediaPanelModel
@@ -55,42 +69,34 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
   }, [commitText, model.panelDisplayText])
 
   return (
-    <section
-      aria-label="Editor Workspace Viewer"
-      className="flex h-full min-h-0 min-w-0 flex-1 overflow-hidden"
-      data-kg-rich-media-workspace-viewer="1"
-      data-kg-canvas-pointer-ignore="true"
-      data-kg-canvas-wheel-ignore="true"
-      data-kg-media-scroll-surface="1"
-    >
-      <React.Suspense fallback={<section className="h-full w-full" aria-label="Loading Editor Workspace Viewer" />}>
-        <MarkdownPreview
-          markdownText={viewerText}
-          activeDocumentPath={model.panelMarkdownDocumentPath}
-          highlightedLineRange={null}
-          markdownWordWrap
-          markdownPresentationMode={false}
-          markdownTextHighlight={false}
-          uiPanelTextFontClass="font-sans"
-          uiPanelMonospaceTextClass="font-mono text-xs"
-          previewOverlayScope="container"
-          previewOverlayPortalTarget={null}
-          previewScrollable
-          showSidebar={false}
-          viewMode="viewer"
-          forbidCopy={false}
-          markdownTokenStoreSync={false}
-          markdownViewerWidthMode="wide"
-          onInlineEditStateChange={model.panelTextEditable ? active => {
-            if (!active) setViewerDraftText(null)
-          } : undefined}
-          onInlineDraftTextChange={model.panelTextEditable ? (nextText, options) => {
-            if (options?.reflectInViewer === false) return
-            setViewerDraftText(nextText)
-          } : undefined}
-          onReplaceLineRange={model.panelTextEditable ? handleReplaceLineRange : undefined}
-        />
-      </React.Suspense>
-    </section>
+    <React.Suspense fallback={(
+      <section
+        aria-label="Loading Editor Workspace Viewer"
+        className={UI_VIEW_EDIT_SURFACE_VIEWER_CLASS_NAME}
+        {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}
+        {...RICH_MEDIA_WORKSPACE_VIEWER_DATA_ATTRIBUTES}
+      />
+    )}>
+      <MarkdownWorkspaceViewerSurface
+        markdownText={viewerText}
+        activeDocumentPath={model.panelMarkdownDocumentPath}
+        highlightedLineRange={null}
+        markdownWordWrap
+        markdownTextHighlight={false}
+        uiPanelTextFontClass="font-sans"
+        uiPanelMonospaceTextClass="font-mono text-xs"
+        markdownTokenStoreSync={false}
+        markdownViewerWidthMode="wide"
+        dataAttributes={RICH_MEDIA_WORKSPACE_VIEWER_DATA_ATTRIBUTES}
+        onInlineEditStateChange={model.panelTextEditable ? active => {
+          if (!active) setViewerDraftText(null)
+        } : undefined}
+        onInlineDraftTextChange={model.panelTextEditable ? (nextText, options) => {
+          if (options?.reflectInViewer === false) return
+          setViewerDraftText(nextText)
+        } : undefined}
+        onReplaceLineRange={model.panelTextEditable ? handleReplaceLineRange : undefined}
+      />
+    </React.Suspense>
   )
 }

@@ -1,9 +1,9 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { registerSW } from 'virtual:pwa-register'
 import {
   installServiceWorkerCacheRevisionOwner,
   type ServiceWorkerCacheRevisionOwner,
 } from '@/lib/pwa/serviceWorkerCacheRevisionOwner'
+import { registerCanonicalServiceWorker } from '@/lib/pwa/serviceWorkerRegistrationOwner'
 import { installServiceWorkerRevisionUpdateOwner } from '@/lib/pwa/serviceWorkerRevisionUpdateOwner'
 
 const DISPLAY_MODE_STANDALONE_MEDIA = '(display-mode: standalone)'
@@ -137,56 +137,58 @@ export function installPwaRuntime(): void {
   }
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-  registerSW({
-    immediate: true,
-    onOfflineReady() {
-      swState.offlineReady = true
-      refreshDisplayModeState()
-      pushPwaToast({
-        id: 'pwa:offline-ready',
-        kind: 'success',
-        message: 'Application assets cached for faster relaunches.',
-        ttlMs: 5000,
-        dismissible: true,
-      })
-    },
-    onRegisteredSW(_scriptUrl, registration) {
-      if (!registration) return
-      cacheRevisionOwner?.dispose()
-      cacheRevisionOwner = 'caches' in window
-        ? installServiceWorkerCacheRevisionOwner({
-            cacheStorage: window.caches,
-            controllerTarget: window.navigator.serviceWorker,
-            registration,
-            origin: window.location.origin,
-            runInitially: false,
-            onError(error) {
-              try {
-                console.warn('[knowgrph] Service worker cache revision cleanup failed.', error)
-              } catch {
-                void 0
-              }
-            },
-          })
-        : null
-      disposeWorkerUpdateOwner?.()
-      disposeWorkerUpdateOwner = installServiceWorkerRevisionUpdateOwner({
-        registration,
-        documentTarget: document,
-        windowTarget: window,
-        onUpdateSettled() {
-          cacheRevisionOwner?.requestPrune()
-        },
-        onError(error) {
-          try {
-            console.warn('[knowgrph] Service worker revision check failed.', error)
-          } catch {
-            void 0
-          }
-        },
-      })
-    },
-    onRegisterError(error) {
+  if (import.meta.env.PROD && 'serviceWorker' in window.navigator) {
+    void registerCanonicalServiceWorker({
+      serviceWorkerTarget: window.navigator.serviceWorker,
+      scopePath: import.meta.env.BASE_URL,
+      reload: () => window.location.reload(),
+      onOfflineReady() {
+        swState.offlineReady = true
+        refreshDisplayModeState()
+        pushPwaToast({
+          id: 'pwa:offline-ready',
+          kind: 'success',
+          message: 'Application assets cached for faster relaunches.',
+          ttlMs: 5000,
+          dismissible: true,
+        })
+      },
+      onRegistered(registration) {
+        cacheRevisionOwner?.dispose()
+        cacheRevisionOwner = 'caches' in window
+          ? installServiceWorkerCacheRevisionOwner({
+              cacheStorage: window.caches,
+              controllerTarget: window.navigator.serviceWorker,
+              registration,
+              origin: window.location.origin,
+              runInitially: false,
+              onError(error) {
+                try {
+                  console.warn('[knowgrph] Service worker cache revision cleanup failed.', error)
+                } catch {
+                  void 0
+                }
+              },
+            })
+          : null
+        disposeWorkerUpdateOwner?.()
+        disposeWorkerUpdateOwner = installServiceWorkerRevisionUpdateOwner({
+          registration,
+          documentTarget: document,
+          windowTarget: window,
+          onUpdateSettled() {
+            cacheRevisionOwner?.requestPrune()
+          },
+          onError(error) {
+            try {
+              console.warn('[knowgrph] Service worker revision check failed.', error)
+            } catch {
+              void 0
+            }
+          },
+        })
+      },
+    }).catch(error => {
       swState.offlineReady = false
       refreshDisplayModeState()
       try {
@@ -194,6 +196,6 @@ export function installPwaRuntime(): void {
       } catch {
         void 0
       }
-    },
-  })
+    })
+  }
 }

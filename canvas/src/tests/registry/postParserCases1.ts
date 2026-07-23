@@ -159,6 +159,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["markdownWorkspace.viewer.inlineEdit.mediaCommandUsesCachedInlineCaret","@/__tests__/markdownViewerInlineEditSurfaceParitySnapshot.test.tsx","testMarkdownViewerInlineEditMediaCommandUsesCachedInlineCaret"],
   ["markdownWorkspace.viewer.inlineEdit.mediaCommandPreservesExistingInlineMediaChip","@/__tests__/markdownViewerInlineEditSurfaceParitySnapshot.test.tsx","testMarkdownViewerInlineEditMediaCommandPreservesExistingInlineMediaChip"],
   ["markdownViewer.inlineEdit.textColorOverlap.noLiteralSigils","@/__tests__/markdownViewerInlineEditColorToolbar.test.tsx","testMarkdownViewerInlineEditToolbarTextColorOverlappingExistingHighlightCommitsWithoutLiteralSigils"],
+  ["markdownViewer.inlineEdit.combinedMutation.canonicalSigil","@/__tests__/markdownViewerInlineEditCombinedMutationRegression.test.tsx","testMarkdownViewerInlineEditCombinedBoldColorHighlightMutationKeepsCanonicalSigil"],
   ["baseline.storyboardWidget.widget.byteplusLink.localFieldEdits","@/__tests__/flowWidgetPortHandleDomAnchors.test","testTextWidgetCellsStayLocallyEditable"],
   ["baseline.storyboardWidget.widget.byteplusLink.registryFieldPlaceholderHandles","@/__tests__/flowWidgetPortHandleDomAnchors.test","testTextWidgetRegistryFieldRowsKeepPlaceholderPortHandles"],
   ["baseline.storyboardWidget.widget.byteplusLink.usesGlobalDefaultsUntilLocallyOverridden","@/__tests__/flowWidgetPortHandleDomAnchors.test","testBytePlusTextWidgetUsesGlobalDefaultsUntilLocallyOverridden"],
