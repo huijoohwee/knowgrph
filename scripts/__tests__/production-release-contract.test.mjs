@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
+import { assertRemoteRevisionAuthority } from '../immutable-release-manifest.mjs'
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..')
+const integrationWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workflows', 'integration.yml'), 'utf8')
 const releaseWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8')
 const promotionWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workflows', 'promote-agentic-canvas-os.yml'), 'utf8')
 const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-agent-ready.mjs'), 'utf8')
@@ -18,7 +20,61 @@ const productionFidelityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts
 const productionServiceWorkerUpgradeScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'verify-production-service-worker-upgrade.mjs'), 'utf8')
 const productionMirrorArtifactScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-mirror-artifact.mjs'), 'utf8')
 const gameModeSourceAuthorityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-game-fps-readiness.mjs'), 'utf8')
+const protectedMainAuthorityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'assert-protected-main-release-authority.mjs'), 'utf8')
 const packageScripts = JSON.parse(fs.readFileSync(path.resolve(repoRoot, 'package.json'), 'utf8')).scripts
+
+test('integration isolates protected merge and main checks by exact revision', () => {
+  assert.match(
+    integrationWorkflow,
+    /group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event\.pull_request\.number \|\| github\.sha \}\}/,
+  )
+  assert.match(
+    integrationWorkflow,
+    /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/,
+  )
+  assert.doesNotMatch(integrationWorkflow, /group: integration-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}/)
+  assert.doesNotMatch(integrationWorkflow, /cancel-in-progress: true/)
+})
+
+test('production release rejects a stale delayed protected-main event', () => {
+  const currentMain = 'a'.repeat(40)
+  assert.deepEqual(
+    assertRemoteRevisionAuthority({
+      sourceRevision: currentMain,
+      remoteRevision: currentMain,
+      targetRef: 'refs/heads/main',
+    }),
+    {
+      sourceRevision: currentMain,
+      remoteRevision: currentMain,
+      targetRef: 'refs/heads/main',
+    },
+  )
+  assert.throws(
+    () => assertRemoteRevisionAuthority({
+      sourceRevision: 'b'.repeat(40),
+      remoteRevision: currentMain,
+      targetRef: 'refs/heads/main',
+    }),
+    /release source revision .* is stale; remote refs\/heads\/main is/,
+  )
+  assert.throws(
+    () => assertRemoteRevisionAuthority({
+      sourceRevision: '0'.repeat(40),
+      remoteRevision: currentMain,
+      targetRef: 'refs/heads/main',
+    }),
+    /release source revision must be an exact lowercase 40-character Git commit SHA/,
+  )
+  assert.match(protectedMainAuthorityScript, /remote = 'origin'/)
+  assert.match(protectedMainAuthorityScript, /readRemoteRevision\(\{\s*remote,\s*targetRef: PROTECTED_MAIN_REF,\s*cwd,/)
+  assert.match(protectedMainAuthorityScript, /assertRemoteRevisionAuthority\(\{/)
+  assert.doesNotMatch(protectedMainAuthorityScript, /SHA_PATTERN|ZERO_SHA|requireRevision/)
+  assert.equal(
+    packageScripts['release:main-authority:check'],
+    'node ./scripts/assert-protected-main-release-authority.mjs',
+  )
+})
 
 test('integration forbids alternate standalone Game Mode and XR Physics source owners', () => {
   assert.equal(packageScripts['game-mode:source-authority'], 'node ./scripts/check-game-fps-readiness.mjs')
@@ -75,6 +131,7 @@ test('Pages mirror sync preserves the agent-ready route local module closure', (
 
 test('production release is automatic only for protected main and retains rollback evidence', () => {
   assert.match(releaseWorkflow, /on:\s*\n\s*push:\s*\n\s*branches: \[main\]/)
+  assert.match(releaseWorkflow, /concurrency:\s*\n\s*group: production-release\s*\n\s*cancel-in-progress: false/)
   assert.doesNotMatch(releaseWorkflow, /workflow_dispatch:/)
   assert.doesNotMatch(releaseWorkflow, /confirmation:/)
   assert.match(releaseWorkflow, /name: Enforce sole deployment ownership/)
@@ -124,7 +181,38 @@ test('verified production mirror is published only after live smoke', () => {
   assert.ok(fidelityIndex > smokeIndex)
   assert.ok(serviceWorkerUpgradeIndex > fidelityIndex)
   assert.ok(publishIndex > serviceWorkerUpgradeIndex)
-  assert.match(deployJob, /--commit-hash="\$\{\{ github\.sha \}\}"/)
+  const deployStep = deployJob.slice(
+    deployIndex,
+    deployJob.indexOf('name: Capture exact candidate deployment origin'),
+  )
+  const preDeployAuthorityIndex = deployStep.indexOf('release:main-authority:check')
+  const pagesDeployIndex = deployStep.indexOf('wrangler pages deploy')
+  assert.ok(preDeployAuthorityIndex >= 0)
+  assert.ok(pagesDeployIndex > preDeployAuthorityIndex)
+  assert.match(deployStep, /--commit-hash="\$RELEASE_SHA"/)
+  const protectedMutationSteps = [
+    ['Enforce sole deployment ownership', 'runtime:pages:owner-enforce'],
+    ['Deploy verified artifact', 'wrangler pages deploy'],
+    ['Reconcile canonical docs into D1', 'storage:d1:seed:docs'],
+    ['Publish verified production mirror', 'git push origin HEAD:main'],
+  ]
+  for (const [stepName, mutationCommand] of protectedMutationSteps) {
+    const stepStart = deployJob.indexOf(`name: ${stepName}`)
+    const nextStepStart = deployJob.indexOf('\n      - name:', stepStart + 1)
+    const stepSource = deployJob.slice(
+      stepStart,
+      nextStepStart === -1 ? deployJob.length : nextStepStart,
+    )
+    const authorityIndex = stepSource.indexOf('release:main-authority:check')
+    const mutationIndex = stepSource.indexOf(mutationCommand)
+    assert.ok(stepStart >= 0, `${stepName} must exist`)
+    assert.ok(authorityIndex >= 0, `${stepName} must revalidate protected main`)
+    assert.ok(mutationIndex > authorityIndex, `${stepName} must revalidate before mutation`)
+  }
+  assert.match(
+    deployJob,
+    /name: Publish verified production mirror[\s\S]*npm --prefix \.\.\/knowgrph run --silent release:main-authority:check/,
+  )
   assert.match(deployJob, /PRODUCTION_ORIGIN: \$\{\{ steps\.candidate\.outputs\.deployment_url \}\}/)
   assert.match(deployJob, /PRODUCTION_MARKER_ORIGIN: \$\{\{ steps\.candidate\.outputs\.deployment_url \}\}/)
   assert.equal(
@@ -294,7 +382,10 @@ test('production release reconciles the exact canonical docs revision before liv
   assert.match(releaseWorkflow, /docs_repository: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.repository \}\}/)
   assert.match(deployJob, /repository: \$\{\{ needs\.verify\.outputs\.docs_repository \}\}/)
   assert.match(deployJob, /ref: \$\{\{ needs\.verify\.outputs\.docs_revision \}\}/)
-  assert.match(deployJob, /run: npm run storage:d1:seed:docs/)
+  assert.match(
+    deployJob,
+    /name: Reconcile canonical docs into D1[\s\S]*npm run storage:d1:seed:docs/,
+  )
   assert.ok(checkoutIndex >= 0, 'expected the deploy job to checkout the pinned canonical docs revision')
   assert.ok(seedIndex > checkoutIndex, 'expected D1 reconciliation after the pinned docs checkout')
   assert.ok(smokeIndex > seedIndex, 'expected live smoke after D1 reconciliation')

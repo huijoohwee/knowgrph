@@ -51,6 +51,7 @@
     "production:fidelity:check": "node ./scripts/verify-production-fidelity.mjs",
     "production:sw-upgrade:prewarm": "node ./scripts/verify-production-service-worker-upgrade.mjs prewarm",
     "production:sw-upgrade:verify": "node ./scripts/verify-production-service-worker-upgrade.mjs verify",
+    "release:main-authority:check": "node ./scripts/assert-protected-main-release-authority.mjs",
     "pwa:build-authority:check": "node ./scripts/check-pwa-build-authority.mjs",
     "production:mirror-artifact:create": "node ./scripts/production-mirror-artifact.mjs create",
     "production:mirror-artifact:reconcile": "node ./scripts/production-mirror-artifact.mjs reconcile",
