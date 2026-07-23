@@ -3,6 +3,7 @@ import { mapLimit } from '@/lib/async/mapLimit'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import type { WorkspaceDocsMirrorEntry } from './workspaceSeedProvider'
+import { readCanonicalWorkspaceSeedBundleEntries } from './workspaceCanonicalSeedBundle'
 import {
   WORKSPACE_SOURCE_MIRROR_EXTENSIONS,
   isWorkspaceSourceMirrorFileName,
@@ -16,23 +17,17 @@ export const CANONICAL_HUIJOOHWEE_DEMO_DOCS_GITHUB_URL =
   'https://github.com/huijoohwee/huijoohwee/tree/main/docs'
 export const CANONICAL_HUIJOOHWEE_OUTPUT_DOCS_GITHUB_URL =
   'https://github.com/huijoohwee/huijoohwee/tree/main/docs_'
-export const CANONICAL_KNOWGRPH_WORKSPACE_SEEDS_GITHUB_URL =
-  'https://github.com/huijoohwee/knowgrph/tree/main/docs/workspace-seeds'
 
 let canonicalDemoDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
 let canonicalDemoDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 let canonicalOutputDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
 let canonicalOutputDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
-let canonicalWorkspaceSeedsDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
-let canonicalWorkspaceSeedsDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 
 export const resetCanonicalPublishedDocsMirrorCacheForTests = (): void => {
   canonicalDemoDatasetCache = null
   canonicalDemoDatasetInFlight = null
   canonicalOutputDatasetCache = null
   canonicalOutputDatasetInFlight = null
-  canonicalWorkspaceSeedsDatasetCache = null
-  canonicalWorkspaceSeedsDatasetInFlight = null
 }
 
 const normalizeRepoRelPath = (value: string): string => {
@@ -196,31 +191,14 @@ export const readCanonicalHuijoohweeOutputDocsMirrorEntries = async (args: {
   }
 }
 
-export const readCanonicalKnowgrphWorkspaceSeedsMirrorEntries = async (args: {
-  maxFiles: number
-  maxFileBytes: number
-}): Promise<WorkspaceDocsMirrorEntry[]> => {
-  if (canonicalWorkspaceSeedsDatasetCache && canonicalWorkspaceSeedsDatasetCache.expiresAtMs > Date.now()) {
-    return canonicalWorkspaceSeedsDatasetCache.entries.map(entry => ({ ...entry }))
-  }
-  if (!canonicalWorkspaceSeedsDatasetInFlight) {
-    canonicalWorkspaceSeedsDatasetInFlight = readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
-      url: CANONICAL_KNOWGRPH_WORKSPACE_SEEDS_GITHUB_URL,
-      maxFiles: args.maxFiles,
-      maxFileBytes: args.maxFileBytes,
-      requireCompleteDataset: true,
-    }).then(entries => entries.map(entry => ({ ...entry, authority: 'knowgrph-workspace-seeds-github' })))
-  }
-  try {
-    const entries = await canonicalWorkspaceSeedsDatasetInFlight
-    canonicalWorkspaceSeedsDatasetCache = {
-      entries: entries.map(entry => ({ ...entry })),
-      expiresAtMs: Date.now() + CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS,
-    }
-    return entries.map(entry => ({ ...entry }))
-  } finally {
-    canonicalWorkspaceSeedsDatasetInFlight = null
-  }
+export const readCanonicalKnowgrphWorkspaceSeedsMirrorEntries = async (): Promise<
+  WorkspaceDocsMirrorEntry[]
+> => {
+  const entries = await readCanonicalWorkspaceSeedBundleEntries()
+  return entries.map(entry => ({
+    ...entry,
+    authority: 'knowgrph-workspace-seeds-bundled',
+  }))
 }
 
 export const readCanonicalPublishedNonAgenticDocsMirrorEntries = async (args: {
@@ -230,7 +208,7 @@ export const readCanonicalPublishedNonAgenticDocsMirrorEntries = async (args: {
   const [demoEntries, outputEntries, seedEntries] = await Promise.all([
     readCanonicalHuijoohweeDemoDocsMirrorEntries(args),
     readCanonicalHuijoohweeOutputDocsMirrorEntries(args),
-    readCanonicalKnowgrphWorkspaceSeedsMirrorEntries(args),
+    readCanonicalKnowgrphWorkspaceSeedsMirrorEntries(),
   ])
   const workspaceEntries = demoEntries.filter(entry => {
     const relPath = normalizeRepoRelPath(entry.relPath)
@@ -242,7 +220,7 @@ export const readCanonicalPublishedNonAgenticDocsMirrorEntries = async (args: {
   }))
   return [
     ...workspaceEntries,
-    ...namespace(seedEntries, 'workspace-seeds'),
+    ...seedEntries,
     ...namespace(outputEntries, 'docs_'),
   ]
 }
