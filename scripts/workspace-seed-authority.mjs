@@ -1,5 +1,6 @@
 import { readFile, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { load as loadYaml } from 'js-yaml'
 
 export const WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH = 'docs/workspace-seeds'
 export const PHYSICS_SEED_BASENAME = 'knowgrph-physics-playground-demo.md'
@@ -18,6 +19,17 @@ export const KNOWGRPH_WORKSPACE_SEED_INVENTORY = Object.freeze([
 export const AGENTIC_WORKSPACE_SEED_PROJECTION_INVENTORY = Object.freeze([
   PHYSICS_SEED_BASENAME,
 ])
+const DRAFT_IMPLEMENTED_RUNTIME_KEYS = Object.freeze([
+  'native_flight_demo',
+  'asset_pipeline',
+  'motion_control',
+  'flight_sim',
+  'native_mmorpg_demo',
+  'asset_provenance_pipeline',
+  'mmorpg_world',
+  'runtime_validation',
+  'mcp_control',
+])
 
 export const resolveWorkspaceSeedSiblingRootsFromGitCommonDir = gitCommonDirRaw => {
   const gitCommonDir = path.resolve(String(gitCommonDirRaw || '').trim())
@@ -32,6 +44,61 @@ export const resolveWorkspaceSeedSiblingRootsFromGitCommonDir = gitCommonDirRaw 
 }
 
 const isFile = async filePath => (await stat(filePath).catch(() => null))?.isFile() === true
+
+const isRecord = value => !!value && typeof value === 'object' && !Array.isArray(value)
+
+const parseYamlFrontmatter = (basename, source) => {
+  const match = String(source || '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
+  if (!match) throw new Error(`draft workspace document ${basename} must begin with YAML frontmatter`)
+  let frontmatter
+  try {
+    frontmatter = loadYaml(match[1])
+  } catch (error) {
+    throw new Error(`draft workspace document ${basename} has invalid YAML frontmatter: ${error.message}`)
+  }
+  if (!isRecord(frontmatter)) {
+    throw new Error(`draft workspace document ${basename} frontmatter must parse as an object`)
+  }
+  return frontmatter
+}
+
+const normalizePresetToken = value => String(value || '')
+  .trim()
+  .toLowerCase()
+  .replace(/[\s_-]+/g, '')
+
+const readCanvasSurfaceMode = value => {
+  const token = normalizePresetToken(value)
+  if (token === '2d' || token === 'mode2d' || token === 'surface2d') return '2d'
+  if (token === '3d' || token === 'mode3d' || token === 'surface3d') return '3d'
+  if (token === 'xr' || token === 'xrmode' || token === 'surfacexr') return 'xr'
+  if (token === 'geospatial' || token === 'geomode' || token === 'geospatialmode' || token === 'surfacegeospatial') {
+    return 'geospatial'
+  }
+  return undefined
+}
+
+const readCanvasRenderMode = value => {
+  const token = normalizePresetToken(value)
+  if (token === '2d' || token === 'mode2d' || token === 'surface2d') return '2d'
+  if (token === '3d' || token === 'mode3d' || token === 'surface3d' || token === 'xr' || token === 'xrmode') {
+    return '3d'
+  }
+  return undefined
+}
+
+const readCanvas2dRenderer = value => {
+  const token = normalizePresetToken(value)
+  return token === 'flow' || token === 'flowcanvas' || token === 'canvas' ? 'flow' : undefined
+}
+
+const readBooleanPreset = value => {
+  if (typeof value === 'boolean') return value
+  const token = normalizePresetToken(value)
+  if (token === 'true' || token === '1' || token === 'yes' || token === 'on') return true
+  if (token === 'false' || token === '0' || token === 'no' || token === 'off') return false
+  return undefined
+}
 
 const requireExactFileInventory = async ({
   directoryPath,
@@ -81,14 +148,46 @@ const requireCanonicalIdentity = source => {
 }
 
 const requireDraftIdentity = (basename, source) => {
+  const frontmatter = parseYamlFrontmatter(basename, source)
   const isCompanion = basename.endsWith('.companion.md')
-  const requiredMarkers = isCompanion
-    ? ['status: "draft"', 'activatable_seed: false', 'note_kind: "projection-contract"']
-    : ['status: "draft"', 'runtime_status: "draft"', 'planned_run_ready_demo:']
-  const missing = requiredMarkers.filter(marker => !source.includes(marker))
-  if (missing.length > 0 || /^run_ready_demo:/m.test(source)) {
+  const missing = []
+  const forbidden = []
+  const requireValue = (label, actual, expected) => {
+    if (actual !== expected) missing.push(`${label}=${JSON.stringify(expected)}`)
+  }
+
+  requireValue('status', frontmatter.status, 'draft')
+  requireValue('runtime_claim', frontmatter.runtime_claim, 'planned-contract-only')
+  requireValue('kgCanvasSurfaceMode', readCanvasSurfaceMode(frontmatter.kgCanvasSurfaceMode), '2d')
+  requireValue('kgCanvasRenderMode', readCanvasRenderMode(frontmatter.kgCanvasRenderMode), '2d')
+  requireValue('kgCanvas2dRenderer', readCanvas2dRenderer(frontmatter.kgCanvas2dRenderer), 'flow')
+  requireValue('kgFloatingPanelOpen', readBooleanPreset(frontmatter.kgFloatingPanelOpen), false)
+  requireValue('kgBottomPanelOpen', readBooleanPreset(frontmatter.kgBottomPanelOpen), false)
+
+  if (isCompanion) {
+    requireValue('activatable_seed', readBooleanPreset(frontmatter.activatable_seed), false)
+    requireValue('note_kind', frontmatter.note_kind, 'projection-contract')
+  } else {
+    requireValue('runtime_status', frontmatter.runtime_status, 'draft')
+    if (!isRecord(frontmatter.planned_run_ready_demo)) {
+      missing.push('planned_run_ready_demo object')
+    } else {
+      requireValue('planned_run_ready_demo.activation', frontmatter.planned_run_ready_demo.activation, 'disabled-until-runtime-ready')
+      requireValue('planned_run_ready_demo.native_runtime', readBooleanPreset(frontmatter.planned_run_ready_demo.native_runtime), false)
+      requireValue('planned_run_ready_demo.auto_start', readBooleanPreset(frontmatter.planned_run_ready_demo.auto_start), false)
+    }
+  }
+
+  if (Object.hasOwn(frontmatter, 'run_ready_demo')) forbidden.push('run_ready_demo')
+  if (Object.hasOwn(frontmatter, 'kgCanvas3dMode')) forbidden.push('3D canvas mode')
+  if (Object.hasOwn(frontmatter, 'kgFloatingPanelView')) forbidden.push('FloatingPanel runtime view')
+  for (const key of DRAFT_IMPLEMENTED_RUNTIME_KEYS) {
+    if (Object.hasOwn(frontmatter, key)) forbidden.push(`implemented runtime contract ${key}`)
+  }
+  if (missing.length > 0 || forbidden.length > 0) {
     throw new Error(
-      `draft workspace document ${basename} must remain non-activating; missing=${JSON.stringify(missing)}`,
+      `draft workspace document ${basename} must remain non-activating; `
+      + `missing=${JSON.stringify(missing)} forbidden=${JSON.stringify(forbidden)}`,
     )
   }
 }

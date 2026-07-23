@@ -3,9 +3,10 @@ title: "Knowgrph Game Flight Sim PRD/TAD"
 id: "md:knowgrph-game-flight-sim-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-07-23"
 version: "0.1.0"
 status: "draft"
+runtime_claim: "planned-contract-only"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -38,8 +39,8 @@ source_references:
   motion_control: "canvas/src/features/three/motionControlRuntime.ts"
   workspace_fs: "canvas/src/features/workspace-fs/workspaceFs.ts"
   cost_log_contract: "contracts/cost-log.schema.js"
-  flight_runtime: "canvas/src/features/game-flight-sim/"
-  asset_spec_pipeline: "canvas/src/features/game-flight-sim/assetSpec/"
+  planned_flight_runtime: "proposed canvas/src/features/game-flight-sim/ (not present)"
+  planned_asset_spec_pipeline: "proposed canvas/src/features/game-flight-sim/assetSpec/ (not present)"
   validation_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   asset_inspiration_reference_only: "github.com/Arnie016/flight-simulator-fable5 (inspiration only; no source copy, no dependency)"
 ---
@@ -47,6 +48,10 @@ source_references:
 # Knowgrph Game Flight Sim PRD/TAD
 
 Governed by the same solo-dev AI-native orientation as the sibling `knowgrph-game-fps-prd-tad.md`: every decision is evaluated through the four compounding lenses (min-viable-max-value, TCO-zero, token economics, harness-first). This module is a new increment; status is `draft` and no runtime-readiness proof exists yet. No production or Cloudflare deployment is authorized.
+
+## Status boundary
+
+This PRD/TAD is a normative **planned contract**, not documentation of an implemented runtime. The `canvas/src/features/game-flight-sim/` paths, Flight Sim panel, `/flight.sim` command, WebMCP tools, asset loaders, persistence adapter, and package-script gates named below are proposed and do not currently exist or register in Knowgrph. Present-tense acceptance language states the behavior required for future promotion; it is not runtime proof.
 
 ## Outcome
 
@@ -183,9 +188,9 @@ WebGL support is resolved synchronously before mission start; unsupported WebGL 
 | **Token economics** | The flight `World_Tick` performs zero model calls; asset generation is offline, not a runtime path | Every tick emits a canonical `$0` Cost_Log; no runtime image-to-3D call |
 | **Harness-first** | No ad-hoc model calls; deterministic flight systems in-tick; any future narrative reuses the existing kernel offline | Flight dynamics and NPC/traffic (if added later) stay deterministic, not LLM-driven |
 
-### Ownership
+### Planned ownership
 
-| Concern | Canonical owner | Rule |
+| Concern | Proposed canonical owner | Rule |
 |---|---|---|
 | Flight domain | `canvas/src/features/game-flight-sim/` | Mission config, flight systems, input normalization, HUD projection, local save adapter |
 | Surface lifecycle | `canvas/src/features/game-flight-sim/flightSimRuntime.ts` | Own open/start/stop/restart/throttle/save/exit state and previous-surface restoration |
@@ -305,7 +310,7 @@ The runtime writes canonical KGC Decisions through the existing browser-local fi
 
 ## Runtime Readiness Gate
 
-This module is `draft`; no runtime-readiness proof exists yet. The intended local, finite proof mirrors the sibling FPS gate:
+This module is `draft`; no runtime-readiness proof exists yet. The following command names are proposed for the future local, finite proof and are not registered package scripts:
 
 ```bash
 npm run game-flight-sim:runtime-ready
@@ -318,9 +323,9 @@ Both commands must be finite and local apart from ordinary build/test artifacts,
 
 | Dimension | Scope |
 |---|---|
-| Agentic OS-ready | Canonical `/flight.sim @canvas #flight` metadata is projected through the pinned Agentic OS invocation dictionary; cross-repo integration is separately evidenced. |
-| AI Agent-ready | Browser agent-ready registration exposes read-only inspection and mutating lifecycle control without adding a model, prompt, reasoning path, or autonomous persistence. |
-| MCP-ready | `knowgrph.inspect_local_flight_sim` and `knowgrph.control_local_flight_sim` are browser-local WebMCP only. No stdio, HTTP mutation route, remote gateway, or deployment authority is added; the private Agentic ECS stdio lane remains exactly three tools. |
+| Agentic OS-ready | Planned `/flight.sim @canvas #flight` metadata must be projected through the pinned Agentic OS invocation dictionary; no such projection exists while this module is draft. |
+| AI Agent-ready | Planned browser agent-ready registration must expose read-only inspection and mutating lifecycle control without adding a model, prompt, reasoning path, or autonomous persistence. |
+| MCP-ready | Planned `knowgrph.inspect_local_flight_sim` and `knowgrph.control_local_flight_sim` tools are not registered. Their future browser-local WebMCP implementation must add no stdio, HTTP mutation route, remote gateway, or deployment authority. |
 
 ## Release Boundary
 

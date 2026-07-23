@@ -17,6 +17,14 @@ source_root: "knowgrph/docs"
 source_backed: true
 ---
 `
+const safeDraftPresentation = [
+  'runtime_claim: "planned-contract-only"',
+  'kgCanvasSurfaceMode: "2d"',
+  'kgCanvasRenderMode: "2d"',
+  'kgCanvas2dRenderer: "flow"',
+  'kgFloatingPanelOpen: false',
+  'kgBottomPanelOpen: false',
+].join('\n')
 
 const fixture = async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'workspace-seed-authority-'))
@@ -32,8 +40,8 @@ const fixture = async () => {
   await writeFile(canonicalPath, canonicalSeed)
   for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
     const frontmatter = basename.endsWith('.companion.md')
-      ? 'status: "draft"\nactivatable_seed: false\nnote_kind: "projection-contract"'
-      : 'status: "draft"\nruntime_status: "draft"\nplanned_run_ready_demo:\n  id: "planned"'
+      ? `status: "draft"\nactivatable_seed: false\nnote_kind: "projection-contract"\n${safeDraftPresentation}`
+      : `status: "draft"\nruntime_status: "draft"\n${safeDraftPresentation}\nplanned_run_ready_demo:\n  id: "planned"\n  activation: "disabled-until-runtime-ready"\n  native_runtime: false\n  auto_start: false`
     await writeFile(
       path.join(path.dirname(canonicalPath), basename),
       `---\n${frontmatter}\n---\n`,
@@ -93,6 +101,141 @@ test('rejects a draft document that declares runtime activation', async t => {
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
     /draft workspace document knowgrph-game-flight-sim-demo\.md must remain non-activating/,
+  )
+})
+
+test('rejects every live canvas or runtime claim in a draft document', async t => {
+  const forbiddenClaims = [
+    {
+      label: 'runtime-normalized XR surface alias with an inline comment',
+      presentation: safeDraftPresentation.replace(
+        'kgCanvasSurfaceMode: "2d"',
+        'kgCanvasSurfaceMode: "XR Mode" # runtime-normalized alias',
+      ),
+    },
+    {
+      label: 'XR renderer alias',
+      presentation: safeDraftPresentation.replace('kgCanvasRenderMode: "2d"', 'kgCanvasRenderMode: xr'),
+    },
+    { label: '3D canvas mode', append: 'kgCanvas3dMode: "xr"' },
+    {
+      label: 'string-valued open FloatingPanel',
+      presentation: safeDraftPresentation.replace('kgFloatingPanelOpen: false', 'kgFloatingPanelOpen: "yes"'),
+    },
+    { label: 'FloatingPanel runtime view', append: 'kgFloatingPanelView: "mmorpgWorld"' },
+    {
+      label: 'YAML-valued open BottomPanel',
+      presentation: safeDraftPresentation.replace('kgBottomPanelOpen: false', 'kgBottomPanelOpen: on'),
+    },
+    { label: 'run-ready activation', append: 'run_ready_demo:\n  id: "forbidden"' },
+    { label: 'implemented flight runtime', append: 'native_flight_demo:\n  runtime_owner: "missing"' },
+    { label: 'implemented native runtime', append: 'native_mmorpg_demo:\n  runtime_owner: "missing"' },
+    { label: 'implemented asset pipeline', append: 'asset_pipeline:\n  loader: "missing"' },
+    { label: 'implemented provenance pipeline', append: 'asset_provenance_pipeline:\n  loader: "missing"' },
+    { label: 'implemented motion control', append: 'motion_control:\n  runtime: "missing"' },
+    { label: 'implemented Flight Sim panel', append: 'flight_sim:\n  invocation: "/flight.sim"' },
+    { label: 'implemented panel runtime', append: 'mmorpg_world:\n  invocation: "/mmorpg"' },
+    { label: 'implemented validation contract', append: 'runtime_validation:\n  status: "pending"' },
+    { label: 'implemented MCP contract', append: 'mcp_control:\n  inspect_tool: "missing"' },
+  ]
+  for (const forbiddenClaim of forbiddenClaims) {
+    await t.test(forbiddenClaim.label, async t => {
+      const roots = await fixture()
+      t.after(() => rm(roots.root, { recursive: true, force: true }))
+      await writeFile(
+        path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-mmorpg-demo.md'),
+        `---\nstatus: "draft"\nruntime_status: "draft"\n${forbiddenClaim.presentation || safeDraftPresentation}\nplanned_run_ready_demo:\n  id: "planned"\n  activation: "disabled-until-runtime-ready"\n  native_runtime: false\n  auto_start: false\n${forbiddenClaim.append || ''}\n---\n`,
+      )
+      await assert.rejects(
+        () => verifyWorkspaceSeedAuthority(roots),
+        /draft workspace document knowgrph-game-mmorpg-demo\.md must remain non-activating/,
+      )
+    })
+  }
+})
+
+test('rejects live activation flags nested in a planned run-ready contract', async t => {
+  const plannedContractCases = [
+    {
+      label: 'applied-document activation',
+      contract: '  activation: applied-source-document\n  native_runtime: false\n  auto_start: false',
+    },
+    {
+      label: 'string-valued native runtime',
+      contract: '  activation: disabled-until-runtime-ready\n  native_runtime: "yes"\n  auto_start: false',
+    },
+    {
+      label: 'string-valued automatic start',
+      contract: '  activation: disabled-until-runtime-ready\n  native_runtime: false\n  auto_start: "on"',
+    },
+  ]
+  for (const plannedContractCase of plannedContractCases) {
+    await t.test(plannedContractCase.label, async t => {
+      const roots = await fixture()
+      t.after(() => rm(roots.root, { recursive: true, force: true }))
+      await writeFile(
+        path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
+        `---\nstatus: draft\nruntime_status: draft\n${safeDraftPresentation}\nplanned_run_ready_demo:\n  id: planned\n${plannedContractCase.contract}\n---\n`,
+      )
+      await assert.rejects(
+        () => verifyWorkspaceSeedAuthority(roots),
+        /draft workspace document knowgrph-game-flight-sim-demo\.md must remain non-activating/,
+      )
+    })
+  }
+})
+
+test('accepts runtime-equivalent safe aliases and ignores Markdown body examples', async t => {
+  const roots = await fixture()
+  t.after(() => rm(roots.root, { recursive: true, force: true }))
+  await writeFile(
+    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
+    [
+      '---',
+      'status: draft',
+      'runtime_status: draft',
+      'runtime_claim: planned-contract-only',
+      'kgCanvasSurfaceMode: Surface 2D # runtime-normalized alias',
+      'kgCanvasRenderMode: Mode 2D',
+      'kgCanvas2dRenderer: Flow Canvas',
+      'kgFloatingPanelOpen: "off"',
+      'kgBottomPanelOpen: "no"',
+      'planned_run_ready_demo:',
+      '  id: planned',
+      '  activation: disabled-until-runtime-ready',
+      '  native_runtime: "false"',
+      '  auto_start: "0"',
+      '---',
+      '',
+      '```yaml',
+      'kgCanvasSurfaceMode: "xr"',
+      'kgFloatingPanelOpen: true',
+      'run_ready_demo:',
+      '```',
+    ].join('\n'),
+  )
+  await assert.doesNotReject(() => verifyWorkspaceSeedAuthority(roots))
+})
+
+test('does not accept safe presentation markers from the Markdown body', async t => {
+  const roots = await fixture()
+  t.after(() => rm(roots.root, { recursive: true, force: true }))
+  await writeFile(
+    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.companion.md'),
+    [
+      '---',
+      'status: draft',
+      'runtime_claim: planned-contract-only',
+      'activatable_seed: false',
+      'note_kind: projection-contract',
+      '---',
+      '',
+      safeDraftPresentation,
+    ].join('\n'),
+  )
+  await assert.rejects(
+    () => verifyWorkspaceSeedAuthority(roots),
+    /draft workspace document knowgrph-game-flight-sim-demo\.companion\.md must remain non-activating.*missing=/,
   )
 })
 

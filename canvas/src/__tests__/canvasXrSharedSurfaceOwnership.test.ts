@@ -38,6 +38,10 @@ function readSource(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), 'src', relativePath), 'utf8')
 }
 
+function readWorkspaceSeed(basename: string): string {
+  return readFileSync(resolve(process.cwd(), '..', 'docs', 'workspace-seeds', basename), 'utf8')
+}
+
 export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   if (normalizeCanvas3dMode('xr') !== 'xr') {
     throw new Error('Expected XR Mode to normalize as a first-class 3D canvas mode')
@@ -339,6 +343,81 @@ export function testXrSurfaceFrontmatterPresetActivatesXrCanvasMode() {
         floatingPanelOpen: next.floatingPanelOpen,
       })}`)
     }
+  }
+}
+
+export async function testDraftWorkspaceSeedFrontmatterExitsXrAndClosesPanels() {
+  const draftDocuments = [
+    'knowgrph-game-flight-sim-demo.companion.md',
+    'knowgrph-game-flight-sim-demo.md',
+    'knowgrph-game-mmorpg-demo.companion.md',
+    'knowgrph-game-mmorpg-demo.md',
+  ]
+  const physicsBasename = 'knowgrph-physics-playground-demo.md'
+  const applyWorkspaceSeed = async (basename: string): Promise<void> => {
+    const name = `docs/workspace-seeds/${basename}`
+    const text = readWorkspaceSeed(basename)
+    const applied = await useGraphStore.getState().setActiveMarkdownDocument({
+      name,
+      text,
+      autoEnableFrontmatter: true,
+      applyViewPreset: true,
+      applyToGraph: true,
+      forceApplyToGraph: true,
+      normalizeMermaidMmd: false,
+    })
+    const active = useGraphStore.getState()
+    const graphSource = String((active.graphData?.metadata as Record<string, unknown> | undefined)?.source || '')
+    if (!applied
+      || active.markdownDocumentName !== name
+      || active.markdownDocumentText !== text
+      || graphSource !== `markdown:${name}`) {
+      throw new Error(`expected Source Files activation to own ${basename}, got ${JSON.stringify({
+        applied,
+        markdownDocumentName: active.markdownDocumentName,
+        graphSource,
+      })}`)
+    }
+  }
+  const assertPhysicsXr = (): void => {
+    const active = useGraphStore.getState()
+    if (active.canvasRenderMode !== '3d'
+      || active.canvas3dMode !== 'xr'
+      || active.floatingPanelOpen !== true
+      || active.floatingPanelView !== 'motionControl') {
+      throw new Error(`expected Physics source activation to restore native XR, got ${JSON.stringify({
+        canvasRenderMode: active.canvasRenderMode,
+        canvas3dMode: active.canvas3dMode,
+        floatingPanelOpen: active.floatingPanelOpen,
+        floatingPanelView: active.floatingPanelView,
+      })}`)
+    }
+  }
+  try {
+    useGraphStore.getState().resetAll()
+    await applyWorkspaceSeed(physicsBasename)
+    assertPhysicsXr()
+    for (const basename of draftDocuments) {
+      await applyWorkspaceSeed(basename)
+      const next = useGraphStore.getState()
+      if (next.canvasRenderMode !== '2d'
+        || next.canvas3dMode !== '3d'
+        || next.canvas2dRenderer !== 'flow'
+        || next.bottomSurfaceCollapsed !== true
+        || next.floatingPanelOpen !== false) {
+        throw new Error(`expected ${basename} to leave XR for a closed-panel 2D design surface, got ${JSON.stringify({
+          canvasRenderMode: next.canvasRenderMode,
+          canvas3dMode: next.canvas3dMode,
+          canvas2dRenderer: next.canvas2dRenderer,
+          bottomSurfaceCollapsed: next.bottomSurfaceCollapsed,
+          floatingPanelOpen: next.floatingPanelOpen,
+        })}`)
+      }
+      await applyWorkspaceSeed(physicsBasename)
+      assertPhysicsXr()
+    }
+  } finally {
+    useGraphStore.getState().resetAll()
   }
 }
 

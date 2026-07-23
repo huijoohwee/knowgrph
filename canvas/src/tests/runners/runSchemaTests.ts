@@ -322,6 +322,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvasXrSharedSurfaceOwnership()
     await mod.testXrSurfaceFrontmatterPresetActivatesXrCanvasMode()
   })
+  await execTest(results, 'canvas.frontmatter.draftWorkspaceSeedNonRuntime', async () => {
+    const mod = await modCanvasXrSharedSurfaceOwnership()
+    await mod.testDraftWorkspaceSeedFrontmatterExitsXrAndClosesPanels()
+  })
   await execTest(results, 'canvas.renderSettings.xrModeSelect', async () => {
     const mod = await modCanvas3dMode()
     await mod.testRenderSettings3dModeSelectPreservesXrMode()
