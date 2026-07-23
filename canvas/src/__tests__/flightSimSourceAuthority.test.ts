@@ -53,6 +53,20 @@ test('Flight Sim activation is source-authored and path conflicts fail closed', 
 
 test('Flight Sim source declares an overlay on the canonical XR world', () => {
   const meta = frontmatter(seedSource)
+  assert.equal(meta.status, 'runtime-ready')
+  assert.equal(meta.runtime_status, 'runtime-ready')
+  assert.equal(meta.runtime_claim, 'local-runtime-ready')
+  assert.equal(meta.publish_scope, 'local-only')
+  assert.equal(meta.kgCanvasSurfaceMode, 'xr')
+  assert.equal(meta.kgCanvasRenderMode, '3d')
+  assert.equal(meta.kgCanvas3dMode, 'xr')
+  assert.equal(meta.kgCanvas2dRenderer, undefined)
+  assert.equal(meta.kgFloatingPanelOpen, true)
+  assert.equal(meta.kgFloatingPanelView, 'flightSim')
+  assert.equal(
+    Object.keys(meta).some(key => key.startsWith('planned_')),
+    false,
+  )
   assert.deepEqual(meta.run_ready_demo, {
     id: 'flight-sim',
     activation: 'applied-source-document',

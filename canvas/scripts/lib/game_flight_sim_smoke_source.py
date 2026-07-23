@@ -62,9 +62,31 @@ def _read_source_identity(
             && typeof state.graphData.metadata === 'object'
             ? state.graphData.metadata
             : {}
+          const canvasWorkspacePreset = graphMetadata.canvasWorkspacePreset
+            && typeof graphMetadata.canvasWorkspacePreset === 'object'
+            ? graphMetadata.canvasWorkspacePreset
+            : {}
           const graphNodeIds = Array.isArray(state.graphData?.nodes)
             ? state.graphData.nodes.map(node => String(node?.id || '')).sort()
             : []
+          const sourceContract = {
+            statusRuntimeReady:
+              /^status:\\s*["']runtime-ready["']\\s*$/m.test(sourceText),
+            runtimeStatusReady:
+              /^runtime_status:\\s*["']runtime-ready["']\\s*$/m.test(sourceText),
+            surfaceXr:
+              /^kgCanvasSurfaceMode:\\s*["']xr["']\\s*$/m.test(sourceText),
+            render3d:
+              /^kgCanvasRenderMode:\\s*["']3d["']\\s*$/m.test(sourceText),
+            stageXr:
+              /^kgCanvas3dMode:\\s*["']xr["']\\s*$/m.test(sourceText),
+            runReadyDeclaration:
+              /^run_ready_demo:\\s*$/m.test(sourceText),
+            noPlannedBlocks:
+              !/^planned_[A-Za-z0-9_]*:\\s*$/m.test(sourceText),
+            no2dRenderer:
+              !/^kgCanvas2dRenderer:\\s*/m.test(sourceText),
+          }
           return {
             documentName: state.markdownDocumentName,
             sourcePath,
@@ -90,6 +112,8 @@ def _read_source_identity(
             graphNodeIds,
             graphOwnedByDocument: String(graphMetadata.source || '')
               === `markdown:${String(state.markdownDocumentName || '')}`,
+            sourceContract,
+            surfaceMode: String(canvasWorkspacePreset.canvasSurfaceMode || ''),
             renderMode: state.canvasRenderMode,
             canvas3dMode: state.canvas3dMode,
           }
@@ -219,12 +243,14 @@ def apply_and_verify_exact_authored_source(
             and value.get("workspaceSourceMaterialized") is True
             and value.get("workspaceSourceByteIdentical") is True
             and value.get("graphOwnedByDocument") is True
+            and all((value.get("sourceContract") or {}).values())
             and str(value.get("graphDocumentName") or "").endswith(
                 SOURCE_BASENAME
             )
             and EXPECTED_SOURCE_NODE_IDS.issubset(
                 set(value.get("graphNodeIds") or [])
             )
+            and value.get("surfaceMode") == "xr"
             and value.get("renderMode") == "3d"
             and value.get("canvas3dMode") == "xr"
         ),

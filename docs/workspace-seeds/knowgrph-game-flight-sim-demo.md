@@ -91,7 +91,7 @@ asset_pipeline:
   diffability: "the Must aircraft is TypeScript+JSON; GLB fallback count is exactly zero"
   native_in_repo: true
   forbid_external_copy_or_dependency: true
-  inspiration_reference_only: "github.com/Arnie016/flight-simulator-fable5 (inspiration only; no source copy, no dependency)"
+  inspiration_reference_only: "flight-simulator (inspiration only; no source copy, no dependency)"
 motion_control:
   runtime: "browser-local LiteRT.js"
   model: "Google BlazePose GHUM Full"
