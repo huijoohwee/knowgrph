@@ -13,6 +13,7 @@ import {
 } from '@/lib/ui/surfaceClasses'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
+import { resolveRepoTestDataPath } from '@/tests/lib/repoTestData'
 
 const queryRichMediaTextEditor = (container: HTMLElement): HTMLElement | null =>
   container.querySelector('[contenteditable="true"][data-kg-card-inline-viewer-edit-surface="1"][aria-label="Rich Media Panel text"]')
@@ -319,6 +320,8 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
+    const fixturePath = resolveRepoTestDataPath('probe-tree-rich-media-edit-parity.md')
+    const probeTreeMarkdown = readFileSync(fixturePath, 'utf8')
     const panelState = buildRichMediaPanelOverlayState({
       node: {
         id: 'probe-tree-ledger',
@@ -326,24 +329,7 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
         label: 'Probe-Tree Branches',
         properties: {
           probeTreeThreadLedger: true,
-          output: [
-            '---',
-            'schema: "knowgrph-rich-media-text/v1"',
-            'title: "Probe-Tree Branches"',
-            'media_kind: "text"',
-            'content_type: "text/markdown"',
-            'source_contract: "knowgrph-probe-tree/v0.1"',
-            '---',
-            '',
-            '# Probe-Tree Branches',
-            '',
-            '1. **Which variable changes the decision?**',
-            '   1. Wholesale inventory',
-            '   _Keep the evidence rendered._',
-            '   > Compare delivery time and cost.',
-            '2. **Which cadence changes the outcome?**',
-            '   1. Weekly',
-          ].join('\n'),
+          output: probeTreeMarkdown,
         },
       },
     })
@@ -391,7 +377,7 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
     }
 
     const question = Array.from(workspaceViewer.querySelectorAll('p[data-start-line]') as NodeListOf<HTMLElement>)
-      .find(element => /Which variable changes the decision/.test(String(element.textContent || '')))
+      .find(element => /For SGD800预算/.test(String(element.textContent || '')))
     if (!question || !question.querySelector('strong')) {
       throw new Error(`expected the Probe-Tree question to render with Viewer emphasis, html=${workspaceViewer.innerHTML}`)
     }
@@ -430,7 +416,7 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
       throw new Error('expected Rich Media block editing not to fall back to the legacy whole-card editor')
     }
     const workspaceText = String(workspaceViewer.textContent || '')
-    if (!workspaceText.includes('Wholesale inventory') || !workspaceText.includes('Compare delivery time and cost.')) {
+    if (!workspaceText.includes('优先批发库存以实现规模效应') || !workspaceText.includes('Evidence regarding成本结构')) {
       throw new Error(`expected nested Probe-Tree content to remain rendered while editing the question, text=${JSON.stringify(workspaceText)}`)
     }
 
