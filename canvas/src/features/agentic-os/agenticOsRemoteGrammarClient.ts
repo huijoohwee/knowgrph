@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { readEnvString } from '@/lib/config.env'
 import { isWorkspaceRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { useAgenticOsRemoteGrammarAutoHydration } from './useAgenticOsRemoteGrammarAutoHydration'
 import {
   AGENTIC_CANVAS_OS_DOCS_CONTROL_PLANE_PATH,
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
@@ -393,6 +394,7 @@ export function useAgenticOsRemoteGrammarCatalog(args: {
   sigils?: readonly AgenticOsRemoteGrammarSigil[]
 } = {}): AgenticOsRemoteGrammarSnapshot {
   const sigilSignature = (args.sigils || []).join(',')
+  const autoHydrationAllowed = useAgenticOsRemoteGrammarAutoHydration()
   const snapshot = useSyncExternalStore(
     subscribeAgenticOsRemoteGrammarCatalog,
     getAgenticOsRemoteGrammarCatalogSnapshot,
@@ -400,12 +402,11 @@ export function useAgenticOsRemoteGrammarCatalog(args: {
   )
   useEffect(() => {
     const sigils = sigilSignature.split(',').filter((value, index, values) => REMOTE_GRAMMAR_SIGIL_ORDER.includes(value as AgenticOsRemoteGrammarSigil) && values.indexOf(value) === index) as AgenticOsRemoteGrammarSigil[]
-    if (sigils.length === 0) return
+    if (!autoHydrationAllowed || sigils.length === 0) return
     void hydrateRemoteGrammarSigilsBounded(sigils)
-  }, [sigilSignature])
+  }, [autoHydrationAllowed, sigilSignature])
   return snapshot
 }
-
 export function createAgenticOsRemoteGrammarClient(options: AgenticOsRemoteGrammarClientOptions = {}) {
   let nextId = 1
   let mcpSessionId = ''
