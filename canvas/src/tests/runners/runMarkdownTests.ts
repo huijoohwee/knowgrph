@@ -384,6 +384,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownInlineEditToolbarConsolidation()
     await mod.testInlineEditToolbarMoreMenuIncludesCentralizedSelectionActions()
   })
+  await execTest(results, 'markdown.viewer.inlineEdit.toolbar.versionedRichMediaWorkspaceViewer', async () => {
+    const mod = await modMarkdownInlineEditToolbarConsolidation()
+    await mod.testVersionedRichMediaWorkspaceViewerReusesInlineSelectionToolbar()
+  })
   await execTest(results, 'markdown.viewer.inlineEdit.toolbar.largeViewer', async () => {
     const mod = await modMarkdownLargeViewerInlineSelectionToolbar()
     await mod.testLargeMarkdownViewerKeepsInlineSelectionToolbar()
