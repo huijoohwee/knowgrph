@@ -338,6 +338,11 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
             '# Probe-Tree Branches',
             '',
             '1. **Which variable changes the decision?**',
+            '   1. Wholesale inventory',
+            '   _Keep the evidence rendered._',
+            '   > Compare delivery time and cost.',
+            '2. **Which cadence changes the outcome?**',
+            '   1. Weekly',
           ].join('\n'),
         },
       },
@@ -383,6 +388,50 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
     }
     if (workspaceMainSource.includes('<MarkdownPreview') || richMediaViewerSource.includes('<MarkdownPreview')) {
       throw new Error('expected shared Workspace Viewer consumers not to retain parallel MarkdownPreview surface configurations')
+    }
+
+    const question = Array.from(workspaceViewer.querySelectorAll('p[data-start-line]') as NodeListOf<HTMLElement>)
+      .find(element => /Which variable changes the decision/.test(String(element.textContent || '')))
+    if (!question || !question.querySelector('strong')) {
+      throw new Error(`expected the Probe-Tree question to render with Viewer emphasis, html=${workspaceViewer.innerHTML}`)
+    }
+    question.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 400,
+      bottom: 42,
+      width: 400,
+      height: 42,
+      toJSON: () => ({}),
+    } as unknown as DOMRect)
+    await act(async () => {
+      question.dispatchEvent(new dom.window.MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 8,
+        clientY: 8,
+      }))
+      await waitForTasks(2)
+      await waitForFrames(dom.window, 2)
+    })
+
+    const nestedEditor = question.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (
+      !nestedEditor
+      || !nestedEditor.querySelector('strong')
+      || nestedEditor.innerHTML.includes('**')
+      || /^\s*1[.)]\s/.test(String(nestedEditor.textContent || ''))
+    ) {
+      throw new Error(`expected Rich Media to open the marker-free rendered Viewer editor, html=${question.innerHTML}`)
+    }
+    if (workspaceViewer.querySelector('[data-kg-card-inline-viewer-edit-surface="1"]')) {
+      throw new Error('expected Rich Media block editing not to fall back to the legacy whole-card editor')
+    }
+    const workspaceText = String(workspaceViewer.textContent || '')
+    if (!workspaceText.includes('Wholesale inventory') || !workspaceText.includes('Compare delivery time and cost.')) {
+      throw new Error(`expected nested Probe-Tree content to remain rendered while editing the question, text=${JSON.stringify(workspaceText)}`)
     }
 
     await unmountReactRoot(root, { window: dom.window })
