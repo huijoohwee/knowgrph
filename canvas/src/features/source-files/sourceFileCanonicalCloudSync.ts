@@ -19,16 +19,20 @@ import {
   readActiveKnowgrphStorageWorkspaceId,
 } from '@/features/source-files/sourceFileShareUrl'
 import { readKnowgrphStorageBaseUrl } from '@/features/source-files/sourceFilesKnowgrphStorageSettings'
+import {
+  resolveDocumentRepositoryAuthority,
+  type DocumentRepositoryTarget,
+} from 'grph-shared/collaboration/documentRepositoryAuthority'
 
 type FetchLike = NonNullable<KnowgrphStorageSyncNowArgs['fetchImpl']>
 
-const CANONICAL_DOCS_ROOT = 'agentic-canvas-os/docs'
 const SUPPORTED_MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdx'])
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
 export type SourceFileCanonicalCloudTarget = {
   workspacePath: WorkspacePath
+  repositoryTarget: DocumentRepositoryTarget
   githubPath: string
   canonicalPath: string
   documentKind: 'markdown'
@@ -43,26 +47,25 @@ export type SourceFileCanonicalCloudSyncResult = SourceFileCanonicalCloudTarget 
   readBackVerified: true
 }
 
-const readCanonicalDocsRelativePath = (workspacePath: WorkspacePath): string => {
-  const parts = normalizeWorkspacePath(workspacePath).split('/').filter(Boolean)
-  if (parts[0] === 'agentic-canvas-os' && parts[1] === 'docs') return parts.slice(2).join('/')
-  if (parts[0] === 'docs') return parts.slice(1).join('/')
-  return parts.join('/')
-}
-
 export const resolveSourceFileCanonicalCloudTarget = (
   workspacePathRaw: WorkspacePath | string,
 ): SourceFileCanonicalCloudTarget | null => {
+  const sourcePath = String(workspacePathRaw || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
+  if (sourcePath.startsWith('huijoohwee/docs/workspace-seeds/')) return null
   const workspacePath = normalizeWorkspacePath(workspacePathRaw)
-  const relativePath = readCanonicalDocsRelativePath(workspacePath)
-  if (!relativePath || relativePath.startsWith('chat-log/')) return null
+  if (workspacePath.split('/').filter(Boolean)[0] === 'chat-log') return null
   const extension = workspaceExtLower(workspacePath)
   if (!SUPPORTED_MARKDOWN_EXTENSIONS.has(extension)) return null
-  const githubPath = `docs/${relativePath}`
+  const authority = resolveDocumentRepositoryAuthority({
+    documentKey: workspacePath,
+    documentKind: 'markdown',
+  })
+  if (!authority) return null
   return {
     workspacePath,
-    githubPath,
-    canonicalPath: `${CANONICAL_DOCS_ROOT}/${relativePath}`,
+    repositoryTarget: authority.repositoryTarget,
+    githubPath: authority.githubPath,
+    canonicalPath: authority.canonicalPath,
     documentKind: 'markdown',
   }
 }
@@ -95,6 +98,7 @@ const saveCanonicalSnapshotToGitHub = async (args: {
     workspaceId: args.workspaceId,
     documentKey: args.target.workspacePath,
     documentKind: args.target.documentKind,
+    repositoryTarget: args.target.repositoryTarget,
     serializedText: args.text,
     yjsStateBase64: '',
     activePeerCount: 1,
@@ -119,6 +123,9 @@ const saveCanonicalSnapshotToGitHub = async (args: {
   }
   if (normalizeString(payload.githubPath) !== args.target.githubPath) {
     throw new Error('GitHub save bridge returned a different canonical path.')
+  }
+  if (payload.repositoryTarget !== args.target.repositoryTarget) {
+    throw new Error('GitHub save bridge returned a different repository target.')
   }
   return payload
 }

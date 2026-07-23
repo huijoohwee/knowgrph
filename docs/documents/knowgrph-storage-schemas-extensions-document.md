@@ -1,3 +1,24 @@
+---
+title: "Knowgrph Storage Schema Extensions"
+id: "md:knowgrph-storage-schemas-extensions-document"
+version: "1.1.0"
+updated: "2026-07-23"
+status: "spec-complete-deferred"
+doc_type: "Schema Extension Reference"
+frontmatter_contract: "required"
+document_runtime_status: "runtime-ready-dev"
+runtime_scope: "Frontmatter parsing, source validation, MCP grammar resolution, and read-only Source Files discovery; extension implementation remains deferred."
+deploy_boundary: "No migration, Prod mirror, or Cloudflare mutation is authorized by this document."
+mcp:
+  grammar_tool: "knowgrph.agentic_canvas_os.docs.invoke"
+  published_source_tools: ["search", "fetch"]
+  webmcp_source_tools: ["knowgrph.list_source_files", "knowgrph.read_source_file"]
+  source_availability: "Read-only after the document is present in the configured published Source Files workspace."
+invocation:
+  normalize: "/source.normalize @source.frontmatter @source.body #frontmatter #no-legacy"
+  verify: "/runtime-ready.check @local-harness @runtime-proof #runtime-ready #vcc"
+---
+
 # Knowgrph Storage Schema Extensions
 
 **Context**: Deferred schema extensions for Knowgrph storage and sync.
@@ -6,13 +27,15 @@
 
 ---
 
-**Version**: 1.0.0
-**Date**: 2026-06-29
+**Version**: 1.1.0
+**Date**: 2026-07-23
 **Canonical baseline**: `knowgrph-storage-schemas-document.md`
 
 ## Planned Authenticated Collaboration And Chat Relay Extension
 
 The tables below are the concrete D1 extension required before multi-user collaboration can claim authenticated membership, workspace authorization, or server-managed provider relay isolation. They are not part of the shipped anonymous storage baseline until their Worker owners and focused tests exist.
+
+Repository routing is not a deferred schema extension. The shipped collaboration bridge resolves `knowgrph-docs` or `workspace-docs` from the canonical document path, validates the client-supplied target, and uses target-specific server configuration. Repository credentials, local mirror paths, and online/offline preferences must not be stored in these D1 tables.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -135,6 +158,7 @@ type ChatRelayResolvedContext = {
 - `provider-admin` can rotate provider policy defaults without changing workspace ownership.
 - `serverManaged` relay mode must fail closed unless `workspace_provider_policies.allow_server_managed = 1`.
 - BYOK mode remains a per-request browser input and must never be written to D1.
+- GitHub bridge credentials remain Worker-only; browser settings expose repository roots and transport state, never tokens or repository secrets.
 
 ---
 

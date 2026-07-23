@@ -27,7 +27,7 @@ export async function testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndV
   const env = Object.assign(createFakeKnowgrphStorageWorkerEnv(), {
     KNOWGRPH_STORAGE_GITHUB_TOKEN: 'test-token',
     KNOWGRPH_STORAGE_GITHUB_OWNER: 'huijoohwee',
-    KNOWGRPH_STORAGE_GITHUB_REPO: 'agentic-canvas-os',
+    KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO: 'huijoohwee',
     KNOWGRPH_STORAGE_GITHUB_BRANCH: 'main',
   })
   const events: string[] = []
@@ -80,7 +80,9 @@ export async function testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndV
     if (result.githubPath !== 'docs/note-cloud-sync.md') {
       throw new Error(`expected root New .md to commit under canonical GitHub docs, got ${result.githubPath}`)
     }
-    if (result.canonicalPath !== 'agentic-canvas-os/docs/note-cloud-sync.md' || result.readBackVerified !== true) {
+    if (result.repositoryTarget !== 'workspace-docs'
+      || result.canonicalPath !== 'huijoohwee/docs/note-cloud-sync.md'
+      || result.readBackVerified !== true) {
       throw new Error(`expected verified canonical Cloudflare path, got ${JSON.stringify(result)}`)
     }
     if (committedText !== '# New cloud note\n\nGitHub first, Cloudflare second.') {
@@ -146,7 +148,7 @@ export async function testSourceFileCloudUploadReusesMatchingProtectedGitHubCont
   const env = Object.assign(createFakeKnowgrphStorageWorkerEnv(), {
     KNOWGRPH_STORAGE_GITHUB_TOKEN: 'test-token',
     KNOWGRPH_STORAGE_GITHUB_OWNER: 'huijoohwee',
-    KNOWGRPH_STORAGE_GITHUB_REPO: 'agentic-canvas-os',
+    KNOWGRPH_STORAGE_GITHUB_KNOWGRPH_REPO: 'knowgrph',
     KNOWGRPH_STORAGE_GITHUB_BRANCH: 'main',
   })
   const githubMethods: string[] = []
@@ -155,7 +157,7 @@ export async function testSourceFileCloudUploadReusesMatchingProtectedGitHubCont
     resetWorkspaceFsForTests()
     await __resetKnowgrphStorageDbForTests()
     const fs = await getWorkspaceFs()
-    const repositoryRoot = await fs.createFolder({ parentPath: '/', name: 'agentic-canvas-os' })
+    const repositoryRoot = await fs.createFolder({ parentPath: '/', name: 'knowgrph' })
     const docsRoot = await fs.createFolder({ parentPath: repositoryRoot, name: 'docs' })
     const path = await fs.createFile({ parentPath: docsRoot, name: 'existing.md', text })
     const entry = (await fs.listEntries()).find(candidate => candidate.path === path)
@@ -191,6 +193,9 @@ export async function testSourceFileCloudUploadReusesMatchingProtectedGitHubCont
     }
     if (result.githubPath !== 'docs/existing.md') {
       throw new Error(`expected repository-root workspace path to normalize once, got ${result.githubPath}`)
+    }
+    if (result.repositoryTarget !== 'knowgrph-docs' || result.canonicalPath !== 'knowgrph/docs/existing.md') {
+      throw new Error(`expected product docs to retain knowgrph authority, got ${JSON.stringify(result)}`)
     }
   } finally {
     globalThis.fetch = previousFetch
@@ -297,4 +302,23 @@ export async function testSourceFileCloudIndicatorShowsLocalAndCloudStatesAndUpl
     })
     harness.restore()
   }
+}
+
+export function testSourceFileCloudTargetsRespectDocumentRepositoryAuthority() {
+  const workspace = resolveSourceFileCanonicalCloudTarget('/docs/team-note.md')
+  const product = resolveSourceFileCanonicalCloudTarget('/knowgrph/docs/documents/storage.md')
+  const seed = resolveSourceFileCanonicalCloudTarget('/docs/workspace-seeds/demo.md')
+  const staleWorkspaceSeed = resolveSourceFileCanonicalCloudTarget('/huijoohwee/docs/workspace-seeds/demo.md')
+  const governance = resolveSourceFileCanonicalCloudTarget('/agentic-canvas-os/docs/FACTS.md')
+  if (workspace?.repositoryTarget !== 'workspace-docs' || workspace.canonicalPath !== 'huijoohwee/docs/team-note.md') {
+    throw new Error(`expected collaborative docs to route to huijoohwee/docs, got ${JSON.stringify(workspace)}`)
+  }
+  if (product?.repositoryTarget !== 'knowgrph-docs' || product.canonicalPath !== 'knowgrph/docs/documents/storage.md') {
+    throw new Error(`expected product docs to route to knowgrph/docs, got ${JSON.stringify(product)}`)
+  }
+  if (seed?.repositoryTarget !== 'knowgrph-docs' || seed.canonicalPath !== 'knowgrph/docs/workspace-seeds/demo.md') {
+    throw new Error(`expected workspace seeds to remain authored in knowgrph/docs, got ${JSON.stringify(seed)}`)
+  }
+  if (staleWorkspaceSeed !== null) throw new Error('expected the duplicate huijoohwee workspace-seeds root to be read-only')
+  if (governance !== null) throw new Error('expected Agentic Canvas OS governance docs to remain read-only')
 }

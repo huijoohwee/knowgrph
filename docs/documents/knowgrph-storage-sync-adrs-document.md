@@ -1,3 +1,24 @@
+---
+title: "Knowgrph Storage Sync ADRs"
+id: "md:knowgrph-storage-sync-adrs-document"
+version: "1.1.0"
+updated: "2026-07-23"
+status: "active"
+doc_type: "Architecture Decision Records"
+frontmatter_contract: "required"
+document_runtime_status: "runtime-ready-dev"
+runtime_scope: "Frontmatter parsing, source validation, MCP grammar resolution, and read-only Source Files discovery; ADR implementation status remains row-specific."
+deploy_boundary: "No Prod mirror or Cloudflare mutation is authorized by this document."
+mcp:
+  grammar_tool: "knowgrph.agentic_canvas_os.docs.invoke"
+  published_source_tools: ["search", "fetch"]
+  webmcp_source_tools: ["knowgrph.list_source_files", "knowgrph.read_source_file"]
+  source_availability: "Read-only after the document is present in the configured published Source Files workspace."
+invocation:
+  normalize: "/source.normalize @source.frontmatter @source.body #frontmatter #no-legacy"
+  verify: "/runtime-ready.check @local-harness @runtime-proof #runtime-ready #vcc"
+---
+
 # Knowgrph Storage Sync ADRs
 
 **Context**: Architectural decisions for the Knowgrph storage and sync system.
@@ -6,8 +27,8 @@
 
 ---
 
-**Version**: 1.0.0
-**Date**: 2026-06-29
+**Version**: 1.1.0
+**Date**: 2026-07-23
 **Companion index**: `knowgrph-storage-sync-document.companion.md`
 
 ## ADR Index
@@ -19,19 +40,20 @@
 | ADR-003 | Accepted | Defer PostgreSQL until collaboration or retrieval scale requires it. | `docs/documents/knowgrph-storage-schemas-extensions-document.md` |
 | ADR-004 | Accepted | Deploy storage API as a standalone Cloudflare Worker on the same zone. | `cloudflare/workers/knowgrph-storage/wrangler.toml` |
 | ADR-005 | Accepted | Retain polling-based sync at 120 seconds for phase 1. | `canvas/src/lib/storage/knowgrphStorageClientSync.ts` |
-| ADR-006 | Accepted | Restrict seed write-back to Node.js filesystem contexts. | `canvas/src/lib/storage/workspaceInitialization.ts` |
+| ADR-006 | Accepted | Restrict seed write-back to Node.js filesystem contexts. | `canvas/src/features/workspace-fs/workspaceSeedProvider.ts` |
 | ADR-007 | Accepted | Auto-clear stale outbox conflicts after pull. | `canvas/src/lib/storage/knowgrphStorageClientSync.ts` |
-| ADR-008 | Accepted | Support default workspace initialization source URL. | `canvas/src/lib/source-files/` |
-| ADR-009 | Accepted | Expose a public single-document view endpoint. | `cloudflare/workers/knowgrph-storage/src/index.ts` |
-| ADR-010 | Accepted | Use PocketBase + Yjs for same-file collaboration, not Git merge. | `canvas/src/lib/source-files/` |
-| ADR-011 | Accepted | Promote generated chat Markdown through GitHub first, storage second. | `canvas/src/lib/workspace/github/` |
-| ADR-012 | Accepted | Store generated binary artifacts in R2 with Markdown manifests. | `cloudflare/workers/knowgrph-storage/src/index.ts` |
-| ADR-013 | Accepted | Persist collaborative AI media through R2, D1, KV, and Durable Objects. | `cloudflare/workers/knowgrph-storage/src/index.ts` |
+| ADR-008 | Accepted | Support default workspace initialization source URL. | `canvas/src/features/workspace-fs/workspaceSeedProvider.ts` |
+| ADR-009 | Accepted | Expose a public single-document view endpoint. | `cloudflare/workers/knowgrph-storage/index.ts` |
+| ADR-010 | Accepted | Use PocketBase + Yjs for same-file collaboration, not Git merge. | `canvas/src/features/source-files/sourceFilesPocketBaseYjsRoom.ts` |
+| ADR-011 | Accepted | Promote generated chat Markdown through GitHub first, storage second. | `canvas/src/features/source-files/sourceFilesGitHubWrite.ts` |
+| ADR-012 | Accepted | Store generated binary artifacts in R2 with Markdown manifests. | `cloudflare/workers/knowgrph-storage/index.ts` |
+| ADR-013 | Accepted | Persist collaborative AI media through R2, D1, KV, and Durable Objects. | `cloudflare/workers/knowgrph-storage/index.ts` |
 | ADR-014 | Accepted | Use one canonical storage workspace by default across devices. | `canvas/src/features/source-files/sourceFilesStorageSync.ts` |
+| ADR-015 | Accepted | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. | `grph-shared/src/collaboration/documentRepositoryAuthority.ts` |
 
 ## ADR-001: Minimal Persisted Client Working Store
 
-The workspace FS keeps a bounded local working set for continuity and sync recovery. Canonical persistence lives in D1; the browser cache must not become an authoring SSOT. IndexedDB remains a zero-egress FOSS substrate through the typed storage wrapper.
+The workspace FS keeps a bounded local working set for continuity and sync recovery. Canonical authoring remains path-scoped to the owning GitHub docs root; D1 is the shared runtime/read cache, and the browser cache must not become an authoring SSOT. IndexedDB remains a zero-egress FOSS substrate through the typed storage wrapper.
 
 ## ADR-002: SQLite / D1 First Shared Store
 
@@ -84,3 +106,7 @@ AI media persistence combines R2 bytes, D1 metadata, optional KV access-cache en
 ## ADR-014: Canonical Cross-Device Source Files Workspace
 
 The default Source Files storage workspace is `kgws:canonical-docs` on every installation. Browser-local folder cache IDs and selected paths remain local workspace preferences, never remote storage identity, so Dev, Prod, and other devices converge on the same Source Files inventory. `VITE_KNOWGRPH_STORAGE_WORKSPACE_ID` is the explicit opt-in boundary for an isolated workspace.
+
+## ADR-015: Path-Scoped GitHub Repository Authority
+
+The shared authority resolver maps Knowgrph product documents and `/docs/workspace-seeds/**` to `knowgrph-docs`, maps user-created and imported workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths plus the duplicate `huijoohwee/docs/workspace-seeds/**` root as collaboration write targets. Every browser save request carries the resolved target, and the Worker re-derives it before selecting target-specific repository configuration. IndexedDB and the outbox remain available when online transport is disabled or unavailable.

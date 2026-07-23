@@ -103,6 +103,7 @@ const readConflictSummary = async (
     message: normalizeString(row.get('lastAckMessage')) || null,
   }))
   return {
+    transportStatus: 'synced',
     workspaceId,
     deviceId: '',
     pushedCount: 0,
