@@ -3,13 +3,30 @@ title: "Knowgrph Storage & Sync"
 id: "md:knowgrph-storage-sync-document"
 author: "airvio / joohwee"
 date: "2026-06-01"
-updated: "2026-06-18"
-version: "3.2.0"
-status: "deployed-dev; prod/cloudflare deploy remains manual"
+updated: "2026-07-23"
+version: "3.3.0"
+status: "runtime-ready-dev; production and cloud proof remain release-owned"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
+document_runtime_status: "runtime-ready-dev"
+runtime_scope: "Frontmatter parsing, source validation, MCP grammar resolution, and read-only Source Files discovery; feature and deployment status remain section-specific."
+deploy_boundary: "No Prod mirror or Cloudflare mutation is authorized by this document."
 domain: "knowgrph"
+source_authority:
+  contract_root: "knowgrph/docs"
+  collaborative_documents_root: "huijoohwee/docs"
+  invocation_dictionary_root: "agentic-canvas-os/docs"
+  production_mirror_root: "huijoohwee/content/knowgrph"
+  production_mirror_editable: false
+mcp:
+  grammar_tool: "knowgrph.agentic_canvas_os.docs.invoke"
+  published_source_tools: ["search", "fetch"]
+  webmcp_source_tools: ["knowgrph.list_source_files", "knowgrph.read_source_file"]
+  source_availability: "Read-only after the document is present in the configured published Source Files workspace."
+invocation:
+  normalize: "/source.normalize @source.frontmatter @source.body #frontmatter #no-legacy"
+  verify: "/runtime-ready.check @local-harness @runtime-proof #runtime-ready #vcc"
 orientation:
   - "solo-dev"
   - "AI-native"
@@ -48,7 +65,9 @@ traceability:
 
 **Context**: Canonical markdown documents, configurable local docs mirror sync, optional D1-backed Worker storage, PocketBase + Yjs collaborative editing, minimal browser cache, and Cloudflare deployment.
 **Intent**: Keep one canonical storage decision, one shared sync contract, and one conflict-resolution UX path.
-**Directive**: Keep GitHub `docs/**` canonical for Storage Sync. Use the local docs mirror as a working projection, use PocketBase + Yjs as the concurrent-editing layer, and use Cloudflare Worker + D1 only for explicit runtime/read-cache endpoints. Collaborators never touch Git; a server-side bridge commits saved CRDT snapshots back to GitHub. Never let two users edit raw JSON simultaneously without CRDT wrapping.
+**Directive**: Keep Knowgrph product and runtime contracts in `knowgrph/docs`, collaborative workspace documents in `huijoohwee/docs`, and global invocation dictionaries in `agentic-canvas-os/docs`. Use the configured local docs mirror as the offline working projection, PocketBase + Yjs as the concurrent-editing layer, and Cloudflare Worker + D1 only for explicit runtime/read-cache endpoints. `huijoohwee/content/knowgrph` is generated release output and is never an authoring target. Collaborators never touch Git; a server-side bridge commits saved CRDT snapshots back to the owning GitHub docs root. Never let two users edit raw JSON simultaneously without CRDT wrapping.
+
+The document family is invocable through `knowgrph.agentic_canvas_os.docs.invoke`, which resolves the authored `/`, `@`, and `#` tokens from Agentic Canvas OS. The `search`/`fetch` MCP pair and `knowgrph.list_source_files`/`knowgrph.read_source_file` WebMCP pair provide read-only document access only after a source is present in the configured published Source Files workspace. Invocation lookup does not execute storage mutations, authorize deployment, or turn this Markdown into a second tool registry.
 
 ## Companion Files
 
@@ -56,28 +75,30 @@ traceability:
 |---|---|
 | `knowgrph-storage-sync-document.companion.md` | PRD summary, TAD runtime layers, conflict resolution, ADRs, deployment phases, quality attributes, token economics, validation |
 | `knowgrph-storage-schemas-document.md` | D1 SQL, browser cache shapes, contract types, route contracts |
-| `knowgrph-local-storage.md` | Browser LocalStorage keys (UI state, not sync) |
-| `knowgrph-source-files-import.md` | Import workflows, format routing, geo layer registration |
+| `knowgrph-local-storage-document.md` | Browser LocalStorage keys (UI state, not sync) |
+| `knowgrph-source-files-import-document.md` | Import workflows, format routing, geo layer registration |
 | `knowgrph-multi-user-collaboration-prd.tad.md` | Multi-user auth, authorization, role-based access, SSOT transition |
 
 ---
 
 ## Storage Ladder
 
-1. **Canonical authoring source**: GitHub `huijoohwee/agentic-canvas-os` `docs/**` is the Source Files SSOT; device-local folders are never allowed to replace this inventory
-2. **Per-device cache**: minimal browser cache only; it is not canonical persistence
-3. **Concurrent edit layer**: PocketBase + Yjs when ≥2 users edit the same file at the same time
-4. **Save bridge**: server-side bridge serializes saved Yjs state and commits to GitHub; collaborators never touch Git directly
-5. **Explicit shared/runtime store**: Cloudflare D1 through a Cloudflare Worker sync API using `drizzle-orm` queries and Wrangler SQL migrations for read/export/runtime metadata only
-6. **Generated binary artifact store**: Cloudflare R2 owns generated image/video/binary bytes; D1 owns the sibling Markdown manifest that points to the R2 object through the Worker blob route
-7. **Future scale-up path**: PostgreSQL only when server-side retrieval clearly outgrows D1/PocketBase responsibilities
+1. **Product/runtime contract source**: GitHub `huijoohwee/knowgrph` `docs/**` owns Knowgrph specifications, route contracts, schemas, and authored workspace seeds.
+2. **Collaborative document source**: GitHub `huijoohwee/huijoohwee` `docs/**` owns user-created, imported, and runnable workspace Markdown; local Dev defaults its configured docs mirror to this sibling root when available.
+3. **Global invocation source**: GitHub `huijoohwee/agentic-canvas-os` `docs/**` owns the `/`, `@`, and `#` dictionaries and the currently published canonical runtime-doc catalog.
+4. **Per-device cache**: minimal browser cache only; it is not canonical persistence.
+5. **Concurrent edit layer**: PocketBase + Yjs when two or more users edit the same file at the same time.
+6. **Save bridge**: server-side bridge serializes saved Yjs state and commits to the owning GitHub docs root; collaborators never touch Git directly.
+7. **Explicit shared/runtime store**: Cloudflare D1 through a Cloudflare Worker sync API using `drizzle-orm` queries and Wrangler SQL migrations for read/export/runtime metadata only.
+8. **Generated binary artifact store**: Cloudflare R2 owns generated image/video/binary bytes; D1 owns the sibling Markdown manifest that points to the R2 object through the Worker blob route.
+9. **Future scale-up path**: PostgreSQL only when server-side retrieval clearly outgrows D1/PocketBase responsibilities.
 
 ### SSOT Transition
 
-The canonical authoring source does not change with workspace membership: GitHub `docs/**` remains SSOT.
+There is no undifferentiated repository-wide `docs/**` SSOT. Authority is path-scoped: `knowgrph/docs` owns product/runtime contracts, `huijoohwee/docs` owns collaborative workspace documents, and `agentic-canvas-os/docs` owns global invocation/governance documents and the current published runtime-doc catalog.
 
-- **Single-user workspace**: Source Files reads the canonical Agentic Canvas OS GitHub tree first. A configured local mirror is an offline fallback, not an inventory owner.
-- **Multi-user workspace**: PocketBase + Yjs becomes the live collaboration layer only while concurrent same-file editing is active. On save, the bridge serializes Yjs state and commits to GitHub. D1 remains a runtime read/export cache and never becomes the collaboration SSOT.
+- **Single-user workspace**: Source Files reads the configured GitHub source and uses the sibling `huijoohwee/docs` root as the default local Dev mirror when present. Browser persistence is the offline fallback, not an inventory owner.
+- **Multi-user workspace**: PocketBase + Yjs becomes the live collaboration layer only while concurrent same-file editing is active. On save, the bridge serializes Yjs state and commits to the path's owning GitHub docs root. D1 remains a runtime read/export cache and never becomes the collaboration SSOT.
 
 ### Multi-User Concurrent Editing
 
@@ -126,7 +147,7 @@ Supported URL types: GitHub repo/folder/blob, any webpage, raw markdown URL, loc
 
 Toolbar → Workspace View → `Storage Sync` is the runtime gate for two storage paths that share GitHub as SSOT:
 
-1. **Solo/local path**: Editor Workspace `/docs/**` ⇄ Source Files ⇄ configured local docs mirror.
+1. **Solo/local path**: Editor Workspace `/docs/**` ⇄ Source Files ⇄ configured local docs mirror, defaulting to sibling `huijoohwee/docs` in local Dev when available.
 2. **Concurrent path**: Editor Workspace `/docs/**` ⇄ Yjs document room ⇄ PocketBase realtime relay ⇄ GitHub save bridge.
 3. **Explicit Source Files cloud path**: a Markdown row's local/cloud icon commits the saved local file through the GitHub save bridge, pushes that exact text to D1 only after GitHub succeeds, and shows cloud-synced only after the public D1 document read-back matches.
 4. **Generated artifact publication path**: Generated workspace artifact blob ⇄ `/api/storage/blob/:workspaceId/:canonicalPath*` ⇄ R2 object, plus a sibling Markdown manifest pushed through the Source Files storage publication helper into D1.
@@ -204,7 +225,7 @@ flowchart TB
     Dev -->|"npm run pages:build-sync"| ProdSSOT
     Dev -->|"npm run storage:deploy"| Edge
 
-    subgraph ProdSSOT["Prod SSOT: huijoohwee/content/knowgrph/"]
+    subgraph ProdMirror["Generated Prod mirror: huijoohwee/content/knowgrph/"]
         index["index.html + sw.js"]
         manifest["manifest.webmanifest"]
         assets["assets/ (hashed SPA chunks)"]
@@ -426,7 +447,7 @@ flowchart TB
         end
     end
 
-    subgraph ProdSSOT["Prod SSOT: huijoohwee/content/knowgrph/"]
+    subgraph ProdMirror["Generated Prod mirror: huijoohwee/content/knowgrph/"]
         index["index.html, sw.js"]
         manifest["manifest.webmanifest"]
         assets["assets/ (hashed SPA)"]
@@ -552,5 +573,5 @@ flowchart TB
 PRD summary, TAD runtime layers, conflict resolution, architectural decisions (ADRs), deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract continue in [knowgrph-storage-sync-document.companion.md](knowgrph-storage-sync-document.companion.md).
 
 See `knowgrph-storage-schemas-document.md` for D1 SQL, minimal cache shapes, contract type definitions, and route contracts.
-See `knowgrph-local-storage.md` for browser LocalStorage key reference (UI state, not sync).
-See `knowgrph-source-files-import.md` for import workflows, format routing, and geo layer registration.
+See `knowgrph-local-storage-document.md` for browser LocalStorage key reference (UI state, not sync).
+See `knowgrph-source-files-import-document.md` for import workflows, format routing, and geo layer registration.

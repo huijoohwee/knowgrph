@@ -1,3 +1,24 @@
+---
+title: "Knowgrph Storage Schema Extensions"
+id: "md:knowgrph-storage-schemas-extensions-document"
+version: "1.1.0"
+updated: "2026-07-23"
+status: "spec-complete-deferred"
+doc_type: "Schema Extension Reference"
+frontmatter_contract: "required"
+document_runtime_status: "runtime-ready-dev"
+runtime_scope: "Frontmatter parsing, source validation, MCP grammar resolution, and read-only Source Files discovery; extension implementation remains deferred."
+deploy_boundary: "No migration, Prod mirror, or Cloudflare mutation is authorized by this document."
+mcp:
+  grammar_tool: "knowgrph.agentic_canvas_os.docs.invoke"
+  published_source_tools: ["search", "fetch"]
+  webmcp_source_tools: ["knowgrph.list_source_files", "knowgrph.read_source_file"]
+  source_availability: "Read-only after the document is present in the configured published Source Files workspace."
+invocation:
+  normalize: "/source.normalize @source.frontmatter @source.body #frontmatter #no-legacy"
+  verify: "/runtime-ready.check @local-harness @runtime-proof #runtime-ready #vcc"
+---
+
 # Knowgrph Storage Schema Extensions
 
 **Context**: Deferred schema extensions for Knowgrph storage and sync.
@@ -6,8 +27,8 @@
 
 ---
 
-**Version**: 1.0.0
-**Date**: 2026-06-29
+**Version**: 1.1.0
+**Date**: 2026-07-23
 **Canonical baseline**: `knowgrph-storage-schemas-document.md`
 
 ## Planned Authenticated Collaboration And Chat Relay Extension

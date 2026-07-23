@@ -3,13 +3,24 @@ title: "Knowgrph Storage & Sync — Companion"
 id: "md:knowgrph-storage-sync-document.companion"
 author: "airvio / joohwee"
 date: "2026-06-05"
-updated: "2026-06-14"
-version: "3.1.0"
-status: "deployed-dev; prod/cloudflare deploy remains manual"
+updated: "2026-07-23"
+version: "3.2.0"
+status: "runtime-ready-dev; production and cloud proof remain release-owned"
 doc_type: "Companion PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
+document_runtime_status: "runtime-ready-dev"
+runtime_scope: "Frontmatter parsing, source validation, MCP grammar resolution, and read-only Source Files discovery; feature and deployment status remain section-specific."
+deploy_boundary: "No Prod mirror or Cloudflare mutation is authorized by this document."
 domain: "knowgrph"
+mcp:
+  grammar_tool: "knowgrph.agentic_canvas_os.docs.invoke"
+  published_source_tools: ["search", "fetch"]
+  webmcp_source_tools: ["knowgrph.list_source_files", "knowgrph.read_source_file"]
+  source_availability: "Read-only after the document is present in the configured published Source Files workspace."
+invocation:
+  normalize: "/source.normalize @source.frontmatter @source.body #frontmatter #no-legacy"
+  verify: "/runtime-ready.check @local-harness @runtime-proof #runtime-ready #vcc"
 orientation:
   - "solo-dev"
   - "AI-native"
@@ -43,8 +54,8 @@ traceability:
 
 Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, ADR index, deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
-**Version**: 3.1.0
-**Date**: 2026-06-14
+**Version**: 3.2.0
+**Date**: 2026-07-23
 
 ---
 
@@ -52,11 +63,12 @@ Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-docume
 
 ### Problem
 
-Knowgrph source files exist in three disconnected locations:
+Knowgrph documents cross four path-scoped owners that must not be conflated:
 
-1. **Dev** (`knowgrph/canvas/src/`) — live editing with minimal persisted local cache
-2. **Prod SSOT** (`huijoohwee/content/knowgrph/`) — static build artifacts mirrored into the Cloudflare Pages publish repo
-3. **Docs seed** (`huijoohwee/docs/`) — canonical Markdown files for workspace initialization
+1. **Product/runtime contracts** (`knowgrph/docs/`) — authored Knowgrph specifications, schemas, and workspace seeds.
+2. **Collaborative workspace documents** (`huijoohwee/docs/`) — user-created, imported, and runnable Markdown plus the default local Dev mirror.
+3. **Global invocation/governance documents** (`agentic-canvas-os/docs/`) — the `/`, `@`, and `#` dictionaries and the current published runtime-doc catalog.
+4. **Production mirror** (`huijoohwee/content/knowgrph/`) — generated static release output, never an authoring SSOT.
 
 The original gap was a built client-side sync engine with no server-side endpoint. Current Dev → Prod → Cloudflare context resolves the shared-store path through the deployed `knowgrph-storage` Worker, remote D1 migrations, and the static `huijoohwee/content/knowgrph` mirror. The remaining generated-media ambiguity is resolved by treating image/video/binary bytes as R2 objects and their readable audit trail as sibling Markdown manifests in D1.
 
@@ -66,7 +78,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 |---|---|---|
 | Solo developer | Edit docs on any device and resume exactly where I left off | Workspace state is siloed per browser |
 | Collaborator | Edit the same `*.md` or `*.json` file with a peer without destructive merge conflicts | Git merge on minified JSON loses fields; polling D1 is too slow for character-level edits |
-| Operator | Deploy once and keep Prod SSOT and D1 read cache consistent with Dev | Manual multi-step deploy leaves runtime stale after doc changes |
+| Operator | Deploy once and keep the generated Prod mirror and D1 read cache consistent with the protected source | Manual multi-step deploy leaves runtime stale after doc changes |
 | Generated-media author | Produce image/video/binary outputs that can replay from Cloudflare without re-running the model | Local artifact paths, provider URLs, and embedded previews do not prove durable Cloudflare persistence |
 
 ### User Journey
@@ -88,7 +100,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 
 **As a** collaborator editing a shared doc, **I want** same-file edits to merge without destructive Git conflicts, **so that** concurrent Markdown and JSON edits resolve through CRDTs and save back to GitHub.
 
-**As an** operator deploying to production, **I want** the build-sync pipeline to be the single static-artifact path, **so that** production SPA continues to serve from Prod SSOT.
+**As an** operator deploying to production, **I want** the release controller to own the single static-artifact path, **so that** the production SPA serves only the generated mirror of protected source.
 
 **As a** user on a mobile device, **I want** workspace state to sync via the same push/pull mechanism, **so that** I have seamless cross-device continuity.
 
@@ -462,7 +474,7 @@ Representative test files:
 
 ## Cross-Repo Documentation Contract
 
-These cross-repo docs must stay aligned:
+These cross-repo owners must stay aligned without becoming editable copies of one another:
 
 - `agentic-canvas-os/docs/TODO.md` and the active `agentic-canvas-os/todo/YYYY-MM.md` shard
 - `knowgrph/docs/documents/knowgrph-storage-sync-document.md` (canonical)
@@ -470,6 +482,9 @@ These cross-repo docs must stay aligned:
 - `knowgrph/docs/documents/knowgrph-storage-sync-adrs-document.md`
 - `knowgrph/docs/documents/knowgrph-storage-schemas-document.md`
 - `knowgrph/docs/documents/knowgrph-storage-schemas-extensions-document.md`
+- `knowgrph/docs/documents/knowgrph-spreadsheet-storage-document.md`
+- `knowgrph/docs/documents/knowgrph-source-files-import-document.md`
+- `huijoohwee/docs/` for collaborative workspace documents and local offline mirror fallback
 - `huijoohwee.github.io/docs/documents/hjh-workspace-todo-log.md`
 - `huijoohwee.github.io/schema/AgenticRAG/README.md`
 - `huijoohwee.github.io/schema/AgenticRAG/documentation.jsonld`
