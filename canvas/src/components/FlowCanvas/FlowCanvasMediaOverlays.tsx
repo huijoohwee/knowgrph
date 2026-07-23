@@ -893,8 +893,8 @@ export default function FlowCanvasMediaOverlays(args: {
               storyboardWidgetFrontmatterDocumentMode={storyboardWidgetFrontmatterDocumentModeRequested}
               storyboardWidgetSurfaceId={storyboardWidgetOverlaySurfaceId}
               onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-              onClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-              onDoubleClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+              onClick={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+              onDoubleClick={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
               onContextMenuCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
             />
           </section>

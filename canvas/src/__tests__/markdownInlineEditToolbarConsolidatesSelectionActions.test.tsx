@@ -6,6 +6,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { captureRichMediaPanelBoundaryEvent } from '@/components/captureRichMediaPanelBoundaryEvent'
 import type { GraphData } from '@/lib/graph/types'
 import {
   RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID,
@@ -157,6 +158,7 @@ export async function testVersionedRichMediaWorkspaceViewerReusesInlineSelection
   const container = doc.getElementById('root')
   if (!container) throw new Error('missing root container')
   const root = createRoot(container as unknown as HTMLElement)
+  let canvasBoundaryClickCount = 0
   const probeTreeMarkdown = [
     '---',
     'schema: "knowgrph-rich-media-text/v1"',
@@ -177,45 +179,58 @@ export async function testVersionedRichMediaWorkspaceViewerReusesInlineSelection
 
   try {
     root.render(
-      React.createElement(RichMediaPanel, {
-        overlayId: 'probe-tree-branches',
-        title: 'Probe-Tree Branches',
-        url: '',
-        kind: 'iframe',
-        interactive: false,
-        panel: {
-          activeTab: 'text',
-          freezeConnectedOutput: true,
-          markdownWorkspaceViewerSurface: true,
-          hasText: true,
-          hasImage: false,
-          hasVideo: false,
-          hasAudio: false,
-          hasPoi: false,
-          text: probeTreeMarkdown,
-          connectedText: '',
-          outputVersions: [
-            {
-              id: 'probe-tree-run-1',
-              createdAt: '2026-07-23T00:00:00.000Z',
-              output: 'Earlier Probe-Tree output',
-            },
-            {
-              id: 'probe-tree-run-2',
-              createdAt: '2026-07-23T00:01:00.000Z',
-              output: probeTreeMarkdown,
-            },
-          ],
-          selectedOutputVersionId: 'probe-tree-run-2',
-        },
-        onPanelChange: () => {},
-      }),
+      React.createElement(
+        'section',
+        { onClick: () => { canvasBoundaryClickCount += 1 } },
+        React.createElement(RichMediaPanel, {
+          overlayId: 'probe-tree-branches',
+          title: 'Probe-Tree Branches',
+          url: '',
+          kind: 'iframe',
+          interactive: false,
+          onClick: captureRichMediaPanelBoundaryEvent,
+          onDoubleClick: captureRichMediaPanelBoundaryEvent,
+          panel: {
+            activeTab: 'text',
+            freezeConnectedOutput: true,
+            markdownWorkspaceViewerSurface: true,
+            hasText: true,
+            hasImage: false,
+            hasVideo: false,
+            hasAudio: false,
+            hasPoi: false,
+            text: probeTreeMarkdown,
+            connectedText: '',
+            outputVersions: [
+              {
+                id: 'probe-tree-run-1',
+                createdAt: '2026-07-23T00:00:00.000Z',
+                output: 'Earlier Probe-Tree output',
+              },
+              {
+                id: 'probe-tree-run-2',
+                createdAt: '2026-07-23T00:01:00.000Z',
+                output: probeTreeMarkdown,
+              },
+            ],
+            selectedOutputVersionId: 'probe-tree-run-2',
+          },
+          onPanelChange: () => {},
+        }),
+      ),
     )
     await tick(10)
 
     const richMediaEditSurface = doc.querySelector('[data-kg-rich-media-inline-edit="1"]')
     if (!richMediaEditSurface) {
       throw new Error(`expected versioned Rich Media output to expose the shared Viewer edit surface, html=${container.innerHTML}`)
+    }
+    const richMediaScrollSurface = richMediaEditSurface.querySelector('[data-kg-rich-media-card-text-scroll="1"]') as HTMLElement | null
+    if (!richMediaScrollSurface) throw new Error('expected Rich Media Viewer scroll surface')
+    richMediaScrollSurface.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+    await tick(2)
+    if (canvasBoundaryClickCount !== 0) {
+      throw new Error('expected Rich Media bubble boundary to stop clicks before the parent Canvas owner')
     }
     const host = richMediaEditSurface.querySelector('h1[data-start-line="9"]') as HTMLElement | null
     if (!host) throw new Error(`expected versioned Rich Media Viewer markdown host, html=${container.innerHTML}`)
@@ -315,6 +330,8 @@ export function testInlineSelectionToolbarHasOneSourceOwnerAndSharedSurfaces() {
   }
   const richMediaViewer = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanelWorkspaceViewerSurface.tsx'), 'utf8')
   const markdownPreview = fs.readFileSync(path.resolve(sourceRoot, 'features/markdown/ui/MarkdownPreview.tsx'), 'utf8')
+  const flowCanvasMediaOverlays = fs.readFileSync(path.resolve(sourceRoot, 'components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
+  const richMediaShell = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanelShell.tsx'), 'utf8')
   if (
     !richMediaViewer.includes('<MarkdownPreview')
     || !richMediaViewer.includes('onInlineDraftTextChange=')
@@ -322,5 +339,15 @@ export function testInlineSelectionToolbarHasOneSourceOwnerAndSharedSurfaces() {
     || !markdownPreview.includes('<MarkdownInlineSelectionActionsContext.Provider')
   ) {
     throw new Error('expected Editor Workspace Viewer and Rich Media Panel to reuse the canonical inline-edit selection toolbar path')
+  }
+  if (
+    !flowCanvasMediaOverlays.includes('onClick={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')
+    || !flowCanvasMediaOverlays.includes('onDoubleClick={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')
+    || flowCanvasMediaOverlays.includes('onClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')
+    || flowCanvasMediaOverlays.includes('onDoubleClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')
+    || !richMediaShell.includes('onClick={props.onClick}')
+    || !richMediaShell.includes('onDoubleClick={props.onDoubleClick}')
+  ) {
+    throw new Error('expected Canvas Rich Media boundaries to run after canonical Viewer inline-edit handlers instead of suppressing them in capture')
   }
 }
