@@ -4,6 +4,7 @@ import {
   installServiceWorkerRevisionUpdateOwner,
   SERVICE_WORKER_UPDATE_MIN_INTERVAL_MS,
 } from '../lib/pwa/serviceWorkerRevisionUpdateOwner'
+import { registerCanonicalServiceWorker } from '../lib/pwa/serviceWorkerRegistrationOwner'
 
 const flushPromises = async (): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, 0))
@@ -92,4 +93,102 @@ test('service worker revision owner retries promptly after an offline registrati
   await flushPromises()
   assert.equal(updateCount, 2, 'online recovery must not inherit the throttle from a failed update')
   assert.equal(settledCount, 2, 'failed and successful checks must both release stable active-worker cleanup')
+})
+
+test('canonical service worker registration bypasses caches for rapid release convergence', async () => {
+  const previousController = Object.assign(new EventTarget(), {
+    state: 'activated',
+    postMessage() {},
+  })
+  const nextController = Object.assign(new EventTarget(), {
+    state: 'activated',
+    postMessage() {},
+  })
+  const serviceWorkerTarget = Object.assign(new EventTarget(), {
+    controller: previousController,
+    registerCalls: [] as Array<{ scriptUrl: string; options: RegistrationOptions }>,
+    async register(scriptUrl: string, options: RegistrationOptions) {
+      this.registerCalls.push({ scriptUrl, options })
+      return {
+        active: previousController,
+        installing: null,
+        waiting: null,
+        async update() {},
+      }
+    },
+  })
+  let reloadCount = 0
+  let registeredCount = 0
+  const owner = await registerCanonicalServiceWorker({
+    serviceWorkerTarget,
+    reload() {
+      reloadCount += 1
+    },
+    onRegistered() {
+      registeredCount += 1
+    },
+  })
+
+  assert.deepEqual(serviceWorkerTarget.registerCalls, [{
+    scriptUrl: '/knowgrph/sw.js',
+    options: {
+      scope: '/knowgrph/',
+      type: 'classic',
+      updateViaCache: 'none',
+    },
+  }], 'registration must bypass the HTTP cache for the worker and revision-bound imports')
+  assert.equal(registeredCount, 1)
+
+  serviceWorkerTarget.controller = nextController
+  serviceWorkerTarget.dispatchEvent(new Event('controllerchange'))
+  serviceWorkerTarget.dispatchEvent(new Event('controllerchange'))
+  assert.equal(reloadCount, 1, 'a replacement controller must reload the returning-user document once')
+
+  owner.dispose()
+  serviceWorkerTarget.controller = previousController
+  serviceWorkerTarget.dispatchEvent(new Event('controllerchange'))
+  assert.equal(reloadCount, 1, 'disposed registration owners must release controller listeners')
+})
+
+test('canonical service worker registration reports a first install without reloading', async () => {
+  const installingWorker = Object.assign(new EventTarget(), {
+    state: 'installing',
+    postMessage() {},
+  })
+  const serviceWorkerTarget = Object.assign(new EventTarget(), {
+    controller: null as (EventTarget & {
+      state: string
+      postMessage(message: unknown, transfer: Transferable[]): void
+    }) | null,
+    async register() {
+      return {
+        active: null,
+        installing: installingWorker,
+        waiting: null,
+        async update() {},
+      }
+    },
+  })
+  let offlineReadyCount = 0
+  let reloadCount = 0
+  await registerCanonicalServiceWorker({
+    serviceWorkerTarget,
+    onOfflineReady() {
+      offlineReadyCount += 1
+    },
+    reload() {
+      reloadCount += 1
+    },
+  })
+
+  installingWorker.state = 'installed'
+  installingWorker.dispatchEvent(new Event('statechange'))
+  serviceWorkerTarget.controller = Object.assign(new EventTarget(), {
+    state: 'activated',
+    postMessage() {},
+  })
+  serviceWorkerTarget.dispatchEvent(new Event('controllerchange'))
+
+  assert.equal(offlineReadyCount, 1)
+  assert.equal(reloadCount, 0, 'the first controller claim must not reload a newly installed app')
 })
