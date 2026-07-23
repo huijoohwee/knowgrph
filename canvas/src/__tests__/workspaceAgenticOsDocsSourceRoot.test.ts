@@ -11,8 +11,9 @@ import {
   resolveWorkspaceSourceRootPaths,
 } from '@/features/workspace-fs/workspaceSourceRoots'
 import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
+import { resolveWorkspaceRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { resolveKnowgrphWorkspaceSeedsAbsRoot, resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
-import { resetCanonicalAgenticDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { resetCanonicalPublishedDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { toWorkspaceDocsMirrorPath } from '@/features/workspace-fs/workspaceFsPersistedReconciliation'
 
 export function testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer(): void {
@@ -20,6 +21,9 @@ export function testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer(): vo
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousValue = readWorkspaceImportShareExportRootPathSetting()
   try {
+    if (!resolveWorkspaceRepoLocalRunReadyBootstrap({ viteDev: true, configuredValue: '' })) {
+      throw new Error('ordinary Vite Dev must use the repo-local Agentic docs authority')
+    }
     process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = path.join(os.tmpdir(), 'kg-root', 'docs')
     writeWorkspaceImportShareExportRootPathSetting('/docs_')
     const roots = resolveWorkspaceSourceRootPaths()
@@ -68,6 +72,7 @@ export function testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer(): vo
 
 export async function testWorkspaceSeedProviderIncludesSiblingAgenticOsDocsMirrorRoot() {
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousRepoLocal = process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL
   const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-agentic-docs-mirror-'))
   const docsRoot = path.join(tmpRoot, 'docs')
   const agenticDocsRoot = path.join(tmpRoot, 'agentic-canvas-os', 'docs')
@@ -75,6 +80,7 @@ export async function testWorkspaceSeedProviderIncludesSiblingAgenticOsDocsMirro
   try {
     process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = docsRoot
     process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = agenticDocsRoot
+    process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = '1'
     await fsPromises.mkdir(docsRoot, { recursive: true })
     await fsPromises.mkdir(agenticDocsRoot, { recursive: true })
     await fsPromises.writeFile(path.join(docsRoot, 'workspace-readme.md'), '# Docs Root\n')
@@ -90,23 +96,25 @@ export async function testWorkspaceSeedProviderIncludesSiblingAgenticOsDocsMirro
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
     if (typeof previousAgenticDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = previousAgenticDocsAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT
+    if (typeof previousRepoLocal === 'string') process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = previousRepoLocal
+    else delete process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL
     await fsPromises.rm(tmpRoot, { recursive: true, force: true })
   }
 }
 
-export function testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrimaryRootIsAbsent(): void {
+export function testWorkspaceDocsMirrorLocalRootsSelectsSoleAgenticRootWhenPrimaryRootIsAbsent(): void {
   const canonicalSeedsRoot = resolveKnowgrphWorkspaceSeedsAbsRoot({
     docsAbsRoot: '/workspace/huijoohwee/docs',
   })
   if (canonicalSeedsRoot !== '/workspace/knowgrph/docs/workspace-seeds') {
     throw new Error(`expected sibling docs configuration to derive the canonical Knowgrph seed root, got ${canonicalSeedsRoot}`)
   }
-  const fallbackOnly = resolveWorkspaceDocsMirrorLocalRootRequests({
+  const soleAgenticRoot = resolveWorkspaceDocsMirrorLocalRootRequests({
     docsAbsRoot: '',
     agenticDocsAbsRoot: '/tmp/agentic-canvas-os/docs',
   })
-  if (fallbackOnly.length !== 1 || fallbackOnly[0]?.workspaceRootName) {
-    throw new Error(`expected the sole Agentic docs root to project unprefixed, got ${JSON.stringify(fallbackOnly)}`)
+  if (soleAgenticRoot.length !== 1 || soleAgenticRoot[0]?.workspaceRootName) {
+    throw new Error(`expected the sole Agentic docs root to project unprefixed, got ${JSON.stringify(soleAgenticRoot)}`)
   }
   const combined = resolveWorkspaceDocsMirrorLocalRootRequests({
     docsAbsRoot: '/tmp/knowgrph/docs',
@@ -128,33 +136,37 @@ export function testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrim
   }
 }
 
-export async function testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsUnavailable() {
+export async function testWorkspaceSeedProviderUsesDeclaredRepoLocalAgenticDocsAuthority() {
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousAgenticDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT
+  const previousRepoLocal = process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL
   const previousFetch = globalThis.fetch
   const globals = globalThis as typeof globalThis & { window?: Window }
   const previousWindow = globals.window
-  const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-agentic-docs-fallback-'))
+  const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-agentic-docs-local-'))
   const agenticDocsRoot = path.join(tmpRoot, 'agentic-canvas-os', 'docs')
   try {
     delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
     process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = agenticDocsRoot
+    process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = '1'
     await fsPromises.mkdir(agenticDocsRoot, { recursive: true })
     await fsPromises.writeFile(path.join(agenticDocsRoot, 'README.md'), '# Local Agentic Docs\n')
-    globalThis.fetch = async () => new Response('', { status: 403 })
+    globalThis.fetch = async input => {
+      throw new Error(`repo-local Agentic docs must not request a remote source: ${String(input)}`)
+    }
     delete globals.window
-    resetCanonicalAgenticDocsMirrorCacheForTests()
+    resetCanonicalPublishedDocsMirrorCacheForTests()
 
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
     const readme = mirrored.find(entry => entry.relPath === 'README.md')
     if (readme?.text !== '# Local Agentic Docs\n') {
-      throw new Error(`expected local README fallback after GitHub 403, got ${JSON.stringify(mirrored)}`)
+      throw new Error(`expected declared repo-local README authority, got ${JSON.stringify(mirrored)}`)
     }
     if (mirrored.some(entry => entry.relPath === 'agentic-canvas-os/docs/README.md')) {
       throw new Error('expected the sole Agentic docs root to materialize directly beneath /docs')
     }
   } finally {
-    resetCanonicalAgenticDocsMirrorCacheForTests()
+    resetCanonicalPublishedDocsMirrorCacheForTests()
     globalThis.fetch = previousFetch
     if (previousWindow) globals.window = previousWindow
     else delete globals.window
@@ -162,6 +174,8 @@ export async function testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsU
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
     if (typeof previousAgenticDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = previousAgenticDocsAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT
+    if (typeof previousRepoLocal === 'string') process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = previousRepoLocal
+    else delete process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL
     await fsPromises.rm(tmpRoot, { recursive: true, force: true })
   }
 }

@@ -164,9 +164,26 @@ export const isXrPhysicsRunReadyDemoActive = (
   readWorkspaceRunReadyDemoId(documentPath, documentText) === XR_PHYSICS_RUN_READY_DEMO_ID
 )
 
-export const isWorkspaceRepoLocalRunReadyBootstrap = (): boolean => {
-  const value = readEnvString('VITE_KNOWGRPH_RUN_READY_REPO_LOCAL', '').trim().toLowerCase()
+export const resolveWorkspaceRepoLocalRunReadyBootstrap = (args: {
+  viteDev: boolean
+  configuredValue: string
+}): boolean => {
+  if (args.viteDev) return true
+  const value = args.configuredValue.trim().toLowerCase()
   return value === '1' || value === 'true' || value === 'yes' || value === 'on'
+}
+
+export const isWorkspaceRepoLocalRunReadyBootstrap = (): boolean => {
+  let viteDev = false
+  try {
+    viteDev = import.meta.env.DEV === true
+  } catch {
+    // Node-focused source tests do not expose Vite's import.meta.env object.
+  }
+  return resolveWorkspaceRepoLocalRunReadyBootstrap({
+    viteDev,
+    configuredValue: readEnvString('VITE_KNOWGRPH_RUN_READY_REPO_LOCAL', ''),
+  })
 }
 
 export const resolveWorkspaceValidationSeedRelPath = (args: {

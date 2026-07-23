@@ -209,7 +209,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
       : []
     const docsMirrorEntries = docsOnlyMode
-      ? sourceDocsMirrorEntries.every(entry => entry.authority === 'agentic-canvas-os-github')
+      ? sourceDocsMirrorEntries.every(entry => entry.authority === 'agentic-canvas-os-storage')
         ? sourceDocsMirrorEntries
         : await mergeCanonicalXrPhysicsWorkspaceSeedIntoDocsMirror(sourceDocsMirrorEntries)
       : []

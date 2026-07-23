@@ -12,8 +12,6 @@ import {
 const GITHUB_DOCS_MIRROR_FETCH_CONCURRENCY = 8
 const CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS = 60_000
 
-export const CANONICAL_AGENTIC_CANVAS_OS_DOCS_GITHUB_URL =
-  'https://github.com/huijoohwee/agentic-canvas-os/tree/main/docs'
 export const CANONICAL_HUIJOOHWEE_DEMO_DOCS_GITHUB_URL =
   'https://github.com/huijoohwee/huijoohwee/tree/main/docs'
 export const CANONICAL_HUIJOOHWEE_OUTPUT_DOCS_GITHUB_URL =
@@ -21,8 +19,6 @@ export const CANONICAL_HUIJOOHWEE_OUTPUT_DOCS_GITHUB_URL =
 export const CANONICAL_KNOWGRPH_WORKSPACE_SEEDS_GITHUB_URL =
   'https://github.com/huijoohwee/knowgrph/tree/main/docs/workspace-seeds'
 
-let canonicalDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
-let canonicalDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 let canonicalDemoDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
 let canonicalDemoDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 let canonicalOutputDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
@@ -30,9 +26,7 @@ let canonicalOutputDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null =
 let canonicalWorkspaceSeedsDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
 let canonicalWorkspaceSeedsDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 
-export const resetCanonicalAgenticDocsMirrorCacheForTests = (): void => {
-  canonicalDatasetCache = null
-  canonicalDatasetInFlight = null
+export const resetCanonicalPublishedDocsMirrorCacheForTests = (): void => {
   canonicalDemoDatasetCache = null
   canonicalDemoDatasetInFlight = null
   canonicalOutputDatasetCache = null
@@ -148,33 +142,6 @@ export const readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl = async (args: {
   }
 }
 
-export const readCanonicalAgenticCanvasOsDocsMirrorEntries = async (args: {
-  maxFiles: number
-  maxFileBytes: number
-}): Promise<WorkspaceDocsMirrorEntry[]> => {
-  if (canonicalDatasetCache && canonicalDatasetCache.expiresAtMs > Date.now()) {
-    return canonicalDatasetCache.entries.map(entry => ({ ...entry }))
-  }
-  if (!canonicalDatasetInFlight) {
-    canonicalDatasetInFlight = readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
-      url: CANONICAL_AGENTIC_CANVAS_OS_DOCS_GITHUB_URL,
-      maxFiles: args.maxFiles,
-      maxFileBytes: args.maxFileBytes,
-      requireCompleteDataset: true,
-    }).then(entries => entries.map(entry => ({ ...entry, authority: 'agentic-canvas-os-github' })))
-  }
-  try {
-    const entries = await canonicalDatasetInFlight
-    canonicalDatasetCache = {
-      entries: entries.map(entry => ({ ...entry })),
-      expiresAtMs: Date.now() + CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS,
-    }
-    return entries.map(entry => ({ ...entry }))
-  } finally {
-    canonicalDatasetInFlight = null
-  }
-}
-
 export const readCanonicalHuijoohweeDemoDocsMirrorEntries = async (args: {
   maxFiles: number
   maxFileBytes: number
@@ -256,14 +223,13 @@ export const readCanonicalKnowgrphWorkspaceSeedsMirrorEntries = async (args: {
   }
 }
 
-export const readCanonicalPublishedWorkspaceDocsMirrorEntries = async (args: {
+export const readCanonicalPublishedNonAgenticDocsMirrorEntries = async (args: {
   maxFiles: number
   maxFileBytes: number
 }): Promise<WorkspaceDocsMirrorEntry[]> => {
-  const [demoEntries, outputEntries, agenticEntries, seedEntries] = await Promise.all([
+  const [demoEntries, outputEntries, seedEntries] = await Promise.all([
     readCanonicalHuijoohweeDemoDocsMirrorEntries(args),
     readCanonicalHuijoohweeOutputDocsMirrorEntries(args),
-    readCanonicalAgenticCanvasOsDocsMirrorEntries(args),
     readCanonicalKnowgrphWorkspaceSeedsMirrorEntries(args),
   ])
   const workspaceEntries = demoEntries.filter(entry => {
@@ -278,6 +244,5 @@ export const readCanonicalPublishedWorkspaceDocsMirrorEntries = async (args: {
     ...workspaceEntries,
     ...namespace(seedEntries, 'workspace-seeds'),
     ...namespace(outputEntries, 'docs_'),
-    ...namespace(agenticEntries, 'agentic-canvas-os/docs'),
   ]
 }
