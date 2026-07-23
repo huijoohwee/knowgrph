@@ -6,15 +6,26 @@ from pathlib import Path
 from typing import Any, Callable
 
 from playwright.sync_api import Page
+from lib.game_flight_sim_smoke_scene import (
+    read_and_pin_authored_physics_baseline,
+)
 
 
 SOURCE_BASENAME = "knowgrph-game-flight-sim-demo.md"
 SOURCE_DEMO_ID = "flight-sim"
+PHYSICS_SOURCE_BASENAME = "knowgrph-physics-playground-demo.md"
 EXPECTED_SOURCE_NODE_IDS = {
     "flight_aircraft",
     "flight_asset_spec",
     "flight_demo_entry",
     "flight_runtime_gate",
+}
+AUTHORED_XR_NODE_IDS = {
+    "kg_graph_xr_stage",
+    "kg_xr_native_controller_demo",
+    "kg_xr_stage_preset_singapore",
+    "kg_xr_playground_treasure",
+    "kg_xr_native_terrain_singapore",
 }
 
 
@@ -149,6 +160,109 @@ def _read_source_identity(
     )
 
 
+def prepare_authored_physics_surface(page: Page) -> dict[str, Any]:
+    source_path = (
+        Path(__file__).resolve().parents[3]
+        / "docs"
+        / "workspace-seeds"
+        / PHYSICS_SOURCE_BASENAME
+    )
+    expected_text = source_path.read_text(encoding="utf-8")
+    if not expected_text:
+        raise AssertionError(f"authored Physics seed is empty: {source_path}")
+    expected_sha256 = hashlib.sha256(expected_text.encode("utf-8")).hexdigest()
+    _poll(
+        page,
+        lambda: page.evaluate(
+            """
+            async () => {
+              const readiness = await import(
+                '/src/features/source-files/sourceFilesBootstrapReadiness.ts'
+              )
+              return readiness.readSourceFilesBootstrapSnapshot()
+            }
+            """
+        ),
+        lambda value: value.get("phase") == "ready",
+        label="Physics Source Files bootstrap readiness",
+    )
+    application = _poll(
+        page,
+        lambda: page.evaluate(
+            """
+            async expectedText => {
+              const explorer = await import('/src/features/markdown-explorer/store.ts')
+              const materialization = await import(
+                '/src/features/source-files/sourceFilesRuntimeMaterialization.ts'
+              )
+              const workspaceModule = await import(
+                '/src/features/workspace-fs/workspaceFs.ts'
+              )
+              const seedBundle = await import(
+                '/src/features/workspace-fs/workspaceCanonicalSeedBundle.ts'
+              )
+              const demos = await import(
+                '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
+              )
+              const workspace = await workspaceModule.getWorkspaceFs()
+              await workspace.ensureSeed()
+              const sourcePath = `/${demos.XR_PHYSICS_DEMO_REPO_REL_PATH}`
+              const sourceText = await workspace.readFileText(sourcePath)
+              const authoredSeeds =
+                await seedBundle.readCanonicalWorkspaceSeedBundleEntries()
+              const basename = demos.XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME
+              const authored = authoredSeeds.find(seed => {
+                const relPath = String(seed?.relPath || '').replace(/^\\/+/, '')
+                return relPath === basename
+                  || relPath === `workspace-seeds/${basename}`
+                  || relPath === `docs/workspace-seeds/${basename}`
+              })
+              explorer.useMarkdownExplorerStore.getState().setActivePath(sourcePath)
+              const applied = await materialization
+                .reapplyActiveWorkspaceMarkdownDocument({
+                  activePathOverride: sourcePath,
+                  fs: workspace,
+                })
+              return {
+                applied,
+                sourcePath,
+                sourceLength: String(sourceText || '').length,
+                workspaceByteIdentical: sourceText === expectedText,
+                authoredPath: authored?.relPath || null,
+                authoredByteIdentical: authored?.text === expectedText,
+              }
+            }
+            """,
+            expected_text,
+        ),
+        lambda value: (
+            value.get("workspaceByteIdentical") is True
+            and value.get("authoredByteIdentical") is True
+            and str(value.get("sourcePath") or "").endswith(
+                PHYSICS_SOURCE_BASENAME
+            )
+            and value.get("sourceLength", 0) > 0
+        ),
+        label="exact authored Physics seed apply",
+    )
+    baseline = _poll(
+        page,
+        lambda: read_and_pin_authored_physics_baseline(
+            page, expected_sha256
+        ),
+        lambda value: value.get("ready") is True,
+        label="running authored Physics XR surface",
+    )
+    if set(baseline.get("requiredNodeNames") or []) != AUTHORED_XR_NODE_IDS:
+        raise AssertionError(f"authored Physics XR identity was incomplete: {baseline}")
+    return {
+        "sourcePath": str(source_path),
+        "sourceSha256": expected_sha256,
+        "application": application,
+        **baseline,
+    }
+
+
 def _apply_exact_authored_source(
     page: Page,
     expected_source_text: str,
@@ -228,6 +342,12 @@ def _apply_exact_authored_source(
               const physics = await import(
                 '/src/features/three/xrPhysicsRuntime.ts'
               )
+              const controller = await import(
+                '/src/features/three/xrNativeControllerDemoRuntime.ts'
+              )
+              const camera = await import(
+                '/src/features/three/xrNativeControllerCameraRuntime.ts'
+              )
               const demos = await import(
                 '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
               )
@@ -252,14 +372,60 @@ def _apply_exact_authored_source(
               const hasSourceText = typeof sourceText === 'string'
                 && sourceText.length > 0
               const priorState = store.useGraphStore.getState()
+              const baselineIdentity =
+                window.__kgFlightSimBaselineSceneIdentity || {}
+              const root = document.querySelector(
+                '[data-kg-xr-scene-media-drop="1"]',
+              )
+              const canvas = root?.querySelector('canvas') || null
+              const nativeController =
+                controller.readXrNativeControllerDemo()
+              const physicsSnapshot = {
+                ...physics.readXrPhysicsRuntime(),
+              }
+              delete physicsSnapshot.revision
+              const controllerSnapshot = {
+                ...nativeController,
+              }
+              delete controllerSnapshot.revision
               const priorSurface = {
                 canvasRenderMode: priorState.canvasRenderMode,
                 canvas3dMode: priorState.canvas3dMode,
+                canvasRenderModeLastFree:
+                  priorState.canvasRenderModeLastFree,
+                canvasRenderModeIsAuto:
+                  priorState.canvasRenderModeIsAuto,
                 floatingPanelOpen: priorState.floatingPanelOpen,
                 floatingPanelView: priorState.floatingPanelView,
                 timelinePlaying: priorState.timelineTransportPlaying === true,
                 physicsPhase: physics.readXrPhysicsRuntime().phase,
+                physics: physicsSnapshot,
+                physicsFrame: physics.readXrPhysicsRuntimeFrame(),
+                camera: {
+                  mode: camera.readXrNativeControllerCamera().mode,
+                },
+                controller: controllerSnapshot,
+                controllerFrame:
+                  controller.readSharedXrNativeControllerDemoFrame(),
                 canvasCount: document.querySelectorAll('canvas').length,
+                rootCount: document.querySelectorAll(
+                  '[data-kg-xr-scene-media-drop="1"]',
+                ).length,
+                baselineCanvasIdentityRetained:
+                  Boolean(canvas) && window.__kgFlightSimCanvas === canvas,
+                authoredSceneSignature:
+                  baselineIdentity.authoredSceneSignature || null,
+                atmosphereTerrainSignature:
+                  baselineIdentity.atmosphereTerrainSignature || null,
+                cameraAuthoritySignature:
+                  baselineIdentity.cameraAuthoritySignature || null,
+                cameraMode:
+                  camera.readXrNativeControllerCamera().mode,
+                controllerPhase: nativeController.phase,
+                controllerMode: nativeController.mode,
+                controllerTerrainId: nativeController.terrainId,
+                physicsSourceSha256:
+                  baselineIdentity.sourceSha256 || null,
               }
               let applied = false
               if (hasSourceText) {

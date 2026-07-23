@@ -1,6 +1,12 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFile, readFile, writeFile } from 'node:fs/promises'
+import {
+  copyFile,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -43,7 +49,12 @@ function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex')
 }
 
-async function assertCandidateState(expectedHead, expectedSourceSha256) {
+async function assertCandidateState({
+  expectedBranch,
+  expectedHead,
+  expectedSourceSha256,
+  expectedTree,
+}) {
   const status = readGitValue(['status', '--porcelain=v1', '--untracked-files=all'])
   if (status) {
     throw new Error(
@@ -52,6 +63,8 @@ async function assertCandidateState(expectedHead, expectedSourceSha256) {
     )
   }
   const actualHead = readGitValue(['rev-parse', 'HEAD'])
+  const actualTree = readGitValue(['rev-parse', 'HEAD^{tree}'])
+  const actualBranch = readGitValue(['rev-parse', '--abbrev-ref', 'HEAD'])
   const diskSource = await readFile(sourcePath)
   const committedSource = readGitBytes([
     'show',
@@ -59,14 +72,35 @@ async function assertCandidateState(expectedHead, expectedSourceSha256) {
   ])
   if (
     actualHead !== expectedHead
+    || actualTree !== expectedTree
+    || actualBranch !== expectedBranch
     || sha256(diskSource) !== expectedSourceSha256
     || sha256(committedSource) !== expectedSourceSha256
     || !diskSource.equals(committedSource)
   ) {
     throw new Error(
-      'Game Flight Sim candidate HEAD, committed seed, and disk seed are not byte-identical',
+      'Game Flight Sim branch, candidate HEAD/tree, committed seed, and disk seed '
+      + 'are not byte-identical',
     )
   }
+}
+
+async function clearPriorEvidence() {
+  const names = [
+    'game-flight-sim-browser-smoke.json',
+    'game-flight-sim-browser-smoke.png',
+    ...Array.from(
+      { length: runCount },
+      (_, index) => `game-flight-sim-browser-smoke-run-${index + 1}.json`,
+    ),
+    ...Array.from(
+      { length: runCount },
+      (_, index) => `game-flight-sim-browser-smoke-run-${index + 1}.png`,
+    ),
+  ]
+  await Promise.all(names.map(name => rm(path.join(outputRoot, name), {
+    force: true,
+  })))
 }
 
 async function run() {
@@ -74,7 +108,14 @@ async function run() {
   const candidateTree = readGitValue(['rev-parse', 'HEAD^{tree}'])
   const candidateBranch = readGitValue(['rev-parse', '--abbrev-ref', 'HEAD'])
   const sourceSha256 = sha256(await readFile(sourcePath))
-  await assertCandidateState(candidateHead, sourceSha256)
+  const candidate = {
+    expectedBranch: candidateBranch,
+    expectedHead: candidateHead,
+    expectedSourceSha256: sourceSha256,
+    expectedTree: candidateTree,
+  }
+  await assertCandidateState(candidate)
+  await clearPriorEvidence()
   const firstPort = Number(process.env.KG_GAME_FLIGHT_SIM_SMOKE_PORT || '4187')
   if (!Number.isInteger(firstPort) || firstPort < 1024 || firstPort > 65534) {
     throw new Error(`Invalid KG_GAME_FLIGHT_SIM_SMOKE_PORT: ${firstPort}`)
@@ -116,11 +157,11 @@ async function run() {
     ) {
       throw new Error(`Browser proof run ${runIndex} did not preserve candidate identity`)
     }
-    await assertCandidateState(candidateHead, sourceSha256)
+    await assertCandidateState(candidate)
     runs.push(evidence)
   }
 
-  await assertCandidateState(candidateHead, sourceSha256)
+  await assertCandidateState(candidate)
 
   const aggregate = {
     schema: 'knowgrph-flight-sim-browser-proof/v2',
@@ -138,11 +179,17 @@ async function run() {
     serial: true,
     runs,
   }
+  const aggregatePath = path.join(
+    outputRoot,
+    'game-flight-sim-browser-smoke.json',
+  )
+  const aggregateTemporaryPath = `${aggregatePath}.tmp-${process.pid}`
   await writeFile(
-    path.join(outputRoot, 'game-flight-sim-browser-smoke.json'),
+    aggregateTemporaryPath,
     `${JSON.stringify(aggregate, null, 2)}\n`,
     'utf8',
   )
+  await rename(aggregateTemporaryPath, aggregatePath)
   await copyFile(
     path.join(outputRoot, `game-flight-sim-browser-smoke-run-${runCount}.png`),
     path.join(outputRoot, 'game-flight-sim-browser-smoke.png'),

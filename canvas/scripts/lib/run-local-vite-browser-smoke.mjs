@@ -32,13 +32,21 @@ async function isServerReady(url, timeoutMs) {
 }
 
 function terminateProcess(child) {
-  if (!child || child.killed) return Promise.resolve()
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve()
+  }
   return new Promise(resolve => {
-    const finish = () => resolve()
+    let exited = false
+    const finish = () => {
+      exited = true
+      resolve()
+    }
     child.once('exit', finish)
     child.kill('SIGTERM')
     setTimeout(() => {
-      if (!child.killed) child.kill('SIGKILL')
+      if (exited) return
+      child.kill('SIGKILL')
+      setTimeout(finish, 2000)
     }, 2000)
   })
 }

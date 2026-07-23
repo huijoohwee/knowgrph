@@ -18,11 +18,181 @@ CANONICAL_XR_TERRAIN_NODE = "kg_xr_native_terrain_singapore"
 FORBIDDEN_SCENE_PREFIXES = ("kg_game_fps", "kg_xr_empty_world")
 
 
+def read_and_pin_authored_physics_baseline(
+    page: Page,
+    expected_source_sha256: str,
+) -> dict[str, Any]:
+    return page.evaluate(
+        """
+        async expectedSourceSha256 => {
+          const store = await import('/src/hooks/useGraphStore.ts')
+          const physics = await import('/src/features/three/xrPhysicsRuntime.ts')
+          const controller = await import(
+            '/src/features/three/xrNativeControllerDemoRuntime.ts'
+          )
+          const camera = await import(
+            '/src/features/three/xrNativeControllerCameraRuntime.ts'
+          )
+          const catalog = await import(
+            '/src/features/three/xrNativeControllerCameraCatalog.ts'
+          )
+          const presentation = await import(
+            '/src/features/three/xrNativeControllerPresentation.ts'
+          )
+          const state = store.useGraphStore.getState()
+          const blob = await state.captureThreeGltfSnapshot()
+          if (!blob) return { ready: false }
+          const gltf = JSON.parse(await blob.text())
+          const nodes = Array.isArray(gltf.nodes) ? gltf.nodes : []
+          const roots = Array.from(document.querySelectorAll(
+            '[data-kg-xr-scene-media-drop="1"]',
+          ))
+          const rootCanvases = roots.flatMap(
+            root => Array.from(root.querySelectorAll('canvas')),
+          )
+          const documentCanvases = Array.from(
+            document.querySelectorAll('canvas'),
+          )
+          const namedNodeCounts = nodes.reduce((counts, node) => {
+            const name = String(node?.name || '').trim()
+            if (name) counts[name] = (counts[name] || 0) + 1
+            return counts
+          }, {})
+          const identityNodeNames = [
+            'kg_graph_xr_stage',
+            'kg_xr_native_controller_demo',
+            'kg_xr_stage_preset_singapore',
+            'kg_xr_playground_treasure',
+            'kg_xr_native_terrain_singapore',
+          ].sort()
+          const nodeIdentity = identityNodeNames.map(name => {
+            const node = nodes.find(candidate => candidate.name === name)
+            return {
+              name,
+              translation: node?.translation || null,
+              rotation: node?.rotation || null,
+              scale: node?.scale || null,
+              matrix: node?.matrix || null,
+              stageId: node?.extras?.stageId ?? null,
+              terrainId: node?.extras?.terrainId ?? null,
+              stageScale: node?.extras?.stageScale ?? null,
+            }
+          })
+          const nativeController = controller.readXrNativeControllerDemo()
+          const nativeFrame =
+            controller.readSharedXrNativeControllerDemoFrame()
+          const physicsRuntime = physics.readXrPhysicsRuntime()
+          const workspacePreset =
+            state.graphData?.metadata?.canvasWorkspacePreset || {}
+          const cameraAuthoritySignature = JSON.stringify({
+            modes: [...catalog.XR_NATIVE_CONTROLLER_CAMERA_MODES],
+            defaultMode: catalog.XR_NATIVE_CONTROLLER_CAMERA_DEFAULT_MODE,
+          })
+          const authoredSceneSignature = JSON.stringify(nodeIdentity)
+          const atmosphereTerrainSignature = JSON.stringify({
+            skyColor: presentation.XR_NATIVE_CONTROLLER_SKY_COLOR,
+            fogColor: presentation.XR_NATIVE_CONTROLLER_FOG_COLOR,
+            terrainId: nativeController.terrainId,
+            terrainNode: nodeIdentity.find(
+              node => node.name === 'kg_xr_native_terrain_singapore',
+            ),
+          })
+          const controllerAuthoritySignature = JSON.stringify({
+            schema: nativeController.schema,
+            terrainId: nativeController.terrainId,
+            mode: nativeController.mode,
+            followCamera: nativeController.followCamera,
+          })
+          const canvas = rootCanvases[0] || null
+          const requiredNodeNames = identityNodeNames.filter(
+            name => namedNodeCounts[name] === 1,
+          )
+          const ready = roots.length === 1
+            && rootCanvases.length === 1
+            && documentCanvases.length === 1
+            && documentCanvases[0] === canvas
+            && requiredNodeNames.length === identityNodeNames.length
+            && state.canvasRenderMode === '3d'
+            && state.canvas3dMode === 'xr'
+            && workspacePreset.canvasSurfaceMode === 'xr'
+            && String(state.markdownDocumentName || '')
+              .endsWith('knowgrph-physics-playground-demo.md')
+            && nativeController.phase === 'running'
+            && nativeFrame.phase === 'running'
+            && nativeFrame.stepCount > 0
+            && nativeFrame.bodies.length > 0
+            && nativeController.terrainId === 'singapore'
+            && nativeController.followCamera === true
+            && ['stopped', 'playing', 'paused'].includes(physicsRuntime.phase)
+            && physicsRuntime.world?.schema === 'knowgrph-xr-physics-world/v1'
+            && physicsRuntime.world.bodies.length > 0
+          if (ready) {
+            window.__kgFlightSimCanvas = canvas
+            window.__kgFlightSimBaselineSceneIdentity = {
+              authoredSceneSignature,
+              atmosphereTerrainSignature,
+              cameraAuthoritySignature,
+              controllerAuthoritySignature,
+              sourceSha256: expectedSourceSha256,
+            }
+          }
+          return {
+            ready,
+            documentName: state.markdownDocumentName,
+            renderMode: state.canvasRenderMode,
+            canvas3dMode: state.canvas3dMode,
+            surfaceMode: workspacePreset.canvasSurfaceMode || '',
+            rootCount: roots.length,
+            rootCanvasCount: rootCanvases.length,
+            documentCanvasCount: documentCanvases.length,
+            canvasIdentityCaptured:
+              ready && window.__kgFlightSimCanvas === canvas,
+            requiredNodeNames,
+            authoredSceneSignature,
+            atmosphereTerrainSignature,
+            camera: {
+              mode: camera.readXrNativeControllerCamera().mode,
+              authoritySignature: cameraAuthoritySignature,
+            },
+            controller: {
+              schema: nativeController.schema,
+              phase: nativeController.phase,
+              mode: nativeController.mode,
+              followCamera: nativeController.followCamera,
+              terrainId: nativeController.terrainId,
+              stepCount: nativeFrame.stepCount,
+              bodyCount: nativeFrame.bodies.length,
+            },
+            physics: {
+              phase: physicsRuntime.phase,
+              schema: physicsRuntime.world?.schema || '',
+              bodyCount: physicsRuntime.world?.bodies?.length || 0,
+              staticColliderCount: physicsRuntime.staticColliderCount,
+            },
+          }
+        }
+        """,
+        expected_source_sha256,
+    )
+
+
 def read_flight_scene(page: Page) -> dict[str, Any]:
     return page.evaluate(
         """
         async () => {
           const store = await import('/src/hooks/useGraphStore.ts')
+          const controller = await import(
+            '/src/features/three/xrNativeControllerDemoRuntime.ts'
+          )
+          const camera = await import(
+            '/src/features/three/xrNativeControllerCameraRuntime.ts'
+          )
+          const catalog = await import(
+            '/src/features/three/xrNativeControllerCameraCatalog.ts'
+          )
+          const presentation = await import(
+            '/src/features/three/xrNativeControllerPresentation.ts'
+          )
           const blob = await store.useGraphStore.getState().captureThreeGltfSnapshot()
           if (!blob) return { ready: false }
           const gltf = JSON.parse(await blob.text())
@@ -32,6 +202,9 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
           )
           const canvases = roots.flatMap(
             root => Array.from(root.querySelectorAll('canvas')),
+          )
+          const documentCanvases = Array.from(
+            document.querySelectorAll('canvas'),
           )
           const missionIndex = nodes.findIndex(
             node => node.name === 'kg_flight_sim_mission',
@@ -61,6 +234,7 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
             'kg_xr_native_controller_demo',
             'kg_xr_stage_preset_singapore',
             'kg_xr_playground_treasure',
+            'kg_xr_native_terrain_singapore',
           ].sort().map(name => {
             const node = nodes.find(candidate => candidate.name === name)
             return {
@@ -70,15 +244,43 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
               scale: node?.scale || null,
               matrix: node?.matrix || null,
               stageId: node?.extras?.stageId ?? null,
+              terrainId: node?.extras?.terrainId ?? null,
               stageScale: node?.extras?.stageScale ?? null,
             }
+          })
+          const nativeController = controller.readXrNativeControllerDemo()
+          const baselineIdentity =
+            window.__kgFlightSimBaselineSceneIdentity || {}
+          const authoredSceneSignature = JSON.stringify(authoredTransforms)
+          const atmosphereTerrainSignature = JSON.stringify({
+            skyColor: presentation.XR_NATIVE_CONTROLLER_SKY_COLOR,
+            fogColor: presentation.XR_NATIVE_CONTROLLER_FOG_COLOR,
+            terrainId: nativeController.terrainId,
+            terrainNode: authoredTransforms.find(
+              node => node.name === 'kg_xr_native_terrain_singapore',
+            ),
+          })
+          const cameraAuthoritySignature = JSON.stringify({
+            modes: [...catalog.XR_NATIVE_CONTROLLER_CAMERA_MODES],
+            defaultMode: catalog.XR_NATIVE_CONTROLLER_CAMERA_DEFAULT_MODE,
+          })
+          const controllerAuthoritySignature = JSON.stringify({
+            schema: nativeController.schema,
+            terrainId: nativeController.terrainId,
+            mode: nativeController.mode,
+            followCamera: nativeController.followCamera,
           })
           return {
             ready: true,
             rootCount: roots.length,
             canvasCount: canvases.length,
-            canvasStable: canvases.length === 1
-              && (!window.__kgFlightSimCanvas || window.__kgFlightSimCanvas === canvases[0]),
+            documentCanvasCount: documentCanvases.length,
+            canvasIdentityCaptured: Boolean(window.__kgFlightSimCanvas),
+            canvasStable: roots.length === 1
+              && canvases.length === 1
+              && documentCanvases.length === 1
+              && documentCanvases[0] === canvases[0]
+              && window.__kgFlightSimCanvas === canvases[0],
             root: {
               documentLoaded: roots[0]?.getAttribute('data-kg-xr-document-loaded') || '',
               flightStage: roots[0]?.getAttribute('data-kg-flight-sim-stage') || '',
@@ -88,7 +290,42 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
             },
             names: Object.keys(namedNodeCounts).sort(),
             namedNodeCounts,
-            authoredSceneSignature: JSON.stringify(authoredTransforms),
+            authoredSceneSignature,
+            baselineAuthoredSceneSignature:
+              baselineIdentity.authoredSceneSignature || null,
+            authoredSceneStable:
+              Boolean(baselineIdentity.authoredSceneSignature)
+              && baselineIdentity.authoredSceneSignature
+                === authoredSceneSignature,
+            atmosphereTerrainSignature,
+            baselineAtmosphereTerrainSignature:
+              baselineIdentity.atmosphereTerrainSignature || null,
+            atmosphereTerrainStable:
+              Boolean(baselineIdentity.atmosphereTerrainSignature)
+              && baselineIdentity.atmosphereTerrainSignature
+                === atmosphereTerrainSignature,
+            camera: {
+              mode: camera.readXrNativeControllerCamera().mode,
+              authoritySignature: cameraAuthoritySignature,
+              baselineAuthoritySignature:
+                baselineIdentity.cameraAuthoritySignature || null,
+              authorityStable:
+                Boolean(baselineIdentity.cameraAuthoritySignature)
+                && baselineIdentity.cameraAuthoritySignature
+                  === cameraAuthoritySignature,
+            },
+            controller: {
+              phase: nativeController.phase,
+              mode: nativeController.mode,
+              terrainId: nativeController.terrainId,
+              authoritySignature: controllerAuthoritySignature,
+              baselineAuthoritySignature:
+                baselineIdentity.controllerAuthoritySignature || null,
+              authorityStable:
+                Boolean(baselineIdentity.controllerAuthoritySignature)
+                && baselineIdentity.controllerAuthoritySignature
+                  === controllerAuthoritySignature,
+            },
             mission: {
               actorOnly: missionNode?.extras?.actorOnly === true,
               descendantNames: descendants
@@ -112,10 +349,27 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
 def assert_authored_scene(scene: dict[str, Any]) -> None:
     if scene.get("ready") is not True:
         raise AssertionError(f"Three scene snapshot was unavailable: {scene}")
-    if scene.get("rootCount") != 1 or scene.get("canvasCount") != 1:
+    if (
+        scene.get("rootCount") != 1
+        or scene.get("canvasCount") != 1
+        or scene.get("documentCanvasCount") != 1
+    ):
         raise AssertionError(f"expected one shared authored XR Canvas: {scene}")
-    if scene.get("canvasStable") is not True:
+    if (
+        scene.get("canvasIdentityCaptured") is not True
+        or scene.get("canvasStable") is not True
+    ):
         raise AssertionError("Flight Sim replaced the shared authored XR Canvas")
+    if scene.get("authoredSceneStable") is not True:
+        raise AssertionError("Flight Sim changed the authored XR scene identity")
+    if scene.get("atmosphereTerrainStable") is not True:
+        raise AssertionError("Flight Sim changed the authored atmosphere or terrain")
+    camera = scene.get("camera") or {}
+    if camera.get("authorityStable") is not True:
+        raise AssertionError("Flight Sim replaced the Physics camera catalog")
+    controller = scene.get("controller") or {}
+    if controller.get("authorityStable") is not True:
+        raise AssertionError("Flight Sim changed the authored Physics controller")
     names = set(scene.get("names") or [])
     missing = sorted(AUTHORED_XR_NODES - names)
     if missing:

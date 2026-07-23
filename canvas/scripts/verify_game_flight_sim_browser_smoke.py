@@ -10,6 +10,12 @@ from urllib.parse import urlparse
 from playwright.sync_api import Page, expect, sync_playwright
 
 from lib.game_flight_sim_smoke_camera import verify_flight_camera_runtime
+from lib.game_flight_sim_smoke_lifecycle import (
+    verify_blur_lifecycle,
+    verify_initial_ready_hold,
+    verify_stop_start_lifecycle,
+    verify_surface_failure_paths,
+)
 from lib.game_flight_sim_smoke_mobile import verify_mobile_flight_hud
 from lib.game_flight_sim_smoke_scene import (
     FLIGHT_MISSION_NODE,
@@ -19,6 +25,7 @@ from lib.game_flight_sim_smoke_scene import (
 from lib.game_flight_sim_smoke_source import (
     SOURCE_BASENAME,
     apply_and_verify_exact_authored_source,
+    prepare_authored_physics_surface,
 )
 from lib.game_flight_sim_smoke_web_mcp import (
     control_flight_via_web_mcp,
@@ -102,6 +109,26 @@ def position_distance(
     return sum((a - b) ** 2 for a, b in zip(left, right)) ** 0.5
 
 
+def request_record(request: Any) -> dict[str, str]:
+    return {
+        "method": str(request.method),
+        "url": str(request.url),
+        "path": urlparse(request.url).path,
+    }
+
+
+def request_is_proof_local_read(
+    request: Any,
+    local_origin: str,
+) -> bool:
+    parsed = urlparse(request.url)
+    if parsed.netloc != local_origin:
+        return False
+    if request.method in {"GET", "HEAD"}:
+        return not parsed.path.startswith("/__")
+    return request.method == "POST" and parsed.path == "/__kg_fs_list"
+
+
 def main() -> None:
     if RUN_INDEX < 1 or RUN_INDEX > RUN_COUNT:
         raise AssertionError(
@@ -123,7 +150,8 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     target_url = f"{BASE_URL}/"
     local_origin = urlparse(BASE_URL).netloc
-    requests: list[str] = []
+    requests: list[dict[str, str]] = []
+    blocked_requests: list[dict[str, str]] = []
     fs_list_requests: list[dict[str, Any]] = []
     console_errors: list[str] = []
     page_errors: list[str] = []
@@ -137,8 +165,16 @@ def main() -> None:
             args=["--enable-webgl", "--use-angle=swiftshader"],
         )
         page = browser.new_page(viewport={"width": 1280, "height": 800})
+
+        def route_request(route: Any, request: Any) -> None:
+            if request_is_proof_local_read(request, local_origin):
+                route.continue_()
+                return
+            blocked_requests.append(request_record(request))
+            route.abort("blockedbyclient")
+
         def record_request(request: Any) -> None:
-            requests.append(request.url)
+            requests.append(request_record(request))
             if urlparse(request.url).path != "/__kg_fs_list":
                 return
             try:
@@ -152,6 +188,7 @@ def main() -> None:
                 }
             )
 
+        page.route("**/*", route_request)
         page.on("request", record_request)
         page.on(
             "response",
@@ -170,6 +207,7 @@ def main() -> None:
         page.on("pageerror", lambda error: page_errors.append(str(error)))
         try:
             page.goto(target_url, wait_until="domcontentloaded")
+            physics_baseline = prepare_authored_physics_surface(page)
             source_application, source = apply_and_verify_exact_authored_source(
                 page
             )
@@ -237,26 +275,7 @@ def main() -> None:
                     "disk, bundled, and WorkspaceFs source identities diverged: "
                     f"{source}"
                 )
-            page.evaluate(
-                """
-                () => {
-                  const root = document.querySelector(
-                    '[data-kg-xr-scene-media-drop="1"]',
-                  )
-                  window.__kgFlightSimCanvas = root?.querySelector('canvas') || null
-                }
-                """
-            )
-
-            initial = poll(
-                page,
-                lambda: read_runtime(page),
-                lambda value: value.get("active") is True
-                and value.get("phase") in {"ready", "flying"}
-                and value.get("runtimeError") is None,
-                label="source-backed Flight Sim activation",
-                timeout_ms=120_000,
-            )
+            initial, ready_held = verify_initial_ready_hold(page)
             if (
                 initial["aircraft"]["position"][1] <= 0
                 or initial["aircraft"]["airspeed"] <= 0
@@ -312,48 +331,7 @@ def main() -> None:
                     f"runtime={[telemetry_runtime['aircraft']['pitch'], telemetry_runtime['aircraft']['roll']]}"
                 )
 
-            page.evaluate("window.dispatchEvent(new Event('blur'))")
-            blur_stopped = poll(
-                page,
-                lambda: read_runtime(page),
-                lambda value: value.get("phase") == "stopped",
-                label="window-blur Flight stop",
-            )
-            page.wait_for_timeout(350)
-            blur_frozen = read_runtime(page)
-            if (
-                blur_frozen["phase"] != "stopped"
-                or blur_frozen["tick"] != blur_stopped["tick"]
-            ):
-                raise AssertionError(
-                    f"window blur did not freeze Flight ticks: {blur_frozen}"
-                )
-            blur_resume_result = control_flight_via_web_mcp(
-                page,
-                "/flight.sim @canvas #flight operation=start",
-                web_mcp_calls,
-            )
-            blur_resumed = blur_resume_result["flight"]["flightSim"]
-            if (
-                blur_resume_result.get("ok") is not True
-                or blur_resumed["phase"] != "flying"
-                or blur_resumed["tick"] != blur_stopped["tick"]
-            ):
-                raise AssertionError(
-                    f"Flight did not resume its blur-stopped state: {blur_resume_result}"
-                )
-            page.keyboard.down("KeyD")
-            fresh_input = poll(
-                page,
-                lambda: read_runtime(page),
-                lambda value: value.get("tick", 0) > blur_resumed["tick"]
-                and abs(
-                    value["aircraft"]["roll"]
-                    - blur_resumed["aircraft"]["roll"]
-                ) > 0.001,
-                label="fresh post-blur Flight input",
-            )
-            page.keyboard.up("KeyD")
+            blur = verify_blur_lifecycle(page, web_mcp_calls)
 
             throttle_result = control_flight_via_web_mcp(
                 page,
@@ -371,39 +349,11 @@ def main() -> None:
                     f"strict absolute throttle control failed: {throttle_result}"
                 )
 
-            stopped_result = control_flight_via_web_mcp(
-                page,
-                "/flight.sim @canvas #flight operation=stop",
-                web_mcp_calls,
-            )
-            stopped = stopped_result["flight"]["flightSim"]
-            if stopped_result.get("ok") is not True or stopped["phase"] != "stopped":
-                raise AssertionError(f"Flight stop failed: {stopped_result}")
-            page.wait_for_timeout(350)
-            frozen = read_runtime(page)
-            if frozen["tick"] != stopped["tick"] or frozen["phase"] != "stopped":
-                raise AssertionError(f"Flight stop did not freeze simulation: {frozen}")
-
-            resumed_result = control_flight_via_web_mcp(
-                page,
-                "/flight.sim @canvas #flight operation=start",
-                web_mcp_calls,
-            )
-            resumed = resumed_result["flight"]["flightSim"]
-            if (
-                resumed_result.get("ok") is not True
-                or resumed["phase"] != "flying"
-                or resumed["tick"] != stopped["tick"]
-            ):
-                raise AssertionError(
-                    f"Flight start did not retain stopped state: {resumed_result}"
-                )
-            resumed_advanced = poll(
-                page,
-                lambda: read_runtime(page),
-                lambda value: value.get("tick", 0) > resumed["tick"],
-                label="resumed Flight ticks",
-            )
+            stop_start = verify_stop_start_lifecycle(page, web_mcp_calls)
+            stopped = stop_start["stopped"]
+            frozen = stop_start["frozen"]
+            resumed = stop_start["resumed"]
+            resumed_advanced = stop_start["advanced"]
 
             restarted_result = control_flight_via_web_mcp(
                 page,
@@ -464,27 +414,29 @@ def main() -> None:
             _, inactive_inspection, post_exit = verify_flight_exit(
                 page,
                 web_mcp_calls,
+                source_application["priorSurface"],
             )
+            surface_failures = verify_surface_failure_paths(page)
 
             non_local_requests = sorted(
                 {
-                    request
+                    request["url"]
                     for request in requests
-                    if urlparse(request).netloc
-                    and urlparse(request).netloc != local_origin
+                    if urlparse(request["url"]).netloc != local_origin
                 }
             )
             local_runtime_paths = sorted(
                 {
-                    urlparse(request).path
+                    request["path"]
                     for request in requests
-                    if urlparse(request).netloc == local_origin
-                    and urlparse(request).path.startswith("/__")
+                    if urlparse(request["url"]).netloc == local_origin
+                    and request["path"].startswith("/__")
                 }
             )
-            if non_local_requests:
+            if non_local_requests or blocked_requests:
                 raise AssertionError(
-                    f"Flight runtime made non-local requests: {non_local_requests}"
+                    "Flight runtime attempted non-read-only or non-local requests: "
+                    f"nonLocal={non_local_requests}, blocked={blocked_requests}"
                 )
             expected_seed_root = (
                 Path(__file__).resolve().parents[2] / "docs" / "workspace-seeds"
@@ -498,10 +450,10 @@ def main() -> None:
                     or Path(request["path"]).resolve() != expected_seed_root
                 )
             ]
-            if invalid_fs_list_requests:
+            if not fs_list_requests or invalid_fs_list_requests:
                 raise AssertionError(
                     "Flight bootstrap scanned an unrelated docs mirror: "
-                    f"{invalid_fs_list_requests}"
+                    f"requests={fs_list_requests}, invalid={invalid_fs_list_requests}"
                 )
             if console_errors or page_errors or failed_responses:
                 raise AssertionError(
@@ -523,14 +475,26 @@ def main() -> None:
                 "targetUrl": target_url,
                 "source": source,
                 "sourceApplication": source_application,
+                "physicsBaseline": physics_baseline,
                 "activation": {
                     "automatic": True,
                     "initialPhase": initial["phase"],
+                    "readyHeldAtTickZero": ready_held["tick"] == 0,
                     "sourceBasename": SOURCE_BASENAME,
                 },
                 "renderer": {
                     "canvasCount": active_scene["canvasCount"],
+                    "documentCanvasCount":
+                        active_scene["documentCanvasCount"],
+                    "preFlightCanvasIdentityRetained":
+                        active_scene["canvasStable"],
                     "authoredXrSceneRetained": True,
+                    "physicsSourceSha256":
+                        physics_baseline["sourceSha256"],
+                    "authoredSceneSignature":
+                        active_scene["authoredSceneSignature"],
+                    "atmosphereTerrainSignature":
+                        active_scene["atmosphereTerrainSignature"],
                     "actorOnlyMission": True,
                     "authoredSceneStableAcrossLifecycle": True,
                 },
@@ -557,10 +521,10 @@ def main() -> None:
                     "inactiveInspect": inactive_inspection["result"],
                 },
                 "lifecycle": {
-                    "blurStoppedTick": blur_stopped["tick"],
-                    "blurFrozenTick": blur_frozen["tick"],
-                    "blurResumedTick": blur_resumed["tick"],
-                    "freshInputTick": fresh_input["tick"],
+                    "blurStoppedTick": blur["stopped"]["tick"],
+                    "blurFrozenTick": blur["frozen"]["tick"],
+                    "blurResumedTick": blur["resumed"]["tick"],
+                    "freshInputTick": blur["freshInput"]["tick"],
                     "stoppedTick": stopped["tick"],
                     "frozenTick": frozen["tick"],
                     "resumedTick": resumed["tick"],
@@ -569,6 +533,7 @@ def main() -> None:
                     "postRestartTick": replayed["tick"],
                     "exitStateDiscarded": True,
                     "postExit": post_exit,
+                    "surfaceFailurePaths": surface_failures,
                 },
                 "camera": {
                     **camera,
@@ -577,6 +542,8 @@ def main() -> None:
                 "mobileHud": mobile_layout,
                 "throttle": 0.75,
                 "nonLocalRequests": non_local_requests,
+                "blockedRequests": blocked_requests,
+                "requests": requests,
                 "localRuntimeRequestPaths": local_runtime_paths,
                 "workspaceSeedListRequests": fs_list_requests,
                 "consoleErrors": console_errors,
