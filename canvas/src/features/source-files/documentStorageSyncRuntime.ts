@@ -40,15 +40,26 @@ export const runDocumentStorageSyncNow = async (): Promise<DocumentStorageSyncNo
     pulledDocumentCount: 0,
     conflictCount: 0,
   }
-  if (!readWorkspaceCloudSyncEnabledSetting()) return { ...emptyResult, status: 'offline-only' }
-  if (!readKnowgrphStorageRuntimeSyncAvailable()) return { ...emptyResult, status: 'unavailable' }
-
   const state = useGraphStore.getState()
   const dependencies = await loadKnowgrphStorageRuntimeDependencies()
   const queued = await dependencies.syncSourceFilesToKnowgrphStorage({
     workspaceId,
     sourceFiles: state.sourceFiles,
   })
+  if (!readWorkspaceCloudSyncEnabledSetting()) {
+    return {
+      ...emptyResult,
+      status: 'offline-only',
+      queuedMutationCount: queued.queuedMutationCount,
+    }
+  }
+  if (!readKnowgrphStorageRuntimeSyncAvailable()) {
+    return {
+      ...emptyResult,
+      status: 'unavailable',
+      queuedMutationCount: queued.queuedMutationCount,
+    }
+  }
   const syncResult = await dependencies.syncKnowgrphStorageNow({
     workspaceId,
     baseUrl: dependencies.baseUrl,

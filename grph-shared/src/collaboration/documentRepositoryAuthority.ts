@@ -22,6 +22,10 @@ export type DocumentRepositoryAuthority = {
   canonicalPath: string
 }
 
+export type DocumentRepositoryAuthorityResult =
+  | { ok: true; authority: DocumentRepositoryAuthority }
+  | { ok: false; reason: 'unsupported-path'; path: string }
+
 const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdx'])
 
 const normalizeDocumentPath = (value: unknown): string =>
@@ -56,14 +60,19 @@ const isSafeRepositoryPath = (path: string): boolean => {
   return parts.length > 0 && parts.every(part => part !== '.' && part !== '..')
 }
 
-export const resolveDocumentRepositoryAuthority = (args: {
+export const resolveDocumentRepositoryAuthorityResult = (args: {
   documentKey: unknown
   documentKind: 'markdown' | 'json'
-}): DocumentRepositoryAuthority | null => {
+}): DocumentRepositoryAuthorityResult => {
   const normalizedPath = normalizeDocumentPath(args.documentKey)
-  if (!normalizedPath || !isSafeRepositoryPath(normalizedPath)) return null
-  if (normalizedPath === 'agentic-canvas-os' || normalizedPath.startsWith('agentic-canvas-os/')) return null
-  if (pathMatchesRoot(normalizedPath, REJECTED_WORKSPACE_SEEDS_REPOSITORY_PATH)) return null
+  const reject = (): DocumentRepositoryAuthorityResult => ({
+    ok: false,
+    reason: 'unsupported-path',
+    path: normalizedPath,
+  })
+  if (!normalizedPath || !isSafeRepositoryPath(normalizedPath)) return reject()
+  if (normalizedPath === 'agentic-canvas-os' || normalizedPath.startsWith('agentic-canvas-os/')) return reject()
+  if (pathMatchesRoot(normalizedPath, REJECTED_WORKSPACE_SEEDS_REPOSITORY_PATH)) return reject()
 
   let repositoryTarget: DocumentRepositoryTarget = DOCUMENT_REPOSITORY_TARGETS.workspaceDocs
   let repositoryPath = normalizedPath
@@ -79,15 +88,26 @@ export const resolveDocumentRepositoryAuthority = (args: {
     repositoryPath = `docs/${normalizedPath}`
   }
 
-  if (!repositoryPath.startsWith('docs/') || !isSafeRepositoryPath(repositoryPath)) return null
-  if (!hasSupportedExtension(repositoryPath, args.documentKind)) return null
+  if (!repositoryPath.startsWith('docs/') || !isSafeRepositoryPath(repositoryPath)) return reject()
+  if (!hasSupportedExtension(repositoryPath, args.documentKind)) return reject()
 
   const repositoryName = repositoryTarget === DOCUMENT_REPOSITORY_TARGETS.knowgrphDocs
     ? 'knowgrph'
     : 'huijoohwee'
   return {
-    repositoryTarget,
-    githubPath: repositoryPath,
-    canonicalPath: `${repositoryName}/${repositoryPath}`,
+    ok: true,
+    authority: {
+      repositoryTarget,
+      githubPath: repositoryPath,
+      canonicalPath: `${repositoryName}/${repositoryPath}`,
+    },
   }
+}
+
+export const resolveDocumentRepositoryAuthority = (args: {
+  documentKey: unknown
+  documentKind: 'markdown' | 'json'
+}): DocumentRepositoryAuthority | null => {
+  const result = resolveDocumentRepositoryAuthorityResult(args)
+  return result.ok ? result.authority : null
 }
