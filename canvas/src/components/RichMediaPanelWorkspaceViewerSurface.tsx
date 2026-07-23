@@ -27,16 +27,20 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
 }) {
   const { model, props } = args
   const [viewerDraftText, setViewerDraftText] = React.useState<string | null>(null)
+  const pendingCommittedTextRef = React.useRef<string | null>(null)
   const viewerText = viewerDraftText ?? model.panelDisplayText
 
   React.useEffect(() => {
+    const pendingCommittedText = pendingCommittedTextRef.current
+    if (pendingCommittedText !== null && model.panelDisplayText !== pendingCommittedText) return
+    pendingCommittedTextRef.current = null
     setViewerDraftText(null)
   }, [model.panelDisplayText])
 
   const commitText = React.useCallback((nextText: string) => {
     if (!model.panelTextEditable) return
     commitRichMediaInlineEditVersion({
-      currentText: model.panelDisplayText,
+      currentText: viewerText,
       nextText,
       commit: () => {
         model.setPanelDraftText(nextText)
@@ -50,7 +54,7 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
         })
       },
     })
-  }, [model, props])
+  }, [model, props, viewerText])
 
   const handleReplaceLineRange = React.useCallback((change: {
     startLine: number
@@ -58,15 +62,16 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
     replacementLines: string[]
   }) => {
     const nextText = replaceMarkdownLineRange({
-      markdownText: model.panelDisplayText,
+      markdownText: viewerText,
       startLine: change.startLine,
       endLine: change.endLine,
       replacementLines: change.replacementLines,
     })
-    if (nextText === model.panelDisplayText) return
+    if (nextText === viewerText) return
+    pendingCommittedTextRef.current = nextText
     setViewerDraftText(nextText)
     commitText(nextText)
-  }, [commitText, model.panelDisplayText])
+  }, [commitText, viewerText])
 
   return (
     <React.Suspense fallback={(
@@ -89,7 +94,7 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
         markdownViewerWidthMode="wide"
         dataAttributes={RICH_MEDIA_WORKSPACE_VIEWER_DATA_ATTRIBUTES}
         onInlineEditStateChange={model.panelTextEditable ? active => {
-          if (!active) setViewerDraftText(null)
+          if (!active && pendingCommittedTextRef.current === null) setViewerDraftText(null)
         } : undefined}
         onInlineDraftTextChange={model.panelTextEditable ? (nextText, options) => {
           if (options?.reflectInViewer === false) return

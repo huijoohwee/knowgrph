@@ -183,6 +183,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["workspaceFs.artifactBridge.enforcesCanonicalWorkspaceSeedOwnership","@/__tests__/workspaceArtifactBridge.test","testWorkspaceArtifactBridgeEnforcesCanonicalWorkspaceSeedOwnership"],
   ["richMedia.deliverables.nativeMarkdownPresentationSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface"],
   ["richMedia.probeTree.editorWorkspaceViewerSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurface"],
+  ["richMedia.probeTree.postEditRetainsCommittedDraft","@/__tests__/richMediaPanelWorkspaceViewerPostEditRegression.test.tsx","testRichMediaWorkspaceViewerRetainsCommittedDraftUntilParentPersistence"],
   ["richMedia.textOutput.versionSelectorPublishesSelection","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorPublishesSelection"],
   ["richMedia.textOutput.versionSelectorUsesStoryboardChrome","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorUsesStoryboardChrome"],
   ["richMedia.textOutput.versionSelectorUsesBubbleToolbar","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorUsesBubbleToolbar"],
