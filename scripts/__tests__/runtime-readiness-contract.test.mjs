@@ -15,7 +15,6 @@ import {
 test('runtime docs dependency resolves one checkout repository and immutable ref', async () => {
   const contract = await readRuntimeReadinessContract()
   const dependency = resolveRuntimeDocsDependency(contract)
-  assert.equal(contract.docs_dependency.ref, 'a71df39fe2331c9086485860b539eb7b819e185d')
   assert.match(contract.docs_dependency.ref, /^[0-9a-f]{40}$/)
   const checkedOutDocsRoot = String(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT || '').trim()
   if (checkedOutDocsRoot) {

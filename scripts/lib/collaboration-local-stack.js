@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
 
-const DEFAULT_OWNER_APP_URL = "http://127.0.0.1:5173/";
+const DEFAULT_OWNER_APP_URL = "http://127.0.0.1:5175/";
 const DEFAULT_GUEST_APP_URL = "http://127.0.0.1:5174/";
 const DEFAULT_WORKER_URL = "http://127.0.0.1:8787";
 const DEFAULT_WORKSPACE_ID = "kgws:test-room";
@@ -266,7 +266,7 @@ export function resolveLocalCollaborationStackConfig({
         id: "owner-app",
         readyUrl: ownerAppUrl,
         envVar: "KG_COLLABORATION_E2E_OWNER_URL",
-        startupCommand: "npm --prefix canvas run dev:5173",
+        startupCommand: "npm --prefix canvas run dev -- --port 5175 --strictPort",
         kind: "vite",
         runtimeDevice: ownerRuntimeDevice,
         local: readLocalServiceConfig(ownerAppUrl, DEFAULT_OWNER_APP_URL),

@@ -5,7 +5,12 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import RichMediaPanel from '@/components/RichMediaPanel'
 import type { GraphData } from '@/lib/graph/types'
+import {
+  RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID,
+  resolveRichMediaTextOutputVersionSelection,
+} from '@/lib/render/richMediaOutputVersions'
 
 const tick = async (n: number = 1) => {
   for (let i = 0; i < n; i += 1) {
@@ -139,6 +144,111 @@ export async function testInlineEditToolbarMoreMenuIncludesCentralizedSelectionA
 
     const selectedNodeId = useGraphStore.getState().selectedNodeId
     if (selectedNodeId !== 'n1') throw new Error(`expected selectedNodeId to be n1, got ${String(selectedNodeId)}`)
+  } finally {
+    try { root.unmount() } catch { void 0 }
+    restore()
+  }
+}
+
+export async function testVersionedRichMediaWorkspaceViewerReusesInlineSelectionToolbar() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  ensureRangeRect(dom)
+  const doc = dom.window.document
+  const container = doc.getElementById('root')
+  if (!container) throw new Error('missing root container')
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    root.render(
+      React.createElement(RichMediaPanel, {
+        overlayId: 'probe-tree-branches',
+        title: 'Probe-Tree Branches',
+        url: '',
+        kind: 'iframe',
+        interactive: false,
+        panel: {
+          activeTab: 'text',
+          freezeConnectedOutput: true,
+          markdownWorkspaceViewerSurface: true,
+          hasText: true,
+          hasImage: false,
+          hasVideo: false,
+          hasAudio: false,
+          hasPoi: false,
+          text: 'Versioned toolbar text',
+          connectedText: '',
+          outputVersions: [
+            {
+              id: 'probe-tree-run-1',
+              createdAt: '2026-07-23T00:00:00.000Z',
+              output: 'Earlier Probe-Tree output',
+            },
+            {
+              id: 'probe-tree-run-2',
+              createdAt: '2026-07-23T00:01:00.000Z',
+              output: 'Versioned toolbar text',
+            },
+          ],
+          selectedOutputVersionId: 'probe-tree-run-2',
+        },
+        onPanelChange: () => {},
+      }),
+    )
+    await tick(10)
+
+    const richMediaEditSurface = doc.querySelector('[data-kg-rich-media-inline-edit="1"]')
+    if (!richMediaEditSurface) {
+      throw new Error(`expected versioned Rich Media output to expose the shared Viewer edit surface, html=${container.innerHTML}`)
+    }
+    const host = richMediaEditSurface.querySelector('[data-start-line="1"]') as HTMLElement | null
+    if (!host) throw new Error(`expected versioned Rich Media Viewer markdown host, html=${container.innerHTML}`)
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0, y: 0, top: 0, left: 0, right: 460, bottom: 60, width: 460, height: 60, toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 28, clientY: 16, detail: 1 }))
+    await tick(6)
+
+    const editor = richMediaEditSurface.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error(`expected versioned Rich Media Viewer to enter shared inline editing, html=${container.innerHTML}`)
+    const textNode = editor.firstChild
+    if (!textNode || textNode.nodeType !== dom.window.Node.TEXT_NODE) throw new Error('expected Rich Media Viewer editor text node')
+    const range = doc.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, 9)
+    const selection = dom.window.getSelection()
+    if (!selection) throw new Error('expected Rich Media Viewer selection')
+    selection.removeAllRanges()
+    selection.addRange(range)
+    doc.dispatchEvent(new dom.window.Event('selectionchange'))
+    editor.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true, detail: 1 }))
+    await tick(6)
+
+    const toolbars = doc.querySelectorAll('[data-kg-inline-selection-toolbar="1"]')
+    if (toolbars.length !== 1) {
+      throw new Error(`expected one canonical inline-selection toolbar in Rich Media Viewer, got ${toolbars.length}`)
+    }
+    if (doc.querySelector('[aria-label="Selection actions"]')) {
+      throw new Error('did not expect a stale Selection actions variant in Rich Media Viewer')
+    }
+    const draftSelection = resolveRichMediaTextOutputVersionSelection({
+      properties: {
+        outputVersions: [
+          { id: 'probe-tree-run-1', createdAt: '', output: 'Earlier Probe-Tree output' },
+          { id: 'probe-tree-run-2', createdAt: '', output: 'Versioned toolbar text' },
+        ],
+        selectedOutputVersionId: RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID,
+      },
+      fallbackOutput: '**Versioned** toolbar text',
+    })
+    if (
+      draftSelection.selectedVersionId !== RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID
+      || draftSelection.selectedOutput !== '**Versioned** toolbar text'
+      || draftSelection.versions.length !== 2
+    ) {
+      throw new Error(`expected Rich Media toolbar edits to resolve as a draft without deleting generated versions, got ${JSON.stringify(draftSelection)}`)
+    }
   } finally {
     try { root.unmount() } catch { void 0 }
     restore()
