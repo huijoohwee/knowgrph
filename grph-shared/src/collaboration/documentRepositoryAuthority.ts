@@ -3,6 +3,16 @@ export const DOCUMENT_REPOSITORY_TARGETS = {
   workspaceDocs: 'workspace-docs',
 } as const
 
+export const DOCUMENT_REPOSITORY_DISPLAY_ROOTS = {
+  knowgrphDocs: 'GitHub/knowgrph/docs',
+  workspaceDocs: 'GitHub/huijoohwee/docs',
+  workspaceSeeds: 'GitHub/knowgrph/docs/workspace-seeds',
+  offlineFallback: 'IndexedDB',
+} as const
+
+export const KNOWGRPH_WORKSPACE_SEEDS_REPOSITORY_PATH = 'docs/workspace-seeds'
+export const REJECTED_WORKSPACE_SEEDS_REPOSITORY_PATH = 'huijoohwee/docs/workspace-seeds'
+
 export type DocumentRepositoryTarget =
   (typeof DOCUMENT_REPOSITORY_TARGETS)[keyof typeof DOCUMENT_REPOSITORY_TARGETS]
 
@@ -22,6 +32,20 @@ const normalizeDocumentPath = (value: unknown): string =>
     .replace(/^\/+/, '')
     .replace(/\/{2,}/g, '/')
 
+const pathMatchesRoot = (path: string, root: string): boolean => path === root || path.startsWith(`${root}/`)
+
+export const isKnowgrphWorkspaceSeedsPath = (value: unknown): boolean => {
+  const path = normalizeDocumentPath(value)
+  return pathMatchesRoot(path, KNOWGRPH_WORKSPACE_SEEDS_REPOSITORY_PATH)
+    || pathMatchesRoot(path, `knowgrph/${KNOWGRPH_WORKSPACE_SEEDS_REPOSITORY_PATH}`)
+}
+
+export const isKnowgrphWorkspaceSeedsRootPath = (value: unknown): boolean => {
+  const path = normalizeDocumentPath(value)
+  return path === KNOWGRPH_WORKSPACE_SEEDS_REPOSITORY_PATH
+    || path === `knowgrph/${KNOWGRPH_WORKSPACE_SEEDS_REPOSITORY_PATH}`
+}
+
 const hasSupportedExtension = (path: string, documentKind: 'markdown' | 'json'): boolean => {
   const extension = path.split('.').pop()?.toLowerCase() || ''
   return documentKind === 'json' ? extension === 'json' : MARKDOWN_EXTENSIONS.has(extension)
@@ -39,7 +63,7 @@ export const resolveDocumentRepositoryAuthority = (args: {
   const normalizedPath = normalizeDocumentPath(args.documentKey)
   if (!normalizedPath || !isSafeRepositoryPath(normalizedPath)) return null
   if (normalizedPath === 'agentic-canvas-os' || normalizedPath.startsWith('agentic-canvas-os/')) return null
-  if (normalizedPath.startsWith('huijoohwee/docs/workspace-seeds/')) return null
+  if (pathMatchesRoot(normalizedPath, REJECTED_WORKSPACE_SEEDS_REPOSITORY_PATH)) return null
 
   let repositoryTarget: DocumentRepositoryTarget = DOCUMENT_REPOSITORY_TARGETS.workspaceDocs
   let repositoryPath = normalizedPath
@@ -49,7 +73,7 @@ export const resolveDocumentRepositoryAuthority = (args: {
     repositoryPath = normalizedPath.slice('knowgrph/'.length)
   } else if (normalizedPath.startsWith('huijoohwee/docs/')) {
     repositoryPath = normalizedPath.slice('huijoohwee/'.length)
-  } else if (normalizedPath.startsWith('docs/workspace-seeds/')) {
+  } else if (isKnowgrphWorkspaceSeedsPath(normalizedPath)) {
     repositoryTarget = DOCUMENT_REPOSITORY_TARGETS.knowgrphDocs
   } else if (!normalizedPath.startsWith('docs/')) {
     repositoryPath = `docs/${normalizedPath}`

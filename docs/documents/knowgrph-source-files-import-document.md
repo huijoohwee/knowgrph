@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Source Files Import"
 id: "md:knowgrph-source-files-import-document"
-version: "1.2.0"
+version: "1.3.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Workflow and Runtime Reference"
@@ -40,6 +40,8 @@ invocation:
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
 **Storage And Sync Settings**: MainPanel Settings → `Document Storage & Sync` exposes Online/Offline only mode, the `GitHub/knowgrph/docs` and `GitHub/huijoohwee/docs` roots, offline fallback state, and explicit `Sync now`. Import remains local-first: Offline only never discards imported content, and online publication routes Knowgrph product/workspace-seed paths to `knowgrph-docs`, collaborative workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths as write targets.
+
+**Explorer Ownership Projection**: Explorer → Source Files renders a compact path-derived ownership ledger above the tree: product documents → `GitHub/knowgrph/docs`, workspace documents → `GitHub/huijoohwee/docs`, seeds → `GitHub/knowgrph/docs/workspace-seeds`, and offline fallback → IndexedDB. The canonical `workspace-seeds` folder has a shield marker. The byte-identical Agentic Canvas OS seed remains a protected runtime projection and is never shown as another editable root; `huijoohwee/docs/workspace-seeds` is rejected.
 
 **Collaboration Admission**: Fetching, parsing, and first persistence always complete locally before an import can join a live room. When Online mode, authenticated workspace membership, a canonical document path, and one configured room provider are all available, Source Files may hydrate the Yjs document from a compacted provider snapshot plus ordered updates, then replay its IndexedDB-backed local update outbox. PocketBase is the recommended small-team provider after production gates pass; a Durable Object is a replacement provider, never a simultaneous second owner. Import credentials, local paths, and remote-source authorization headers are never transmitted to the room provider.
 
@@ -212,6 +214,7 @@ sequenceDiagram
 | Workspace Actions | Workflow Step 3 UI | `WorkspaceActionsPanel.tsx` | Built |
 | Source Files | Import/export/clear/parse | `sourceFilesIngestIntegration.ts` | Built |
 | Source Files | Seed aliases (3-file family) | `workspaceSeedSourceFiles.ts` | Built |
+| Source Files | Ownership ledger + seed authority marker | `SourceFilesOwnershipSummary.tsx` + `MarkdownFileTree.tsx` | Built |
 | Workspace FS | Seed bootstrap | `workspaceFs.ts` | Built |
 | Workspace FS | Minimal persisted cache FS | `workspaceFsPersisted.ts` | Built |
 | Workspace FS | In-memory FS | `workspaceFsMemory.ts` | Built |

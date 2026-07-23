@@ -6,6 +6,7 @@ import test from 'node:test'
 
 import {
   PHYSICS_SEED_RELATIVE_PATH,
+  resolveWorkspaceSeedSiblingRootsFromGitCommonDir,
   verifyWorkspaceSeedAuthority,
 } from '../workspace-seed-authority.mjs'
 
@@ -30,6 +31,16 @@ const fixture = async () => {
   await writeFile(projectionPath, canonicalSeed)
   return { root, knowgrphRoot, agenticDocsRoot, publishRoot }
 }
+
+test('derives sibling roots from the canonical git common directory', () => {
+  assert.deepEqual(
+    resolveWorkspaceSeedSiblingRootsFromGitCommonDir('/workspace/GitHub/knowgrph/.git'),
+    {
+      agenticDocsRoot: path.resolve('/workspace/GitHub/agentic-canvas-os/docs'),
+      publishRoot: path.resolve('/workspace/GitHub/huijoohwee'),
+    },
+  )
+})
 
 test('accepts one authored source and one byte-identical storage projection', async t => {
   const roots = await fixture()

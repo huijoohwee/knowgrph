@@ -214,6 +214,8 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["sourceFiles.cloudSync.githubFailureSkipsCloudflare","@/__tests__/sourceFileCloudSync.test","testSourceFileCloudUploadStopsBeforeCloudflareWhenGitHubBridgeFails"],
   ["sourceFiles.cloudSync.localCloudIndicatorClick","@/__tests__/sourceFileCloudSync.test","testSourceFileCloudIndicatorShowsLocalAndCloudStatesAndUploadsOnClick"],
   ["sourceFiles.cloudSync.repositoryAuthority","@/__tests__/sourceFileCloudSync.test","testSourceFileCloudTargetsRespectDocumentRepositoryAuthority"],
+  ["sourceFiles.ownership.summary.canonicalRoots","@/__tests__/sourceFilesOwnershipProjection.test","testSourceFilesOwnershipSummaryRendersCanonicalRoots"],
+  ["sourceFiles.ownership.tree.workspaceSeeds","@/__tests__/sourceFilesOwnershipProjection.test","testSourceFilesTreeMarksKnowgrphWorkspaceSeedAuthority"],
   ["sourceFiles.collaboration.repositoryAuthorityMismatch","@/__tests__/sourceFilesPocketBaseYjsCollaboration.test","testCollaborationSaveBridgeRejectsRepositoryTargetMismatch"],
   ["settings.documentStorage.offlinePreference","@/__tests__/workspaceStoreSyncSettings.test","testWorkspaceCloudSyncPreferenceDoesNotDisableLocalMirrorSettings"],
   ["settings.documentStorage.renderedControls","@/__tests__/workspaceStoreSyncSettings.test","testDocumentStorageSyncSettingsRenderAndSwitchOffline"],

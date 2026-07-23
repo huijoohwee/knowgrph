@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Spreadsheet Storage"
 id: "md:knowgrph-spreadsheet-storage-document"
-version: "2.1.0"
+version: "2.2.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Storage Surface Reference"
@@ -49,6 +49,7 @@ MainPanel `Document Storage & Sync` therefore applies unchanged to spreadsheet-a
 - Failed collaboration updates stay in the IndexedDB update outbox with stable ids until acknowledged, including across Offline only transitions and reloads.
 - PocketBase is the recommended small-team provider only after the shared production gates pass. A Durable Object may replace it, but both providers must never own the same spreadsheet room.
 - GitHub receives explicit or bounded autosave checkpoints with compare-and-set content SHA; D1 remains the read/index projection and never receives per-cell writes.
+- Explorer ownership remains path-derived: ordinary spreadsheet documents target `GitHub/huijoohwee/docs`, while any authored spreadsheet-like workspace seed under `/docs/workspace-seeds/**` targets `GitHub/knowgrph/docs/workspace-seeds`; IndexedDB remains the offline fallback.
 
 ## Bounded Proof
 

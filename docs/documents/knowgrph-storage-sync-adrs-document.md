@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Sync ADRs"
 id: "md:knowgrph-storage-sync-adrs-document"
-version: "1.2.0"
+version: "1.3.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Architecture Decision Records"
@@ -27,7 +27,7 @@ invocation:
 
 ---
 
-**Version**: 1.2.0
+**Version**: 1.3.0
 **Date**: 2026-07-23
 **Companion index**: `knowgrph-storage-sync-document.companion.md`
 
@@ -51,6 +51,7 @@ invocation:
 | ADR-014 | Accepted | Use one canonical storage workspace by default across devices. | `canvas/src/features/source-files/sourceFilesStorageSync.ts` |
 | ADR-015 | Accepted | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. | `grph-shared/src/collaboration/documentRepositoryAuthority.ts` |
 | ADR-016 | Accepted | Select one collaboration room provider; replace PocketBase with Durable Objects instead of dual-owning rooms. | `canvas/src/features/source-files/sourceFilesPocketBaseYjsRoom.ts` |
+| ADR-017 | Accepted | Keep one authored workspace-seed root, one byte-identical runtime projection, and no publish-repository duplicate. | `scripts/workspace-seed-authority.mjs` |
 
 ## ADR-001: Minimal Persisted Client Working Store
 
@@ -117,3 +118,7 @@ The shared authority resolver maps Knowgrph product documents and `/docs/workspa
 ## ADR-016: One Collaboration Room Provider
 
 The collaboration room contract is provider-neutral, but exactly one provider owns a workspace room at a time. PocketBase is the Phase 1 choice for small teams. A per-document Cloudflare Durable Object may replace it when single-server operations, fanout, or Cloudflare-native coordination justify migration. Migration fences new writes, transfers compacted Yjs state and replay position, verifies client convergence, then changes provider authority; PocketBase and Durable Objects never dual-write the same room. See [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/) and its [WebSocket guidance](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
+
+## ADR-017: Workspace-Seed Source And Projection Ownership
+
+`knowgrph/docs/workspace-seeds` is the only authored seed root. The protected `agentic-canvas-os/docs/workspace-seeds` file is a byte-identical default-runtime projection, not an editable copy; it remains until bootstrap no longer requires that projection. `huijoohwee/docs/workspace-seeds` is forbidden. Explorer displays this ownership boundary from shared constants, and the authority check derives sibling repositories through the Git common directory so canonical and linked worktrees validate the same roots.

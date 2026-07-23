@@ -4,7 +4,7 @@ id: "md:knowgrph-storage-sync-document.companion"
 author: "airvio / joohwee"
 date: "2026-06-05"
 updated: "2026-07-23"
-version: "3.3.0"
+version: "3.4.0"
 status: "runtime-ready-dev; production and cloud proof remain release-owned"
 doc_type: "Companion PRD/TAD"
 lang: "en-US"
@@ -54,7 +54,7 @@ traceability:
 
 Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, ADR index, deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
-**Version**: 3.3.0
+**Version**: 3.4.0
 **Date**: 2026-07-23
 
 ---
@@ -119,6 +119,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | MainPanel document storage mode is `Online` and two users edit the same `*.json` | both edit at the same time | raw JSON editing is blocked; Yjs shared JSON types own the edit; save bridge commits canonical formatted JSON to the owning GitHub docs root | `Verify: sourceFilesPocketBaseYjsCollaboration.test.ts JSON guardrail assertions pass` |
 | A collaborator saves a concurrent document | bridge persists the save | bridge owns the GitHub commit; collaborators never touch Git credentials or Git commands | `Verify: collab save bridge e2e test creates GitHub commit and no browser-side credential is accessed` |
 | A generated image/video/binary artifact exists as a local Blob | runtime storage sync is explicitly enabled and the output owner publishes it | bytes upload to R2 through `/api/storage/blob/`; a sibling manifest document is written to D1; Cloudflare persistence is claimed only after both routes read successfully | `Verify: chat.responseContract.storage.kgcBinaryOutputPublishesR2Manifest, chat.responseContract.storage.richMediaBinaryOutputPublishesR2Manifest, and sourceFiles.storageSync.r2BlobRoute.storesBinaryObject pass` |
+| Explorer → Source Files opens | ownership summary and tree render | product, workspace, seed, and offline roots are visible; `workspace-seeds` is marked as Knowgrph-owned; no editable Agentic or Huijoohwee seed duplicate appears | `Verify: sourceFiles.ownership passes and workspace-seeds:authority reports agenticProjection=true plus publishMirror=true` |
 
 ### MoSCoW Prioritization
 
@@ -368,6 +369,7 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 | ADR-014 | Use one canonical storage workspace by default across devices. |
 | ADR-015 | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. |
 | ADR-016 | Select one collaboration room provider; replace PocketBase with Durable Objects instead of dual-owning rooms. |
+| ADR-017 | Keep one authored workspace-seed root, one byte-identical runtime projection, and no publish-repository duplicate. |
 
 ---
 
@@ -396,6 +398,7 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 5. Keep D1 export/import as an explicit Worker/runtime path, not the default toolbar Storage Sync path
 6. ~~Add R2-backed `/api/storage/blob/:workspaceId/:canonicalPath*` for generated binary bytes plus D1 Markdown manifests~~ ✅
 7. Update workspace creation flow to detect multi-member workspaces and keep GitHub SSOT while enabling PocketBase/Yjs collaboration rooms
+8. ~~Expose shared repository ownership roots and the Knowgrph seed boundary in Explorer → Source Files~~ ✅
 
 ### Phase 3 — PocketBase + Yjs Concurrent Editing (DEV BUILT; PROD GATED)
 
@@ -470,6 +473,7 @@ Focused tests cover:
 - Inbound pulled-record application into visible source-files state
 - Conflict UX dedupe behavior
 - Shared toast/history action rendering and dispatch
+- Source Files ownership summary, seed authority marker, and sibling-root authority validation
 
 Representative test files:
 
@@ -482,6 +486,8 @@ Representative test files:
 - `canvas/src/__tests__/knowgrphStorageConflictUx.test.ts`
 - `canvas/src/__tests__/sourceFilesPocketBaseYjsCollaboration.test.ts`
 - `canvas/src/__tests__/uiActionSurfaces.testx`
+- `canvas/src/__tests__/sourceFilesOwnershipProjection.test.tsx`
+- `scripts/__tests__/workspace-seed-authority.test.mjs`
 
 ### VCC Traceability
 

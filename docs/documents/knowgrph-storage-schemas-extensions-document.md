@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Schema Extensions"
 id: "md:knowgrph-storage-schemas-extensions-document"
-version: "1.2.0"
+version: "1.3.0"
 updated: "2026-07-23"
 status: "spec-complete-deferred"
 doc_type: "Schema Extension Reference"
@@ -27,7 +27,7 @@ invocation:
 
 ---
 
-**Version**: 1.2.0
+**Version**: 1.3.0
 **Date**: 2026-07-23
 **Canonical baseline**: `knowgrph-storage-schemas-document.md`
 
@@ -50,6 +50,10 @@ These collections belong to a version-pinned PocketBase deployment and its commi
 Collection list/view/create/update/delete rules must require an authenticated active member of the row's `workspaceId`; room creation and compaction require editor/owner authority. Update records are append-only to clients. A trusted room owner assigns ordering and compacts snapshots, while clients acknowledge update ids and replay their IndexedDB outbox until accepted. The GitHub bridge independently re-derives workspace membership and repository authority and uses compare-and-set content SHA.
 
 Only one room provider may be active for a workspace. A Durable Object migration transfers compacted Yjs state and replay position behind a write fence before authority changes; it must not mirror live writes to both providers.
+
+## Source Files Ownership Projection (No Persisted Extension)
+
+Explorer ownership is derived from the shared repository-authority contract, not stored in PocketBase or D1. `workspace-docs` displays `GitHub/huijoohwee/docs`; `knowgrph-docs` displays `GitHub/knowgrph/docs`; `/docs/workspace-seeds/**` displays the narrower `GitHub/knowgrph/docs/workspace-seeds` boundary; IndexedDB displays as offline fallback. Agentic runtime projections and rejected Huijoohwee seed duplicates never become selectable write authorities.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (

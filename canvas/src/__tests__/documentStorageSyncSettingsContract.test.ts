@@ -14,14 +14,29 @@ export const testMainPanelSettingsSurfacesDocumentStorageSyncContract = () => {
     throw new Error('Expected MainPanel Settings to own and render Document Storage & Sync')
   }
   for (const token of [
-    'GitHub/knowgrph/docs',
-    'GitHub/huijoohwee/docs',
-    'workspace-seeds: knowgrph/docs',
+    'DOCUMENT_REPOSITORY_DISPLAY_ROOTS.knowgrphDocs',
+    'DOCUMENT_REPOSITORY_DISPLAY_ROOTS.workspaceDocs',
+    'DOCUMENT_REPOSITORY_DISPLAY_ROOTS.workspaceSeeds',
+    'Product:',
+    'Workspace:',
+    'Seeds:',
     'IndexedDB: active',
     'Queued outbox: retained',
     'Sync now',
   ]) {
     if (!rowsText.includes(token)) throw new Error(`Expected document storage settings to include ${JSON.stringify(token)}`)
+  }
+  const authorityText = fs.readFileSync(
+    path.resolve(process.cwd(), '..', 'grph-shared', 'src', 'collaboration', 'documentRepositoryAuthority.ts'),
+    'utf8',
+  )
+  for (const token of [
+    'GitHub/knowgrph/docs',
+    'GitHub/huijoohwee/docs',
+    'GitHub/knowgrph/docs/workspace-seeds',
+    'IndexedDB',
+  ]) {
+    if (!authorityText.includes(token)) throw new Error(`Expected shared document authority to include ${JSON.stringify(token)}`)
   }
   if (!rowsText.includes("from 'grph-shared/react/keyTypeValueRow'")) {
     throw new Error('Expected document storage settings to reuse shared KTV rows')

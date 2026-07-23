@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Schemas and Route Contracts"
 id: "md:knowgrph-storage-schemas-document"
-version: "2.3.0"
+version: "2.4.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Schema and Route Reference"
@@ -27,7 +27,7 @@ invocation:
 
 ---
 
-**Version**: 2.3.0
+**Version**: 2.4.0
 **Date**: 2026-07-23
 **Canonical index**: `knowgrph-storage-sync-document.md`
 **See also**: `knowgrph-storage-schemas-extensions-document.md` (deferred auth relay and PostgreSQL extensions), `knowgrph-multi-user-collaboration-prd.tad.md` (auth tables, role-based access extension)
@@ -155,6 +155,21 @@ type CollaborationUpdateOutboxRecord = {
 ```
 
 Replay is idempotent by `updateId`, ordered per document, and retained until provider acknowledgement. Joining a room applies its compacted snapshot and ordered remote updates before replaying unacknowledged local records.
+
+### Source Files Ownership Projection
+
+This display model is derived at runtime and is not a new browser, D1, or PocketBase collection:
+
+```ts
+type SourceFilesOwnershipProjection = {
+  knowgrphDocs: 'GitHub/knowgrph/docs'
+  workspaceDocs: 'GitHub/huijoohwee/docs'
+  workspaceSeeds: 'GitHub/knowgrph/docs/workspace-seeds'
+  offlineFallback: 'IndexedDB'
+}
+```
+
+The path resolver selects `workspaceSeeds` for `/docs/workspace-seeds/**`, rejects `huijoohwee/docs/workspace-seeds/**`, and refuses Agentic Canvas OS write targets. Explorer consumes the same constants, so labels cannot drift from save-bridge authority. The Agentic seed file remains a protected byte-identical runtime projection outside this write model.
 
 ---
 
