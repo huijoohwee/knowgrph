@@ -79,6 +79,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["toolbar.history.undoRedo.sharedVersionControls","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testToolbarAndHistoryViewShareVersionUndoRedoControls"],
   ["history.undoRedo.gitGraph.restoresCanonicalDocumentAcrossViews","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testHistoryUndoRedoRestoresCanonicalGitGraphDocumentAcrossViews"],
   ["history.versionControl.semanticBoundedParentLinked","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testVersionHistoryIsSemanticBoundedAndParentLinked"],
+  ["history.richMedia.inlineEdit.sharedVersionRestore","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testRichMediaInlineEditVersionsAndRestoresThroughSharedHistory"],
   ["richMedia.browserSmokeContract","@/__tests__/richMediaBrowserSmokeContract.test","testRichMediaBrowserSmokeContract"],
   ["flowWidget.placement.explicitGraphScope","@/__tests__/flowWidgetGraphScopedPlacement.test","testFlowWidgetPlacementWritesToExplicitGraphScope"],
   ["graph.documentMetaKey.sourceRevisionStable","@/__tests__/graphMetaKeyPending.test","testGraphDocumentMetaKeyStaysStableAcrossSourceRevisions"],
