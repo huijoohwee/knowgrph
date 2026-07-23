@@ -13,6 +13,11 @@ import {
   syncWorkspaceDocsMirrorEntries,
 } from '@/features/workspace-fs/workspaceFsPersistedReconciliation'
 import { resetCanonicalPublishedDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import {
+  CANONICAL_WORKSPACE_SEED_BASENAMES,
+  readCanonicalWorkspaceSeedBundleEntries,
+} from '@/features/workspace-fs/workspaceCanonicalSeedBundle'
+import { resetWorkspaceSeedProviderStorageCacheForTests } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 
@@ -30,6 +35,73 @@ const decodeProxyUrl = (url: string): string => {
   if (!url.startsWith('/__fetch_remote')) return url
   const encoded = new URLSearchParams(url.split('?')[1] || '').get('url') || ''
   return decodeURIComponent(encoded)
+}
+
+export async function testBundledWorkspaceSeedInventoryMatchesAuthoredSourceExactly() {
+  const repoRoot = path.resolve(process.cwd(), '..')
+  const seedsRoot = path.join(repoRoot, 'docs', 'workspace-seeds')
+  const expectedBasenames = (await fsPromises.readdir(seedsRoot, { withFileTypes: true }))
+    .filter(entry => entry.isFile())
+    .map(entry => entry.name)
+    .sort()
+  const entries = await readCanonicalWorkspaceSeedBundleEntries()
+  const actualBasenames = entries
+    .map(entry => entry.relPath.replace(/^workspace-seeds\//, ''))
+    .sort()
+
+  if (JSON.stringify(actualBasenames) !== JSON.stringify(expectedBasenames)
+    || JSON.stringify(actualBasenames) !== JSON.stringify([...CANONICAL_WORKSPACE_SEED_BASENAMES].sort())) {
+    throw new Error(`expected exact bundled seed inventory ${JSON.stringify(expectedBasenames)}, got ${JSON.stringify(actualBasenames)}`)
+  }
+  for (const entry of entries) {
+    const basename = entry.relPath.replace(/^workspace-seeds\//, '')
+    const authoredText = await fsPromises.readFile(path.join(seedsRoot, basename), 'utf8')
+    if (entry.text !== authoredText) {
+      throw new Error(`expected bundled ${basename} bytes to match the authored source`)
+    }
+  }
+}
+
+export async function testProductionFallbackRestoresBundledWorkspaceSeedInventory() {
+  const missingRoot = `/missing/workspace-seed-production-${Date.now()}`
+  const previousRepoLocal = process.env[REPO_LOCAL_ENV]
+  const previousDocsRoot = process.env[DOCS_ROOT_ENV]
+  const previousSeedsRoot = process.env[SEEDS_ROOT_ENV]
+  const previousAgenticRoot = process.env[AGENTIC_DOCS_ROOT_ENV]
+  const previousFetch = globalThis.fetch
+  const { restore } = initWindowHarness({ storage: new MemoryStorage() })
+  try {
+    delete process.env[REPO_LOCAL_ENV]
+    process.env[DOCS_ROOT_ENV] = `${missingRoot}/docs`
+    process.env[SEEDS_ROOT_ENV] = `${missingRoot}/docs/workspace-seeds`
+    process.env[AGENTIC_DOCS_ROOT_ENV] = `${missingRoot}/agentic-canvas-os/docs`
+    resetCanonicalPublishedDocsMirrorCacheForTests()
+    resetWorkspaceSeedProviderStorageCacheForTests()
+    globalThis.fetch = (async () => new Response('', { status: 403 })) as typeof fetch
+
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    const seedEntries = mirrored
+      .filter(entry => entry.relPath.startsWith('workspace-seeds/'))
+      .sort((left, right) => left.relPath.localeCompare(right.relPath))
+    const actualBasenames = seedEntries.map(entry => entry.relPath.replace(/^workspace-seeds\//, ''))
+    const expectedBasenames = [...CANONICAL_WORKSPACE_SEED_BASENAMES]
+      .sort((left, right) => left.localeCompare(right))
+    if (JSON.stringify(actualBasenames) !== JSON.stringify(expectedBasenames)) {
+      throw new Error(`expected production fallback inventory ${JSON.stringify(expectedBasenames)}, got ${JSON.stringify(actualBasenames)}`)
+    }
+    if (seedEntries.some(entry => entry.authority !== 'knowgrph-workspace-seeds-bundled')) {
+      throw new Error(`expected revision-pinned bundle authority, got ${JSON.stringify(seedEntries)}`)
+    }
+  } finally {
+    resetCanonicalPublishedDocsMirrorCacheForTests()
+    resetWorkspaceSeedProviderStorageCacheForTests()
+    globalThis.fetch = previousFetch
+    restore()
+    restoreEnv(REPO_LOCAL_ENV, previousRepoLocal)
+    restoreEnv(DOCS_ROOT_ENV, previousDocsRoot)
+    restoreEnv(SEEDS_ROOT_ENV, previousSeedsRoot)
+    restoreEnv(AGENTIC_DOCS_ROOT_ENV, previousAgenticRoot)
+  }
 }
 
 export async function testWorkspaceSeedProviderProjectsCanonicalLocalInventoryExactly() {

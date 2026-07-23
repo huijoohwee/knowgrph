@@ -22,6 +22,8 @@ Explorer → Source Files must reconcile this exact authored inventory in both r
 
 The draft documents are visible, editable source records but remain non-activating. They and their companion notes use the neutral 2D Flow Canvas presentation with panels closed. Drafts must not request XR/3D, a runtime FloatingPanel view, applied-document activation, an implemented native runtime, or auto-start. Their presence never grants a `run_ready_demo` identity, runtime readiness, projection authority, or deployment authority.
 
+The protected app build packages these exact six source bytes as a revision-pinned, read-only bootstrap artifact. Production and offline startup reconcile from that artifact without discovering seed names through the GitHub API; repository-local Dev still reads this authored directory first so edits remain immediately visible.
+
 ## Authored seed registry
 
 | Seed source | `run_ready_demo.id` | Surface | Status | Notes |
