@@ -112,7 +112,7 @@ test('verified production mirror is published only after live smoke', () => {
   const prewarmIndex = deployJob.indexOf('name: Prewarm returning-user service worker profile')
   const smokeIndex = deployJob.indexOf('name: Verify live runtime')
   const candidateIndex = deployJob.indexOf('name: Capture exact candidate deployment origin')
-  const fidelityIndex = deployJob.indexOf('name: Verify exact deployment markers and public browser fidelity')
+  const fidelityIndex = deployJob.indexOf('name: Verify exact deployment markers and candidate browser fidelity')
   const serviceWorkerUpgradeIndex = deployJob.indexOf('name: Verify returning-user service worker revision convergence')
   const publishIndex = deployJob.indexOf('name: Publish verified production mirror')
 
@@ -126,8 +126,16 @@ test('verified production mirror is published only after live smoke', () => {
   assert.ok(publishIndex > serviceWorkerUpgradeIndex)
   assert.match(deployJob, /--commit-hash="\$\{\{ github\.sha \}\}"/)
   assert.match(deployJob, /PRODUCTION_ORIGIN: \$\{\{ steps\.candidate\.outputs\.deployment_url \}\}/)
-  assert.match(deployJob, /PRODUCTION_PUBLIC_ORIGIN: https:\/\/airvio\.co/)
   assert.match(deployJob, /PRODUCTION_MARKER_ORIGIN: \$\{\{ steps\.candidate\.outputs\.deployment_url \}\}/)
+  assert.equal(
+    (
+      deployJob.match(
+        /PRODUCTION_SW_PROFILE_ORIGIN: \$\{\{ steps\.previous\.outputs\.production_origin \}\}/g,
+      ) || []
+    ).length,
+    2,
+    'prewarm and verify must share the configured stable Pages production origin',
+  )
   assert.match(deployJob, /PRODUCTION_BROWSER_HEADLESS: 'false'/)
   assert.match(deployJob, /xvfb-run --auto-servernum npm run production:fidelity:check/)
   assert.match(deployJob, /xvfb-run --auto-servernum npm run production:sw-upgrade:prewarm/)
@@ -135,6 +143,13 @@ test('verified production mirror is published only after live smoke', () => {
   assert.match(deployJob, /PRODUCTION_SW_PROFILE_DIR: \$\{\{ runner\.temp \}\}\/knowgrph-production-sw-profile/)
   assert.match(deployJob, /PRODUCTION_SW_EVIDENCE_PATH: \$\{\{ runner\.temp \}\}\/knowgrph-production-sw-evidence\.json/)
   assert.match(productionServiceWorkerUpgradeScript, /chromium\.launchPersistentContext\(profileDirectory/)
+  assert.match(productionServiceWorkerUpgradeScript, /PRODUCTION_SW_PROFILE_ORIGIN is required/)
+  assert.match(productionServiceWorkerUpgradeScript, /const profileOrigin = normalizeOrigin\(profileOriginInput\)/)
+  assert.match(productionServiceWorkerUpgradeScript, /knowgrph-production-service-worker-upgrade\/v2/)
+  assert.match(productionServiceWorkerUpgradeScript, /assert\.equal\(evidence\.profileOrigin, profileOrigin\)/)
+  assert.doesNotMatch(productionServiceWorkerUpgradeScript, /knowgrph-production-service-worker-upgrade\/v1/)
+  assert.doesNotMatch(productionServiceWorkerUpgradeScript, /PRODUCTION_PUBLIC_ORIGIN/)
+  assert.doesNotMatch(productionServiceWorkerUpgradeScript, /https:\/\/airvio\.co/)
   assert.match(productionServiceWorkerUpgradeScript, /serviceWorkers: 'allow'/)
   assert.match(productionServiceWorkerUpgradeScript, /navigator\.serviceWorker\.getRegistrations\(\)/)
   assert.match(productionServiceWorkerUpgradeScript, /registrations\.length !== 1/)
@@ -164,6 +179,10 @@ test('verified production mirror is published only after live smoke', () => {
   assert.match(productionServiceWorkerUpgradeScript, /seedStaleRuntimeCacheProof/)
   assert.match(productionServiceWorkerUpgradeScript, /service-worker-upgrade-stale-runtime-proof\.js/)
   assert.match(productionServiceWorkerUpgradeScript, /kgSwUpgradeStaleHtmlProof/)
+  assert.match(
+    productionServiceWorkerUpgradeScript,
+    /assert\.deepEqual\(\s*evidence\.seededCachePaths\?\.htmlPaths,/,
+  )
   assert.match(productionServiceWorkerUpgradeScript, /initialNavigationResponse\.fromServiceWorker\(\)/)
   assert.match(productionServiceWorkerUpgradeScript, /reloadNavigationResponse\.fromServiceWorker\(\)/)
   assert.match(productionServiceWorkerUpgradeScript, /const upgradeObservation = observePageFailures\(upgradePage\)/)
@@ -190,6 +209,7 @@ test('verified production mirror is published only after live smoke', () => {
   assert.match(productionFidelityScript, /__kgHomeSourceAuthorityEvidence/)
   assert.match(productionFidelityScript, /prematureSceneMounts/)
   assert.match(productionFidelityScript, /waitForHomeSourceAuthority/)
+  assert.doesNotMatch(productionFidelityScript, /PRODUCTION_PUBLIC_ORIGIN|publicOrigin/)
   assert.match(productionFidelityScript, /documentLoadedRootCount/)
   assert.match(productionFidelityScript, /data-kg-xr-document-loaded/)
   assert.match(productionFidelityScript, /data-kg-xr-scene-media-drop/)
@@ -226,6 +246,9 @@ test('generated mirror and rollback are bound to immutable runtime identities', 
   assert.match(pagesDeploymentScript, /deployment_trigger\?\.metadata\?\.commit_hash/)
   assert.match(pagesDeploymentScript, /capture-candidate/)
   assert.match(pagesDeploymentScript, /deployment_url/)
+  assert.match(pagesDeploymentScript, /writeOutput\('production_origin', productionPagesOrigin\)/)
+  assert.match(pagesDeploymentScript, /CLOUDFLARE_PAGES_PROJECT must be one lowercase DNS label/)
+  assert.match(pagesDeploymentScript, /const pagesHostname = `\$\{projectName\}\.pages\.dev`/)
   assert.match(pagesDeploymentScript, /pages\.dev/)
   assert.match(pagesDeploymentScript, /\/rollback`/)
   assert.doesNotMatch(pagesDeploymentScript, /console\.log\([^\n]*(?:apiToken|CLOUDFLARE_API_TOKEN)/)

@@ -256,7 +256,7 @@ jobs:
       - name: Prewarm returning-user service worker profile
         working-directory: knowgrph
         env:
-          PRODUCTION_PUBLIC_ORIGIN: https://airvio.co
+          PRODUCTION_SW_PROFILE_ORIGIN: ${{ steps.previous.outputs.production_origin }}
           PRODUCTION_SW_PROFILE_DIR: ${{ runner.temp }}/knowgrph-production-sw-profile
           PRODUCTION_SW_EVIDENCE_PATH: ${{ runner.temp }}/knowgrph-production-sw-evidence.json
           PRODUCTION_BROWSER_HEADLESS: 'false'
@@ -280,11 +280,10 @@ jobs:
         working-directory: knowgrph
         run: ./.github/workflows/smoke-test.sh
 
-      - name: Verify exact deployment markers and public browser fidelity
+      - name: Verify exact deployment markers and candidate browser fidelity
         working-directory: knowgrph
         env:
           PRODUCTION_ORIGIN: ${{ steps.candidate.outputs.deployment_url }}
-          PRODUCTION_PUBLIC_ORIGIN: https://airvio.co
           PRODUCTION_MARKER_ORIGIN: ${{ steps.candidate.outputs.deployment_url }}
           PRODUCTION_IMMUTABLE_MANIFEST_DIGEST: ${{ needs.verify.outputs.manifest_digest }}
           PRODUCTION_BROWSER_HEADLESS: 'false'
@@ -303,7 +302,7 @@ jobs:
       - name: Verify returning-user service worker revision convergence
         working-directory: knowgrph
         env:
-          PRODUCTION_PUBLIC_ORIGIN: https://airvio.co
+          PRODUCTION_SW_PROFILE_ORIGIN: ${{ steps.previous.outputs.production_origin }}
           PRODUCTION_SW_PROFILE_DIR: ${{ runner.temp }}/knowgrph-production-sw-profile
           PRODUCTION_SW_EVIDENCE_PATH: ${{ runner.temp }}/knowgrph-production-sw-evidence.json
           PRODUCTION_BROWSER_HEADLESS: 'false'

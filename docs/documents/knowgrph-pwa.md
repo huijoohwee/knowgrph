@@ -292,7 +292,9 @@ In development (`!import.meta.env.PROD`), `main.tsx` unregisters all existing se
 
 The static PWA contract remains in `pipelinePwaEnhancementsRegression.test.ts`; the revision
 owner has a direct Node test, and production release carries a persistent browser profile from
-the old public worker through the new protected deployment.
+the old Pages production worker through the new protected deployment. The profile origin is the stable
+Cloudflare Pages production alias derived from `CLOUDFLARE_PAGES_PROJECT`; it stays same-origin
+across the deployment and does not depend on custom-domain challenge behavior in hosted CI.
 
 | Test | Assertions |
 |------|-----------|
@@ -300,7 +302,7 @@ the old public worker through the new protected deployment.
 | `testPwaRuntimeTracksStandaloneInstallAndUpdateState` | Display modes, appinstalled, DOM attributes, registration-bound revision owner, beforeinstallprompt, deferred install exports |
 | `serviceWorkerRevisionUpdateOwner.test.ts` | Immediate registration update, bounded online/foreground refresh, prompt online retry after a failed update, cleanup release after every settled check, listener disposal |
 | `serviceWorkerCacheRevisionOwner.test.ts` | Active-worker revision attestation, activation fencing, queued controller changes, extensionless/response-typed HTML and poisoned-module deletion, prior-revision cleanup, current/unrelated preservation |
-| `verify-production-service-worker-upgrade.mjs` | Same Chrome profile, deliberately seeded stale runtime/extensionless-HTML entries, revision-bound worker imports, active/controller revision plus chat-schema attestations, singular canonical registration, exact revision across all CacheStorage assets, no cached or module-keyed HTML, no installing/waiting legacy worker, upgrade-tab error capture, preserved localStorage/IndexedDB, network-owned HTML |
+| `verify-production-service-worker-upgrade.mjs` | Same Chrome profile on the configured stable Pages production origin, deliberately seeded stale runtime/extensionless-HTML entries, revision-bound worker imports, active/controller revision plus chat-schema attestations, singular canonical registration, exact revision across all CacheStorage assets, no cached or module-keyed HTML, no installing/waiting legacy worker, upgrade-tab error capture, preserved localStorage/IndexedDB, network-owned HTML |
 | `testPwaIndexHtmlIncludesInstallMeta` | apple-touch-icon link, manifest link, base-aware manifest path |
 | `testPwaHeadersIncludeSwAndManifestCacheControl` | sw.js headers, Service-Worker-Allowed, manifest headers |
 | `testPwaToolbarInstallButtonWiresDeferredPrompt` | Toolbar imports, installable state, UI_LABELS |
