@@ -321,7 +321,7 @@ export async function testCollaborationSaveBridgeRejectsRepositoryTargetMismatch
   )
   const result = await response.json() as { code?: string; error?: string }
   if (response.status !== 400 || result.code !== 'bad_request'
-    || !String(result.error || '').includes('owning GitHub docs root')) {
+    || !String(result.error || '').includes('repository target does not match path authority')) {
     throw new Error(`expected repository authority mismatch rejection, got ${JSON.stringify(result)}`)
   }
 }
