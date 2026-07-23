@@ -13,7 +13,7 @@ import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { isNativeXrRunReadyDemoActive, isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { useCanvasGameplayOverlayState } from '@/features/canvas/useCanvasGameplayOverlayState'
 import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
-
+import { resolveThreeCanvasSurfaceLifecycle } from '@/lib/three/threeRendererLifecycle'
 import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
@@ -39,7 +39,6 @@ const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
 const LiveCanvasHeroLazy = React.lazy(() =>
   import('@/components/LiveCanvasHero').then(mod => ({ default: mod.LiveCanvasHero })),
 )
-
 const SharedGraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const DashboardCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/DashboardCanvas'), { retries: 2, retryDelayMs: 50 }))
 const GalleryCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/GalleryCanvas'), { retries: 2, retryDelayMs: 50 }))
@@ -92,7 +91,6 @@ const HEAVY_RUNTIME_INTENT_COPY = {
 } as const
 
 export type CanvasViewportVariant = 'workspace' | 'embeddedPreview'
-
 export type CanvasViewportProps = {
   variant: CanvasViewportVariant
   layout?: 'full' | 'pane'
@@ -111,7 +109,6 @@ function isLiveCanvasHeroEmbedPreview(variant: CanvasViewportVariant): boolean {
   if (variant !== 'embeddedPreview' || typeof window === 'undefined') return false
   return new URLSearchParams(window.location.search).get('kgLiveHero') === '1'
 }
-
 function resolveLiveCanvasHeroEmbedPreviewSurface(variant: CanvasViewportVariant): string | null {
   if (!isLiveCanvasHeroEmbedPreview(variant) || typeof window === 'undefined') return null
   const renderer = new URLSearchParams(window.location.search).get('kgCanvas2dRenderer')
@@ -302,6 +299,10 @@ export function CanvasViewport(props: CanvasViewportProps) {
     canvasRenderMode,
   })
   const heavyRuntimeIntentBlocked = heavyRuntimeIntentSurface !== null && activatedHeavyRuntimeSurfaces[heavyRuntimeIntentSurface] !== true
+  const threeCanvasSurface = resolveThreeCanvasSurfaceLifecycle({
+    sourceFilesBootstrapReady, geospatialOverlayOwnsViewport, liveCanvasHeroVisible, canvasRenderMode,
+    heavyRuntimeIntentBlocked, activeSurface, documentSwitchOwnsViewport,
+  })
   const activateHeavyRuntimeIntentSurface = React.useCallback(() => {
     if (!heavyRuntimeIntentSurface) return
     setActivatedHeavyRuntimeSurfaces(previous => {
@@ -476,9 +477,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />
           </section>
         ) : null}
-        {sourceFilesBootstrapReady && !documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && !liveCanvasHeroVisible && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
-          <section className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
-            <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
+        {threeCanvasSurface.mounted ? (
+          <section className={`absolute inset-0 z-[10] ${threeCanvasSurface.active ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+            <ThreeGraphLazy active={threeCanvasSurface.active} mode={effectiveCanvas3dMode} />
           </section>
         ) : null}
 

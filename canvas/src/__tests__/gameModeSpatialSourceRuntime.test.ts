@@ -214,7 +214,7 @@ test('Game Mode panel projects shared owners without a second renderer, world, o
   assert.match(viewport, /const \{ gameFpsActive, flightSimActive \} = useCanvasGameplayOverlayState\(\)/)
   assert.equal(/gameFpsRunReadyDemo\s*\|\|\s*gameMode\.active/.test(`${renderer}\n${viewport}`), false)
   assert.match(renderer, /active=\{active && mode === 'xr' && !gameplayOverlayActive\}/)
-  assert.match(renderer, /const rendererLifecycleKey = `scene-canvas-\$\{mode\}`/)
+  assert.match(renderer, /const rendererLifecycleKey = resolveThreeRendererLifecycleKey\(mode\)/)
   assert.match(viewport, /gameFpsHudVisible \? <GameFpsHudLazy \/>/)
   assert.match(hud, /data-kg-game-fps-action="save"/)
   assert.match(

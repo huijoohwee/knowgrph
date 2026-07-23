@@ -48,6 +48,7 @@ import {
   readXrStageMetersPerUnit,
   resolveSceneBackgroundColor,
 } from '@/lib/three/threeGraphSceneLayout'
+import { resolveThreeRendererLifecycleKey, shouldMountThreeRenderer } from '@/lib/three/threeRendererLifecycle'
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
     default: mod.Scene,
@@ -259,7 +260,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const rendererClearColor = hasXrEmptyWorld ? '#0b2f4a'
     : hasGraph ? sceneBackgroundColor : '#000000'
   const rendererDefaultClearAlpha = hasXrEmptyWorld || hasGraph ? 1 : 0
-  const rendererLifecycleKey = `scene-canvas-${mode}`
+  const rendererLifecycleKey = resolveThreeRendererLifecycleKey(mode)
+  const rendererMounted = shouldMountThreeRenderer({
+    mode,
+    hasRenderableScene,
+    webglSupported: effectiveWebglSupported,
+  })
   useEffect(() => {
     draggedNodeIdRef.current = draggedNodeId
   }, [draggedNodeId])
@@ -394,7 +400,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     draggedNodeIdRef,
     setDraggedNodeId,
   })
-  if (!hasRenderableScene || effectiveWebglSupported === false) {
+  if (!rendererMounted) {
     return (
       <section
         ref={containerRef}
