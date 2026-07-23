@@ -2,6 +2,7 @@ import {
   normalizeStoryboardWidgetProbeTreeThreadLayout,
   PROBE_TREE_GRAPH_LAYOUT_VERSION_PROPERTY,
   resolveStoryboardWidgetProbeTreeBranchPositions,
+  resolveStoryboardWidgetProbeTreeOutputPanelPosition,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
 import { buildProbeTreeStructuredResponse } from '@/features/agent-ready/probeTreeContract.mjs'
@@ -79,7 +80,15 @@ export function testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideV
       label: 'Eligible but hidden card',
       x: (columnIndex + 1) * 430,
       y: (verticalIndex - 2) * 680,
-      properties: {},
+      properties: {
+        cardTypeLabel: 'Probe-Tree Card',
+        index: `P${columnIndex + 3}`,
+        parentNodeId: 'root',
+        probeTreeThreadRootId: 'root',
+        [PROBE_TREE_LAYOUT_MODE_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_MODE,
+        [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION,
+        [PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY]: true,
+      },
     }))
   )).flat()
   const graphData: GraphData = {
@@ -123,6 +132,8 @@ export function testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideV
     `expected widget-eligible nodes outside the rendered frontmatter bundle not to push Probe-Tree output away from its source, got ${JSON.stringify(branchPositions)}`,
   )
   assert(branchPositions.every(position => position.x > 0), `expected compact branches to remain forward of their source, got ${JSON.stringify(branchPositions)}`)
+  const outputPosition = resolveStoryboardWidgetProbeTreeOutputPanelPosition({ graphData: normalized, threadRootId: 'root' })
+  assert(outputPosition != null && outputPosition.x <= 1380, `expected hidden historical branches not to push the output ledger away, got ${JSON.stringify(outputPosition)}`)
   assertProbeCardsDoNotOverlap(normalized, ['a', 'b'])
   assert(hiddenObstacleNodes.every(node => normalized.nodes.find(candidate => candidate.id === node.id) === node), 'expected ignored non-rendered nodes to remain byte-identical')
   assert(normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: normalized, threadRootId: 'root' }) === normalized, 'expected compact migrated layout to remain idempotent')
