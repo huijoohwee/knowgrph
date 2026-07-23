@@ -1,5 +1,6 @@
 import React from 'react'
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
+import { RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID } from '@/lib/render/richMediaOutputVersions'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
 
@@ -20,7 +21,14 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
   const commitText = React.useCallback((nextText: string) => {
     if (!model.panelTextEditable) return
     model.setPanelDraftText(nextText)
-    props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: nextText })
+    props.onPanelChange?.({
+      activeTab: 'text',
+      freezeConnectedOutput: true,
+      text: nextText,
+      ...((props.panel?.outputVersions?.length || 0) > 0
+        ? { selectedOutputVersionId: RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID }
+        : {}),
+    })
   }, [model, props])
 
   const handleReplaceLineRange = React.useCallback((change: {
