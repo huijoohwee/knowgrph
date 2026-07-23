@@ -303,7 +303,7 @@ test('releasing one touch pointer preserves every other held flight control', ()
   assert.equal(held.size, 0)
 })
 
-test('mounted desktop input clears held controls and pauses on global blur', () => {
+test('mounted desktop input clears held controls and reports pointer-lock rejection', async () => {
   const dom = new JSDOM('<!doctype html><html><body><canvas></canvas></body></html>', {
     url: 'http://localhost',
   })
@@ -325,6 +325,20 @@ test('mounted desktop input clears held controls and pauses on global blur', () 
       onInput: input => inputs.push(input),
       onPause: reason => pauses.push(reason),
     })
+    Object.defineProperty(canvas, 'requestPointerLock', {
+      configurable: true,
+      value: () => Promise.reject(new dom.window.DOMException(
+        'The root document of this element is not valid for pointer lock.',
+        'WrongDocumentError',
+      )),
+    })
+    canvas.click()
+    await new Promise(resolve => dom.window.setTimeout(resolve, 0))
+    assert.equal(canvas.dataset.kgFlightSimPointerLock, 'unavailable')
+    assert.equal(
+      canvas.dataset.kgFlightSimPointerLockError,
+      'WrongDocumentError: The root document of this element is not valid for pointer lock.',
+    )
     dom.window.dispatchEvent(new dom.window.KeyboardEvent('keydown', { code: 'KeyW' }))
     assert.equal(inputs.at(-1)?.pitch, 1)
     dom.window.dispatchEvent(new dom.window.Event('blur'))

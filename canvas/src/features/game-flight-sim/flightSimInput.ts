@@ -223,6 +223,9 @@ export function installFlightSimDesktopInput(
   }
   const onPointerLockChange = () => {
     element.dataset.kgFlightSimPointerLock = document.pointerLockElement === element ? 'locked' : 'released'
+    if (document.pointerLockElement === element) {
+      delete element.dataset.kgFlightSimPointerLockError
+    }
     if (document.pointerLockElement !== element) {
       release(options.shouldPauseOnPointerRelease?.() === false
         ? undefined
@@ -235,8 +238,12 @@ export function installFlightSimDesktopInput(
     const result = element.requestPointerLock()
     if (result && typeof (result as Promise<void>).then === 'function') await result
   }
-  const onCanvasClick = () => void requestPointerLock().catch(() => {
+  const onCanvasPointerLockRequest = () => void requestPointerLock().catch(error => {
+    const detail = error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : String(error)
     element.dataset.kgFlightSimPointerLock = 'unavailable'
+    element.dataset.kgFlightSimPointerLockError = detail
   })
   const onVisibilityChange = () => {
     if (document.visibilityState === 'hidden') release('Flight Sim paused while the document is hidden.')
@@ -249,7 +256,7 @@ export function installFlightSimDesktopInput(
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('pointerlockchange', onPointerLockChange)
   document.addEventListener('visibilitychange', onVisibilityChange)
-  element.addEventListener('click', onCanvasClick)
+  element.addEventListener('click', onCanvasPointerLockRequest)
 
   return Object.freeze({
     consumeInput() {
@@ -265,9 +272,10 @@ export function installFlightSimDesktopInput(
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('pointerlockchange', onPointerLockChange)
       document.removeEventListener('visibilitychange', onVisibilityChange)
-      element.removeEventListener('click', onCanvasClick)
+      element.removeEventListener('click', onCanvasPointerLockRequest)
       if (document.pointerLockElement === element) void document.exitPointerLock()
       delete element.dataset.kgFlightSimPointerLock
+      delete element.dataset.kgFlightSimPointerLockError
       release()
     },
   })

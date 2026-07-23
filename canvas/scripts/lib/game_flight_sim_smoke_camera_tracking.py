@@ -26,6 +26,15 @@ def read_camera_state(page: Page) -> dict[str, Any]:
             pose: store.useGraphStore.getState().captureThreeCameraPose(),
             pointerLocked: document.pointerLockElement === canvas,
             pointerState: canvas?.dataset.kgFlightSimPointerLock || '',
+            pointerLockError:
+              canvas?.dataset.kgFlightSimPointerLockError || '',
+            pointerLockContract: window.__kgFlightSimPointerLockHarness
+              ? {
+                  mode: window.__kgFlightSimPointerLockHarness.mode,
+                  nativeError:
+                    window.__kgFlightSimPointerLockHarness.nativeError,
+                }
+              : { mode: 'native', nativeError: null },
             panelView: store.useGraphStore.getState().floatingPanelView,
           }
         }
@@ -277,6 +286,75 @@ def _start_flying(page: Page, label: str) -> dict[str, Any]:
         page.keyboard.up("KeyW")
 
 
+def _install_pointer_lock_contract_harness(
+    page: Page,
+    native_error: str,
+) -> dict[str, Any]:
+    return page.evaluate(
+        """
+        nativeError => {
+          const canvas = document.querySelector(
+            '[data-kg-xr-scene-media-drop="1"] canvas',
+          )
+          if (!(canvas instanceof HTMLCanvasElement)) {
+            throw new Error('Flight canvas is unavailable for pointer lock')
+          }
+          const requestDescriptor = Object.getOwnPropertyDescriptor(
+            canvas,
+            'requestPointerLock',
+          )
+          const exitDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'exitPointerLock',
+          )
+          const elementDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'pointerLockElement',
+          )
+          let lockedElement = null
+          const restore = (target, key, descriptor) => {
+            if (descriptor) Object.defineProperty(target, key, descriptor)
+            else delete target[key]
+          }
+          Object.defineProperty(document, 'pointerLockElement', {
+            configurable: true,
+            get: () => lockedElement,
+          })
+          Object.defineProperty(canvas, 'requestPointerLock', {
+            configurable: true,
+            value: async () => {
+              lockedElement = canvas
+              document.dispatchEvent(new Event('pointerlockchange'))
+            },
+          })
+          Object.defineProperty(document, 'exitPointerLock', {
+            configurable: true,
+            value: async () => {
+              lockedElement = null
+              document.dispatchEvent(new Event('pointerlockchange'))
+            },
+          })
+          window.__kgFlightSimPointerLockHarness = {
+            mode: 'automation-contract-harness',
+            nativeError,
+            restore: () => {
+              lockedElement = null
+              restore(canvas, 'requestPointerLock', requestDescriptor)
+              restore(document, 'exitPointerLock', exitDescriptor)
+              restore(document, 'pointerLockElement', elementDescriptor)
+              delete window.__kgFlightSimPointerLockHarness
+            },
+          }
+          return {
+            mode: window.__kgFlightSimPointerLockHarness.mode,
+            nativeError,
+          }
+        }
+        """,
+        native_error,
+    )
+
+
 def _lock_flight_canvas(page: Page) -> dict[str, Any]:
     canvas = page.locator(
         '[data-kg-xr-scene-media-drop="1"] canvas'
@@ -285,6 +363,38 @@ def _lock_flight_canvas(page: Page) -> dict[str, Any]:
     box = canvas.bounding_box()
     if not box:
         raise AssertionError("Flight canvas was not measurable for pointer lock")
+    canvas.click(
+        force=True,
+        position={
+            "x": box["width"] * 0.5,
+            "y": box["height"] * 0.5,
+        },
+    )
+    native = poll(
+        page,
+        lambda: read_camera_state(page),
+        lambda value: (
+            value["pointerLocked"] is True
+            or (
+                value["pointerState"] == "unavailable"
+                and bool(value["pointerLockError"])
+            )
+        ),
+        label="native Flight canvas pointer capture result",
+        timeout_ms=1_000,
+    )
+    if native["pointerLocked"] is True:
+        return native
+    native_error = native["pointerLockError"]
+    if not native_error.startswith(
+        "WrongDocumentError: The root document of this element "
+        "is not valid for pointer lock."
+    ):
+        raise AssertionError(
+            f"Flight pointer capture failed outside the automation host "
+            f"contract: {native}"
+        )
+    _install_pointer_lock_contract_harness(page, native_error)
     canvas.click(
         force=True,
         position={
@@ -431,4 +541,18 @@ def verify_camera_pointer_transitions(page: Page) -> dict[str, Any]:
             "locked": free_locked,
             "transition": free_transition,
         },
+        "pointerLockContract": page.evaluate(
+            """
+            () => {
+              const harness = window.__kgFlightSimPointerLockHarness
+              if (!harness) return { mode: 'native', nativeError: null }
+              const evidence = {
+                mode: harness.mode,
+                nativeError: harness.nativeError,
+              }
+              harness.restore()
+              return evidence
+            }
+            """
+        ),
     }
