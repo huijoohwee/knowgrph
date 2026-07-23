@@ -32,9 +32,9 @@ import {
   uiToolbarRowScrollListClassName,
   uiToolbarTouchRowScrollClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
-import type { SsotSurface } from 'grph-shared/ssot/types'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
-import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
+import { MarkdownSelectionActionMenuItems } from './MarkdownSelectionActionMenuItems'
+import type { MarkdownInlineSelectionActions } from './markdownInlineSelectionActions'
 
 const markdownBubbleToolbarIconClassName = UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME
 const markdownBubbleToolbarMenuIconClassName = `${UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME} mr-1`
@@ -69,16 +69,9 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
   openVariableCommandMenu: () => void
   handleDuplicate: () => void
   handleDelete: () => void
-  selectionActions?: {
+  selectionActions?: MarkdownInlineSelectionActions & {
     startLine: number
     endLine: number
-    currentView: SsotSurface
-    onShowOnCanvas: (startLine: number, endLine: number) => void
-    onShowInViewer: (line: number) => void
-    onShowInEditor: (line: number) => void
-    onShowInPresentation: (line: number) => void
-    onShowInGallery: (line: number) => void
-    onShowInGraphDataTable: (line: number) => void
   } | null
 }) => {
   const isTouchToolbarViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
@@ -333,21 +326,16 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             <menu className={toolbarMenuPanelClassName} aria-label="More actions">
               {selectionActions ? (
                 <>
-                  <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, () => selectionActions.onShowOnCanvas(selectionActions.startLine, selectionActions.endLine), close)}>Show on Canvas</button></li>
-                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.viewer' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.viewer'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInViewer(selectionActions.startLine), close)}>Show in Viewer</button></li>
-                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.editor' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.editor'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInEditor(selectionActions.startLine), close)}>Show in Editor</button></li>
-                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.presentation' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.presentation'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInPresentation(selectionActions.startLine), close)}>Show in Presentation</button></li>
-                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'markdown.gallery' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'markdown.gallery'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInGallery(selectionActions.startLine), close)}>Show in Gallery</button></li>
-                  <li className="list-none"><button type="button" className={selectionActions.currentView === 'table' ? props.floatingMenuButtonDisabledClassName : props.toolbarMenuButtonClassName} disabled={selectionActions.currentView === 'table'} onClick={(event) => runMenuAction(event, () => selectionActions.onShowInGraphDataTable(selectionActions.startLine), close)}>{MARKDOWN_DATA_VIEW_COPY.showInLabel}</button></li>
+                  <MarkdownSelectionActionMenuItems
+                    actions={selectionActions}
+                    buttonClassName={props.toolbarMenuButtonClassName}
+                    disabledButtonClassName={props.floatingMenuButtonDisabledClassName}
+                    dividerClassName={props.toolbarMenuDividerClassName}
+                    onRunAction={(event, action) => runMenuAction(event, action, close)}
+                  />
                   <li className={props.toolbarMenuDividerClassName} />
                 </>
-              ) : (
-                <>
-                  <li className="list-none"><button type="button" className={props.floatingMenuButtonDisabledClassName} disabled>Copy</button></li>
-                  <li className="list-none"><button type="button" className={props.floatingMenuButtonDisabledClassName} disabled>Copy link to block</button></li>
-                  <li className={props.toolbarMenuDividerClassName} />
-                </>
-              )}
+              ) : null}
               <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, props.applyChecklist, close)}>Checklist</button></li>
               <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={(event) => runMenuAction(event, props.applyDivider, close)}>Divider</button></li>
               <li className={props.toolbarMenuDividerClassName} />

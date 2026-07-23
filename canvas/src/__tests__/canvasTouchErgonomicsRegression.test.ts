@@ -265,7 +265,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const markdownCalloutText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownCalloutBlock.tsx'))
   const markdownInlineMenusText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx'))
   const markdownBubbleToolbarText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.bubbleToolbarOverlay.tsx'))
-  const markdownSelectionToolbarText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownSelectionToolbar.tsx'))
+  const markdownSelectionToolbarText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/MarkdownSelectionActionMenuItems.tsx'))
   const markdownSidebarSectionText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownSidebarSection.tsx'))
   const dateCellEditorText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/fast-grid/DateCellEditor.tsx'))
   const flowMappingRowsTableText = readUtf8(path.resolve(root, 'src/features/storyboard-widget-manager/FlowMappingRowsTable.tsx'))
@@ -2143,11 +2143,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !markdownDataViewKanbanCardText.includes('UI_RESPONSIVE_DATA_VIEW_COMPACT_MENU_PANEL_CLASSNAME') ||
     !markdownDataViewKanbanCardText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
     !markdownDataViewKanbanGroupText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
-    !markdownSelectionToolbarText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
     !dateCellEditorText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
     !flowMappingRowsTableText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
     !expandCollapseAllButtonText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
-    !markdownSelectionToolbarText.includes('UI_RESPONSIVE_DATA_VIEW_NARROW_MENU_PANEL_CLASSNAME') ||
     !markdownWorkspaceFileTreeText.includes('UI_RESPONSIVE_DATA_VIEW_NARROW_MENU_PANEL_CLASSNAME') ||
     !workspaceDataViewHeaderText.includes('UI_RESPONSIVE_DATA_VIEW_SEARCH_FORM_CLASSNAME') ||
     !workspaceDataViewHeaderText.includes('UI_RESPONSIVE_DATA_VIEW_SEARCH_INPUT_CLASSNAME') ||
@@ -2296,11 +2294,12 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected Viewer floating selection toolbar menus to reuse shared list, row-scroll, touch-scroll, visible-overflow, and compact glyph mobile toolbar primitives')
   }
   if (
-    !markdownSelectionToolbarText.includes('clampLocalOverlayTopLeftFullyInViewport') ||
-    !markdownSelectionToolbarText.includes('readOverlayElementSize') ||
-    markdownSelectionToolbarText.includes("style={{ left: `${toolbar.x}px`, top: `${toolbar.y}px` }}")
+    !markdownBubbleToolbarText.includes('MarkdownSelectionActionMenuItems') ||
+    markdownBubbleToolbarText.includes('>Show on Canvas<') ||
+    !markdownSelectionToolbarText.includes('Link: Inline URL (default)') ||
+    !markdownSelectionToolbarText.includes('Link: Horizontal Card')
   ) {
-    throw new Error('expected Markdown selection actions to clamp measured menu placement through the shared viewport overlay helper')
+    throw new Error('expected Markdown selection actions and link display modes to have one centralized More-menu owner')
   }
   if (!settingsUiText.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !settingsUiText.includes('uiToolbarRowScrollClassName')) {
     throw new Error('expected Settings previews to use responsive inline rows and shared row scrolling')

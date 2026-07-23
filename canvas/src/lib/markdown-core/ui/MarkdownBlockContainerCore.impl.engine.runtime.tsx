@@ -799,7 +799,11 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
           startLine,
           endLine: endLine ?? startLine,
           currentView: inlineSelectionActions.currentView,
-          onShowOnCanvas: inlineSelectionActions.onShowOnCanvas,
+          onShowOnCanvas:
+            inlineSelectionActions.onShowOnCanvas &&
+            (inlineSelectionActions.canShowOnCanvas?.(startLine, endLine ?? startLine) ?? true)
+              ? inlineSelectionActions.onShowOnCanvas
+              : undefined,
           onShowInViewer: inlineSelectionActions.onShowInViewer,
           onShowInEditor: inlineSelectionActions.onShowInEditor,
           onShowInPresentation: inlineSelectionActions.onShowInPresentation,
