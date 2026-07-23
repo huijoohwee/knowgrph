@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults() {
-  const p = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
+  const p = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesParseRuntime.ts')
   const text = readFileSync(p, 'utf8')
   const hashPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFileParseIdentity.ts')
   const hashText = readFileSync(hashPath, 'utf8')
@@ -22,7 +22,7 @@ export function testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults() {
   if (!text.includes("name: String(latest.name || '')")) {
     throw new Error('expected parse writeback identity to include latest source file name')
   }
-  if (!hashText.includes('SOURCE_FILE_PARSE_SEMANTICS_VERSION = 3')) {
+  if (!/SOURCE_FILE_PARSE_SEMANTICS_VERSION\s*=\s*[1-9]\d*\s+as const/.test(hashText)) {
     throw new Error('expected source file parse identity to carry an explicit semantics version for startup invalidation')
   }
   if (!hashText.includes('buildScopedGraphSemanticKey')) {
@@ -34,7 +34,7 @@ export function testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults() {
 }
 
 export function testSourceFilesIngestDedupesPendingParsesForSameTextHash() {
-  const p = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
+  const p = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesParseRuntime.ts')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('pendingParseTextHashBySourceFileId')) {
     throw new Error('expected source file ingest parse path to track pending text hashes per file')
@@ -1339,8 +1339,8 @@ export function testSourceFilesStorageSyncDocumentHashDoesNotSelfDependOnParsedT
   if (hashFnSection.includes('file.enabled')) {
     throw new Error('expected source-files storage document hash to stay content-anchored and avoid enabled-flag selection churn')
   }
-  if (!hashFnSection.includes('String(file.text || \'\')')) {
-    throw new Error('expected source-files storage document hash to stay anchored on canonical markdown content text')
+  if (!hashFnSection.includes('hashKnowgrphStorageContent(file.text)')) {
+    throw new Error('expected source-files storage document hash to use the shared canonical content hash')
   }
   const graphHashFnStart = text.indexOf('const buildSourceFileGraphHash = (file: SourceFile): string =>')
   if (graphHashFnStart < 0) {
@@ -1378,8 +1378,8 @@ export function testSourceFilesStorageSyncDocumentHashDoesNotSelfDependOnParsedT
   if (inboundText.includes('scheduleApplyComposedGraphFromSourceFiles({ includeWorkspaceBacked: true })')) {
     throw new Error('expected inbound storage apply to avoid explicit workspace-backed composed graph scheduling during passive sync')
   }
-  if (!inboundText.includes('scheduleApplyComposedGraphFromSourceFiles()')) {
-    throw new Error('expected inbound storage apply to reuse the canonical passive composed graph scheduler')
+  if (!inboundText.includes('scheduleApplyGraphOwnerComposedGraphFromSourceFiles()')) {
+    throw new Error('expected inbound storage apply to reuse the canonical graph-owner composed graph scheduler')
   }
 }
 

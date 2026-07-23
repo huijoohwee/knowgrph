@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Spreadsheet Storage"
 id: "md:knowgrph-spreadsheet-storage-document"
-version: "2.2.0"
+version: "2.3.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Storage Surface Reference"
@@ -40,6 +40,15 @@ invocation:
 There is no dedicated spreadsheet database, route, or independent sync loop. Browser continuity, GitHub save, D1 read-cache publication, collaboration, and offline fallback follow the shared storage contract.
 
 MainPanel `Document Storage & Sync` therefore applies unchanged to spreadsheet-authored source: Online mode uses the owning GitHub docs root plus configured cloud transports, Offline only retains IndexedDB state and queued mutations, and the spreadsheet surface never asks for repository credentials.
+
+## Storage Sync Enhancement Alignment
+
+- Spreadsheet edits persist through the same Dexie documents/graph-snapshot collections before any network transport; Offline only retains local edits and the outbox across reloads.
+- CSV and structured JSON imports use the shared 10,485,760-byte ceiling; URL imports also use the shared 30-second timeout. A failed source records its own error and does not roll back earlier imports or stop later sources.
+- A same-name import updates the existing Source Files identity instead of creating a duplicate replacement row.
+- Spreadsheet document pushes use the shared 30-second request timeout, 3-attempt bound, semantic content hashes, and conflict actions. There is no spreadsheet-specific retry loop.
+- Version triggers from editor save, Source Files writeback, or GitGraph retain the most recent 50 snapshots per path.
+- Cloud publication remains GitHub first, D1 projection second, and exact read-back third. This enhancement accepts only an explicit loopback Worker origin and performs no Production or Cloudflare mutation.
 
 ## Concurrent Spreadsheet Contract
 

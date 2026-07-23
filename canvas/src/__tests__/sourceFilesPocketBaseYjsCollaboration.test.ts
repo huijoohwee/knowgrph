@@ -25,8 +25,8 @@ import {
 type FakePocketBaseRecord = Record<string, unknown> & { id: string }
 
 const waitForMicrotasks = async () => {
-  await Promise.resolve()
-  await Promise.resolve()
+  for (let index = 0; index < 8; index += 1) await Promise.resolve()
+  await new Promise<void>(resolve => globalThis.setTimeout(resolve, 0))
 }
 
 const createFakePocketBaseClient = () => {

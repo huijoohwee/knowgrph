@@ -4,7 +4,7 @@ id: "md:knowgrph-storage-sync-document"
 author: "airvio / joohwee"
 date: "2026-06-01"
 updated: "2026-07-23"
-version: "3.5.0"
+version: "3.6.0"
 status: "runtime-ready-dev; production and cloud proof remain release-owned"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -63,11 +63,13 @@ traceability:
 
 # Knowgrph Storage & Sync
 
-**Context**: Canonical markdown documents, configurable local docs mirror sync, optional D1-backed Worker storage, PocketBase + Yjs collaborative editing, minimal browser cache, and Cloudflare deployment.
+**Context**: Canonical markdown documents, configurable local docs mirror sync, optional D1-backed Worker storage, PocketBase + Yjs collaborative editing, durable browser working storage, and release-owned Cloudflare deployment.
 **Intent**: Keep one canonical storage decision, one shared sync contract, and one conflict-resolution UX path.
 **Directive**: Keep GitHub `docs/**` canonical for Storage Sync: Knowgrph product and runtime contracts in `knowgrph/docs`, collaborative workspace documents in `huijoohwee/docs`, and global invocation dictionaries in `agentic-canvas-os/docs`. Use the configured local docs mirror as the offline working projection, PocketBase + Yjs as the concurrent-editing layer, and Cloudflare Worker + D1 only for explicit runtime/read-cache endpoints. `huijoohwee/content/knowgrph` is generated release output and is never an authoring target. Collaborators never touch Git; a server-side bridge commits saved CRDT snapshots back to the owning GitHub docs root. Never let two users edit raw JSON simultaneously without CRDT wrapping.
 
 The document family is invocable through `knowgrph.agentic_canvas_os.docs.invoke`, which resolves the authored `/`, `@`, and `#` tokens from Agentic Canvas OS. The `search`/`fetch` MCP pair and `knowgrph.list_source_files`/`knowgrph.read_source_file` WebMCP pair provide read-only document access only after a source is present in the configured published Source Files workspace. Invocation lookup does not execute storage mutations, authorize deployment, or turn this Markdown into a second tool registry.
+
+The 2026-07-23 enhancement makes Dexie/IndexedDB the durable local-first cache and outbox, bounds push/pull and conflict recovery, enforces path-derived GitHub authority, and keeps PocketBase/Yjs an optional collaboration relay rather than storage authority. `huijoohwee/docs/workspace-seeds` is absent; the byte-identical Agentic physics projection remains read-only only while bootstrap requires it. The local/Dev proof runs 39 independent `fast-check` properties 100 times each and authorizes no Production or Cloudflare mutation; implementation detail lives in the companion, schema, ADR, spreadsheet, and import references.
 
 ## Companion Files
 
@@ -78,8 +80,6 @@ The document family is invocable through `knowgrph.agentic_canvas_os.docs.invoke
 | `knowgrph-local-storage-document.md` | Browser LocalStorage keys (UI state, not sync) |
 | `knowgrph-source-files-import-document.md` | Import workflows, format routing, geo layer registration |
 | `knowgrph-multi-user-collaboration-prd.tad.md` | Multi-user auth, authorization, role-based access, SSOT transition |
-
----
 
 ## Storage Ladder
 

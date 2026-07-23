@@ -22,6 +22,10 @@ import { getUiSectionActionClassName, getUiSectionChipClassName } from '@/lib/ui
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { uiToolbarRowScrollClassName, uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import {
+  subscribeKnowgrphStoragePersistenceState,
+} from '@/lib/storage/knowgrphStorageDb'
+import type { PersistedCollectionPersistenceState } from '@/lib/storage/persistedCollectionStore'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
 
 const SEARCH_INDEX = [
@@ -61,6 +65,8 @@ export function DocumentStorageSyncSettingsRows() {
   const [online, setOnline] = React.useState(() => typeof navigator === 'undefined' || navigator.onLine !== false)
   const [syncing, setSyncing] = React.useState(false)
   const [lastStatus, setLastStatus] = React.useState('Not synced in this session')
+  const [persistenceState, setPersistenceState] = React.useState<PersistedCollectionPersistenceState | null>(null)
+  const persistenceWarningRef = React.useRef('')
   const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
   const cloudEnabled = React.useMemo(() => readWorkspaceCloudSyncEnabledSetting(), [settingsRevision])
   const storageAvailable = React.useMemo(() => readKnowgrphStorageRuntimeSyncAvailable(), [settingsRevision])
@@ -72,6 +78,20 @@ export function DocumentStorageSyncSettingsRows() {
   React.useEffect(() => subscribeWorkspaceStoreSyncSettingsChanged(() => {
     setSettingsRevision(previous => previous + 1)
   }), [])
+
+  React.useEffect(() => subscribeKnowgrphStoragePersistenceState(state => {
+    setPersistenceState(state)
+    const warning = state.status === 'degraded' ? String(state.error || 'IndexedDB unavailable') : ''
+    if (!warning || persistenceWarningRef.current === warning) return
+    persistenceWarningRef.current = warning
+    pushUiToast({
+      id: 'document-storage-indexeddb-degraded',
+      kind: 'warning',
+      message: `IndexedDB degraded to in-memory storage. ${warning}`,
+      ttlMs: null,
+      dismissible: true,
+    })
+  }), [pushUiToast])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -133,6 +153,9 @@ export function DocumentStorageSyncSettingsRows() {
       : storageAvailable
         ? 'Online sync active'
         : 'Online sync not configured'
+  const indexedDbStatus = persistenceState?.status === 'degraded'
+    ? 'IndexedDB: degraded to memory'
+    : 'IndexedDB: active'
 
   return (
     <>
@@ -196,8 +219,11 @@ export function DocumentStorageSyncSettingsRows() {
           typeNode={<HardDrive className="h-4 w-4" aria-hidden="true" />}
           valueNode={(
             <section className={VALUE_CLASS_NAME}>
-              <ValuePill>IndexedDB: active</ValuePill>
+              <ValuePill>{indexedDbStatus}</ValuePill>
               <ValuePill>Queued outbox: retained</ValuePill>
+              {persistenceState?.failedRecordTypes.length
+                ? <ValuePill>Restore warnings: {persistenceState.failedRecordTypes.map(item => item.recordType).join(', ')}</ValuePill>
+                : null}
               <ValuePill>Mirror: {docsMirrorRoot || 'browser local storage'}</ValuePill>
             </section>
           )}
@@ -212,7 +238,7 @@ export function DocumentStorageSyncSettingsRows() {
           typeNode={<RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />}
           valueNode={(
             <section className={VALUE_CLASS_NAME}>
-              <button type="button" className={activeActionClassName} disabled={syncing || !cloudEnabled} title="Push queued changes and pull remote document updates" onClick={() => { void syncNow() }}>
+              <button type="button" className={activeActionClassName} disabled={syncing} title="Save locally, then push queued changes and pull remote document updates when online" onClick={() => { void syncNow() }}>
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> {syncing ? 'Syncing...' : 'Sync now'}
               </button>
               <button type="button" className={actionClassName} onClick={openSourceFiles}>

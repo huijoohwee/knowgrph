@@ -1,4 +1,4 @@
-import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { scheduleApplyGraphOwnerComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import {
   areSourceFileRecordsEqual,
   normalizeSourceFileRecord,
@@ -133,7 +133,7 @@ const scheduleBlankPulledDocsHydration = (args: {
     })
     if (!changed) return
     state.setSourceFiles(next)
-    scheduleApplyComposedGraphFromSourceFiles()
+    scheduleApplyGraphOwnerComposedGraphFromSourceFiles()
   })()
 }
 
@@ -341,7 +341,7 @@ export const applyPulledKnowgrphStorageChangesToSourceFiles = (args: {
     }
   }
   current.setSourceFiles(next)
-  scheduleApplyComposedGraphFromSourceFiles()
+  scheduleApplyGraphOwnerComposedGraphFromSourceFiles()
   void (async () => {
     try {
       const mod = (await import('@/features/workspace-fs/workspaceFs')) as typeof import('@/features/workspace-fs/workspaceFs')

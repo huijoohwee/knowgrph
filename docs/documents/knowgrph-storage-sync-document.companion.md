@@ -4,7 +4,7 @@ id: "md:knowgrph-storage-sync-document.companion"
 author: "airvio / joohwee"
 date: "2026-06-05"
 updated: "2026-07-23"
-version: "3.4.0"
+version: "3.5.0"
 status: "runtime-ready-dev; production and cloud proof remain release-owned"
 doc_type: "Companion PRD/TAD"
 lang: "en-US"
@@ -54,7 +54,7 @@ traceability:
 
 Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, ADR index, deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
-**Version**: 3.4.0
+**Version**: 3.5.0
 **Date**: 2026-07-23
 
 ---
@@ -70,7 +70,22 @@ Knowgrph documents cross four path-scoped owners that must not be conflated:
 3. **Global invocation/governance documents** (`agentic-canvas-os/docs/`) — the `/`, `@`, and `#` dictionaries and the current published runtime-doc catalog.
 4. **Production mirror** (`huijoohwee/content/knowgrph/`) — generated static release output, never an authoring SSOT.
 
-The original gap was a built client-side sync engine with no server-side endpoint. Current Dev → Prod → Cloudflare context resolves the shared-store path through the deployed `knowgrph-storage` Worker, remote D1 migrations, and the static `huijoohwee/content/knowgrph` mirror. The remaining generated-media ambiguity is resolved by treating image/video/binary bytes as R2 objects and their readable audit trail as sibling Markdown manifests in D1.
+The original gap was a built client-side sync engine with no server-side endpoint. Existing deployed Worker and mirror state remains separate release context; this enhancement changes only local/Dev source and does not perform a Production mirror write or Cloudflare mutation. Generated image/video/binary bytes remain R2 objects with sibling Markdown manifests in D1 when an independently authorized release enables those routes.
+
+### Implemented Enhancement Delta
+
+| Concern | Dev implementation | Fail-closed rule |
+|---|---|---|
+| Browser continuity | Dexie IndexedDB adapter for documents, chunks, graph snapshots, sync outbox, cursor, revision history, and Yjs update outbox | Retry one persistence conflict, then expose degraded in-memory state |
+| MainPanel | Online/Offline only, IndexedDB persistence status, canonical GitHub roots, explicit Sync now | Offline only still persists and queues; it disables transport, not saving |
+| Push/pull | 30-second timeout, 3 attempts, 1/2-second backoff, 120-second polling, cursor delta pulls | Transport exhaustion, rejection, and conflict retain outbox rows |
+| Conflict UX | Shared toast + History log with Keep Local, Accept Remote, Review Log | No automatic second Keep Local retry; Accept Remote clears only after cache write |
+| Dedupe | Content hashes, semantic chunk keys, zero-byte known-chunk references, no-op D1 write skip | Missing/mismatched hashes and byte-offset chunk keys are rejected |
+| Authority | Knowgrph docs/seeds vs Huijoohwee workspace docs re-derived by browser and Worker | Agentic paths, duplicate Huijoohwee seed roots, and target/path mismatches are rejected before writes |
+| Cloud upload | GitHub first, D1 second, byte-identical read-back in at most 3 attempts | Public/default mutating origin is rejected without an explicit local Worker origin |
+| Validation | 39 independent `fast-check` properties, 100 runs each | No Production or Cloudflare operation is part of the proof |
+
+The physical ownership audit found six authored files under `knowgrph/docs/workspace-seeds`, no `huijoohwee/docs/workspace-seeds` directory, and one byte-identical Agentic Canvas OS runtime projection. The projection remains only because the current bootstrap authority check requires it; removing it is a separate migration, not part of storage write authority.
 
 ### Personas
 
