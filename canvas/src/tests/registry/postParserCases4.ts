@@ -77,6 +77,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["richMediaPanel.overlayPan.skipsProtectedTargets","@/__tests__/flowWidgetOutputRichMediaReuse.test","testRichMediaPanelOverlayPanSkipsResizeAndScrollTargets"],
   ["richMediaPanel.headerDrag.availableInPanMode","@/__tests__/flowWidgetOutputRichMediaReuse.test","testRichMediaPanelHeaderDragStaysAvailableInPanMode"],
   ["richMediaPanel.storyboardWidget.modifierWheelZoomKeepsInteractiveScroll","@/__tests__/richMediaPanelEditorModeDragRegression.test","testRichMediaPanelStoryboardWidgetModifierWheelZoomKeepsInteractiveScroll"],
+  ["richMediaPanel.inlineEdit.ownsPointerBeforeContenteditable","@/__tests__/richMediaPanelEditorModeDragRegression.test","testRichMediaPanelInlineEditSurfaceOwnsPointerBeforeContenteditable"],
   ["richMediaPanel.directMedia.fixedPreview","@/__tests__/richMediaPanelFixedPreview.test","testRichMediaPanelDirectMediaPreviewIsFixed"],
   ["richMediaPanel.storyboardWidget.reusesSharedFloatingToolbarVariant","@/__tests__/richMediaPanelEditorModeDragRegression.test","testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVariant"],
   ["searchPanel.selection.requestsSharedSelectionZoom","@/__tests__/searchPanelSelectionFocus.test","testSearchPanelSelectionRequestsSharedSelectionZoom"],
