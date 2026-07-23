@@ -332,6 +332,7 @@ export function testInlineSelectionToolbarHasOneSourceOwnerAndSharedSurfaces() {
   const markdownPreview = fs.readFileSync(path.resolve(sourceRoot, 'features/markdown/ui/MarkdownPreview.tsx'), 'utf8')
   const flowCanvasMediaOverlays = fs.readFileSync(path.resolve(sourceRoot, 'components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
   const richMediaShell = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanelShell.tsx'), 'utf8')
+  const richMediaTypes = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanel.types.ts'), 'utf8')
   if (
     !richMediaViewer.includes('<MarkdownPreview')
     || !richMediaViewer.includes('onInlineDraftTextChange=')
@@ -347,6 +348,8 @@ export function testInlineSelectionToolbarHasOneSourceOwnerAndSharedSurfaces() {
     || flowCanvasMediaOverlays.includes('onDoubleClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')
     || !richMediaShell.includes('onClick={props.onClick}')
     || !richMediaShell.includes('onDoubleClick={props.onDoubleClick}')
+    || !richMediaTypes.includes('onClick?: React.MouseEventHandler<HTMLElement>')
+    || !richMediaTypes.includes('onDoubleClick?: React.MouseEventHandler<HTMLElement>')
   ) {
     throw new Error('expected Canvas Rich Media boundaries to run after canonical Viewer inline-edit handlers instead of suppressing them in capture')
   }
