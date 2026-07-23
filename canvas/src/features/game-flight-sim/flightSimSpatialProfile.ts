@@ -1,0 +1,206 @@
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { isNativeXrRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import {
+  findSpatialCollision,
+  findSweptSpatialCuboidHit,
+  type SpatialWorldCuboid,
+} from '@/features/physics/spatialPhysicsGeometry'
+import type { SpatialVector } from '@/features/physics/spatialPhysicsTypes'
+import {
+  resolveXrCanonicalSceneProjection,
+  resolveXrCanonicalSceneSpatialSource,
+  type XrCanonicalSceneSpatialSource,
+} from '@/features/three/xrCanonicalSceneSpatialSource'
+import { readXrMotionReferenceRuntime } from '@/features/three/xrMotionReferenceRuntime'
+import { FLIGHT_SIM_AIRCRAFT_ASSET_SPEC } from './assetSpec/flightSimAssetSpec'
+import {
+  freezeFlightSimAircraftState,
+  type FlightSimAircraftState,
+  type FlightSimBlocker,
+  type FlightSimSpatialProfile,
+  type FlightSimWaypoint,
+} from './flightSimModel'
+
+export type FlightSimCollisionResolution = Readonly<{
+  state: FlightSimAircraftState
+  collisionId: string | null
+  impactSpeed: number
+}>
+
+function vector(value: readonly number[]): SpatialVector {
+  return Object.freeze([...value]) as SpatialVector
+}
+
+function blockerCuboid(blocker: FlightSimBlocker): SpatialWorldCuboid {
+  return { kind: 'cuboid', center: blocker.center, halfSize: blocker.halfSize }
+}
+
+function aircraftCuboid(position: SpatialVector, halfSize: SpatialVector): SpatialWorldCuboid {
+  return { kind: 'cuboid', center: position, halfSize }
+}
+
+function compareIds(left: { id: string }, right: { id: string }): number {
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+}
+
+export function createFlightSimSpatialProfile(
+  source: XrCanonicalSceneSpatialSource,
+): FlightSimSpatialProfile {
+  const [centerX, centerZ] = source.perimeter.centerMeters
+  const halfWidth = source.perimeter.halfWidthMeters
+  const halfDepth = source.perimeter.halfDepthMeters
+  const authoredBlockers = source.staticColliders
+    .filter(collider => !collider.trigger)
+    .map<FlightSimBlocker>(collider => Object.freeze({
+      id: collider.id,
+      center: vector(collider.center),
+      halfSize: vector(collider.sizeMeters.map(size => size / 2)),
+    }))
+    .sort(compareIds)
+  const ground = Object.freeze({
+    id: 'flight-sim:terrain-ground',
+    center: vector([centerX, -0.5, centerZ]),
+    halfSize: vector([halfWidth, 0.5, halfDepth]),
+  })
+  const authoredTop = authoredBlockers.reduce(
+    (maximum, blocker) => Math.max(maximum, blocker.center[1] + blocker.halfSize[1]),
+    0,
+  )
+  const ceilingHeight = Math.max(32, authoredTop + 12)
+  const boundaryHalfHeight = ceilingHeight / 2 + 0.5
+  const boundaries: readonly FlightSimBlocker[] = Object.freeze([
+    Object.freeze({
+      id: 'flight-sim:boundary-west',
+      center: vector([centerX - halfWidth - 0.5, ceilingHeight / 2, centerZ]),
+      halfSize: vector([0.5, boundaryHalfHeight, halfDepth + 1]),
+    }),
+    Object.freeze({
+      id: 'flight-sim:boundary-east',
+      center: vector([centerX + halfWidth + 0.5, ceilingHeight / 2, centerZ]),
+      halfSize: vector([0.5, boundaryHalfHeight, halfDepth + 1]),
+    }),
+    Object.freeze({
+      id: 'flight-sim:boundary-north',
+      center: vector([centerX, ceilingHeight / 2, centerZ - halfDepth - 0.5]),
+      halfSize: vector([halfWidth + 1, boundaryHalfHeight, 0.5]),
+    }),
+    Object.freeze({
+      id: 'flight-sim:boundary-south',
+      center: vector([centerX, ceilingHeight / 2, centerZ + halfDepth + 0.5]),
+      halfSize: vector([halfWidth + 1, boundaryHalfHeight, 0.5]),
+    }),
+    Object.freeze({
+      id: 'flight-sim:boundary-ceiling',
+      center: vector([centerX, ceilingHeight + 0.5, centerZ]),
+      halfSize: vector([halfWidth + 1, 0.5, halfDepth + 1]),
+    }),
+  ])
+  const blockers = Object.freeze([...authoredBlockers, ...boundaries, ground].sort(compareIds))
+  const cruiseAltitude = Math.max(7, Math.min(20, authoredTop + 3))
+  const spawn = freezeFlightSimAircraftState({
+    position: vector([centerX, cruiseAltitude, centerZ + halfDepth * 0.34]),
+    velocity: vector([0, 0, -12]),
+    pitch: 0,
+    roll: 0,
+    yaw: 0,
+    throttle: 0.62,
+  })
+  const waypointSeeds: readonly [string, number, number, number][] = [
+    ['departure', centerX, cruiseAltitude, centerZ - halfDepth * 0.12],
+    ['harbour-west', centerX - halfWidth * 0.32, cruiseAltitude + 2, centerZ - halfDepth * 0.38],
+    ['home-leg', centerX + halfWidth * 0.28, cruiseAltitude + 1, centerZ + halfDepth * 0.04],
+  ]
+  const waypoints = Object.freeze(waypointSeeds.map<FlightSimWaypoint>((seed, index) => Object.freeze({
+    id: `flight-sim:waypoint:${index + 1}:${seed[0]}`,
+    position: vector([seed[1], seed[2], seed[3]]),
+    radiusMeters: Math.max(2.25, Math.min(4, Math.min(halfWidth, halfDepth) * 0.14)),
+  })))
+  return Object.freeze({
+    id: `flight-sim:${source.projection}:${source.stage.id}`,
+    sourceKey: `${source.projection}:${source.stage.id}`,
+    aircraftHalfSize: FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.collisionHalfSizeMeters,
+    spawn,
+    blockers,
+    waypoints,
+  })
+}
+
+function readSpatialSelection() {
+  const state = useGraphStore.getState()
+  const projection = resolveXrCanonicalSceneProjection({
+    physicsRunReady: isNativeXrRunReadyDemoActive(
+      state.markdownDocumentName,
+      state.markdownDocumentText,
+    ),
+  })
+  return Object.freeze({
+    projection,
+    stageId: readXrMotionReferenceRuntime().plan.stageId,
+  })
+}
+
+export function readFlightSimXrSpatialSourceKey(): string {
+  const selection = readSpatialSelection()
+  return `${selection.projection}:${selection.stageId}`
+}
+
+export function readFlightSimXrSpatialProfile(): FlightSimSpatialProfile {
+  return createFlightSimSpatialProfile(resolveXrCanonicalSceneSpatialSource(readSpatialSelection()))
+}
+
+export function resolveFlightSimAabbMotion(
+  previous: FlightSimAircraftState,
+  proposed: FlightSimAircraftState,
+  profile: Pick<FlightSimSpatialProfile, 'aircraftHalfSize' | 'blockers'>,
+): FlightSimCollisionResolution {
+  const start = aircraftCuboid(previous.position, profile.aircraftHalfSize)
+  const end = aircraftCuboid(proposed.position, profile.aircraftHalfSize)
+  const hits = profile.blockers.flatMap(blocker => {
+    const fixed = blockerCuboid(blocker)
+    const startedOverlapping = findSpatialCollision(start, fixed)
+    if (startedOverlapping?.penetration && startedOverlapping.penetration > 1e-7) {
+      return [{
+        blocker,
+        time: 0,
+        normal: startedOverlapping.normal,
+        penetration: startedOverlapping.penetration,
+      }]
+    }
+    const swept = findSweptSpatialCuboidHit(start, end, fixed, fixed)
+    if (swept) return [{ blocker, time: swept.time, normal: swept.normal, penetration: 0 }]
+    const endedOverlapping = findSpatialCollision(end, fixed)
+    return endedOverlapping
+      ? [{ blocker, time: 1, normal: endedOverlapping.normal, penetration: 0 }]
+      : []
+  }).sort((left, right) => left.time - right.time || compareIds(left.blocker, right.blocker))
+  const hit = hits[0]
+  if (!hit) return Object.freeze({ state: proposed, collisionId: null, impactSpeed: 0 })
+
+  const safeTime = Math.max(0, hit.time - 1e-5)
+  const position = hit.penetration > 0
+    ? vector(previous.position.map((value, axis) => (
+        value - hit.normal[axis] * (hit.penetration + 1e-6)
+      )))
+    : vector(previous.position.map((value, axis) => (
+        value + (proposed.position[axis] - value) * safeTime
+      )))
+  const velocity = vector(proposed.velocity.map((value, axis) => (
+    Math.abs(hit.normal[axis]) > 0.5 ? 0 : value
+  )))
+  return Object.freeze({
+    state: freezeFlightSimAircraftState({ ...proposed, position, velocity }),
+    collisionId: hit.blocker.id,
+    impactSpeed: Math.hypot(...proposed.velocity),
+  })
+}
+
+export function flightSimWaypointReached(
+  position: SpatialVector,
+  waypoint: FlightSimWaypoint,
+): boolean {
+  return Math.hypot(
+    position[0] - waypoint.position[0],
+    position[1] - waypoint.position[1],
+    position[2] - waypoint.position[2],
+  ) <= waypoint.radiusMeters
+}

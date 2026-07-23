@@ -12,8 +12,8 @@ import {
 } from '@/features/three/xrNativeControllerDemoRuntime'
 import { stopXrPhysicsRuntime } from '@/features/three/xrPhysicsRuntime'
 import { ensureXrPhysicsRunReadyDemoRunning } from './xrPhysicsRunReadyLifecycle'
-import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
 import { activateXrSceneSurface } from '@/features/three/xrSceneSurfaceRuntime'
+import { useCanvasGameplayOverlayState } from './useCanvasGameplayOverlayState'
 
 export function XrPhysicsRunReadyDemoRuntime() {
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
@@ -22,18 +22,15 @@ export function XrPhysicsRunReadyDemoRuntime() {
   const dedicatedDemo = isXrPhysicsRunReadyDemoActive()
   const ownsDocumentLaunchRef = React.useRef(false)
   const surfaceInitializedRef = React.useRef(false)
-  const pausedForGameModeRef = React.useRef(false)
+  const pausedForGameplayRef = React.useRef(false)
   const unmountTeardownTokenRef = React.useRef(0)
   const runtime = React.useSyncExternalStore(
     subscribeXrNativeControllerDemo,
     readXrNativeControllerDemo,
     readXrNativeControllerDemo,
   )
-  const gameMode = React.useSyncExternalStore(
-    subscribeGameModeSnapshot,
-    readGameModeSnapshot,
-    readGameModeSnapshot,
-  )
+  const { flightSimActive, gameFpsActive } = useCanvasGameplayOverlayState()
+  const gameplayOverlayActive = flightSimActive || gameFpsActive
   const phase = runtime.phase
   const revision = runtime.revision
   React.useLayoutEffect(() => {
@@ -53,22 +50,22 @@ export function XrPhysicsRunReadyDemoRuntime() {
   React.useLayoutEffect(() => {
     if (!active) {
       surfaceInitializedRef.current = false
-      pausedForGameModeRef.current = false
+      pausedForGameplayRef.current = false
       if (ownsDocumentLaunchRef.current) {
         ownsDocumentLaunchRef.current = false
         if (readXrNativeControllerDemo().phase !== 'off') exitXrNativeControllerDemo()
       }
       return undefined
     }
-    if (gameMode.active) {
+    if (gameplayOverlayActive) {
       if (readXrNativeControllerDemo().phase === 'running') {
-        pausedForGameModeRef.current = true
+        pausedForGameplayRef.current = true
         pauseXrNativeControllerDemo()
       }
       return undefined
     }
-    if (pausedForGameModeRef.current) {
-      pausedForGameModeRef.current = false
+    if (pausedForGameplayRef.current) {
+      pausedForGameplayRef.current = false
       resumeXrNativeControllerDemo()
       return undefined
     }
@@ -91,6 +88,6 @@ export function XrPhysicsRunReadyDemoRuntime() {
     })
     if (launched && !dedicatedDemo) ownsDocumentLaunchRef.current = true
     return undefined
-  }, [active, dedicatedDemo, gameMode.active, phase, revision])
+  }, [active, dedicatedDemo, gameplayOverlayActive, phase, revision])
   return null
 }

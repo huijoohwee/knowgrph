@@ -1,24 +1,25 @@
 ---
 title: "Knowgrph Native Flight Sim"
 doc_type: "Workspace Demo"
-status: "draft"
-runtime_status: "draft"
-runtime_claim: "planned-contract-only"
+status: "runtime-ready"
+runtime_status: "runtime-ready"
+runtime_claim: "local-runtime-ready"
 publish_scope: "local-only"
-kgCanvasSurfaceMode: "2d"
-kgCanvasRenderMode: "2d"
-kgCanvas2dRenderer: "flow"
-kgFloatingPanelOpen: false
+kgCanvasSurfaceMode: "xr"
+kgCanvasRenderMode: "3d"
+kgCanvas3dMode: "xr"
+kgFloatingPanelOpen: true
+kgFloatingPanelView: "flightSim"
 kgBottomPanelOpen: false
 kgBottomPanelTab: "timeline"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
 kgDocumentStructureBaselineLock: false
-planned_run_ready_demo:
+run_ready_demo:
   id: "flight-sim"
-  activation: "disabled-until-runtime-ready"
-  identity_authority: "future source-authored run_ready_demo.id after runtime-readiness approval"
+  activation: "applied-source-document"
+  identity_authority: "source-authored run_ready_demo.id"
   imported_path_alias_required: false
   identity_conflict: "fail closed when path and source identity disagree"
   dev_command: "npm run dev"
@@ -28,16 +29,21 @@ planned_run_ready_demo:
   source_root: "knowgrph/docs"
   source_backed: true
   clean_canvas_recommended: true
-  native_runtime: false
-  presentation: "design-only-flow-canvas"
-  document_presentation: "workspace-design-record"
-  auto_start: false
+  native_runtime: true
+  presentation: "shared-xr-gameplay-overlay"
+  document_presentation: "runtime-ready-workspace-demo"
+  auto_start: true
   external_dependencies: []
   forbid_external_copy_or_dependency: true
-planned_native_flight_demo:
+shared_xr_scene:
+  source_authority: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
+  world_ownership: "overlay-only"
+  renderer_owner: "canvas/src/lib/three/ThreeGraph.impl.tsx"
+  collider_owner: "canvas/src/features/three/xrCanonicalSceneSpatialSource.ts"
+  second_canvas_forbidden: true
+native_flight_demo:
   runtime_owner: "Flight Sim surface on the shared XR Canvas"
   default_aircraft: "vehicle-airplane"
-  aircraft_switching: "preserve active body pose and velocity"
   deterministic_step: true
   flight_model: "in-repo thrust/pitch/roll/yaw with bounded lift/drag/gravity approximation; no external physics engine"
   collision: "authored XR AABB slab catalog (shared canonical spatial source); no mesh colliders or navmesh"
@@ -53,32 +59,33 @@ planned_native_flight_demo:
     default: "singapore"
     selector: "XR Terrain / Environment catalog"
     available: ["singapore", "tropical-playground"]
-  objective: "follow the waypoint route, then land on the marked pad"
-  interactive_props: ["waypoint rings", "landing pad", "wind socks"]
+  objective: "complete the bounded waypoint route"
+  interactive_props: ["waypoint rings"]
   input:
     keyboard:
       pitch_roll: ["W", "A", "S", "D", "ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"]
       throttle_up: "Shift"
       throttle_down: "Control"
       yaw: ["Q", "E"]
-    touch: "virtual stick + throttle slider"
+    touch: "direction buttons + throttle slider"
     gamepad:
       pitch_roll: "standard left stick"
       yaw: "standard shoulder axes"
       throttle: "standard triggers"
   lifecycle: ["develop-and-run", "pause", "resume", "reset", "exit"]
-planned_asset_pipeline:
-  primary: "img2threejs TypeScript + JSON scene spec (small, diffable, committed in-repo, offline-loadable)"
-  fallback: "TRELLIS.2 opaque binary GLB (committed local file, flagged opaque, used only where a spec is unavailable)"
-  loader_preference: "prefer the TypeScript+JSON spec whenever both exist"
+asset_pipeline:
+  primary: "img2threejs-style TypeScript + JSON Must-aircraft scene spec (small, diffable, committed in-repo, offline-loadable)"
+  admission: "only the exact TypeScript+JSON vehicle-airplane spec is admitted in Must scope"
+  opaque_binary_fallback: "not admitted in Must scope; non-null fallback metadata fails closed"
+  glb_fallback_count: 0
   runtime_model_calls: 0
   runtime_network_calls: 0
   authoring_step: "offline only; no image-to-3D model, network fetch, or Cloudflare resource is invoked at runtime to obtain any asset"
-  diffability: "100% of demo aircraft/props are TypeScript+JSON specs; GLB fallback count tracked and minimized"
+  diffability: "the Must aircraft is TypeScript+JSON; GLB fallback count is exactly zero"
   native_in_repo: true
   forbid_external_copy_or_dependency: true
   inspiration_reference_only: "github.com/Arnie016/flight-simulator-fable5 (inspiration only; no source copy, no dependency)"
-planned_motion_control:
+motion_control:
   runtime: "browser-local LiteRT.js"
   model: "Google BlazePose GHUM Full"
   permission: "explicit Start action"
@@ -86,7 +93,7 @@ planned_motion_control:
   frame_persistence: false
   flight_role: "optional normalized player input only; never the flight control policy"
   invocation: "/motion.control @canvas #pose operation=start backend=auto"
-planned_flight_sim:
+flight_sim:
   companion_view: "flightSim"
   invocation: "/flight.sim @canvas #flight operation=open"
   invocation_prefix: "/flight.sim @canvas #flight"
@@ -97,7 +104,7 @@ planned_flight_sim:
     start: "/flight.sim @canvas #flight operation=start"
     stop: "/flight.sim @canvas #flight operation=stop"
     restart: "/flight.sim @canvas #flight operation=restart"
-    throttle: "/flight.sim @canvas #flight operation=throttle"
+    throttle: "/flight.sim @canvas #flight operation=throttle throttle=0.75"
     save: "/flight.sim @canvas #flight operation=save"
     exit: "/flight.sim @canvas #flight operation=exit"
   web_mcp_schema: "knowgrph-flight-sim-mcp/v1"
@@ -112,7 +119,7 @@ planned_flight_sim:
   decision_persistence: "browser-local WorkspaceFs; terminal Decisions remain pending until explicit Save and are never auto-saved"
   malformed_hydration: "preserve bytes and block Start and Restart until explicit Reset"
   validation_input_forbid_hardcode_in_repo: true
-planned_runtime_validation:
+runtime_validation:
   mode_activation: ["xr surface", "3d renderer", "xr stage"]
   required_states: ["ready", "running", "paused"]
   aircraft_parity: ["vehicle-airplane"]
@@ -120,10 +127,11 @@ planned_runtime_validation:
   local_assets_only: true
   required_external_calls: false
   asset_spec_primary: true
-  glb_fallback_is_local_file: true
+  glb_fallback_count: 0
+  glb_fallback_runtime: "not admitted in Must scope"
   editor_chrome: true
-  status: "pending — no runtime-readiness proof exists yet for this draft module"
-planned_mcp_control:
+  status: "repository-owned source/runtime proof passed; protected integration pending"
+mcp_control:
   inspect_tool: "knowgrph.inspect_local_flight_sim"
   control_tool: "knowgrph.control_local_flight_sim"
   launch: "/flight.sim @canvas #flight operation=open"
@@ -136,13 +144,13 @@ flow:
   nodes:
     - id: {key: id, type: string, value: "flight_demo_entry"}
       type: {key: type, type: string, value: "FlightDemoControl"}
-      label: {key: label, type: string, value: "Design and Gate"}
+      label: {key: label, type: string, value: "Launch and Fly"}
       position: {key: position, type: object, value: {"x":0,"y":-360}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:flight_demo_entry"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Inspect the planned flight runtime as a non-activating 2D Flow Canvas design; XR launch remains gated."}
+      output: {key: output, type: string, value: "Apply this source to open the local Flight Sim on the canonical authored XR world."}
       role: {key: role, type: string, value: "lifecycle"}
-      state: {key: state, type: string, value: "draft"}
+      state: {key: state, type: string, value: "ready"}
     - id: {key: id, type: string, value: "flight_aircraft"}
       type: {key: type, type: string, value: "FlightDemoAircraft"}
       label: {key: label, type: string, value: "Airplane"}
@@ -150,71 +158,63 @@ flow:
       aircraftId: {key: aircraftId, type: string, value: "vehicle-airplane"}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:flight_aircraft"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Plan throttle, pitch, roll, and yaw with bounded stable limits under in-repo flight dynamics."}
+      output: {key: output, type: string, value: "Fly with deterministic throttle, pitch, roll, and yaw under bounded in-repo dynamics."}
       role: {key: role, type: string, value: "controller"}
     - id: {key: id, type: string, value: "flight_asset_spec"}
       type: {key: type, type: string, value: "FlightDemoAssetSpec"}
-      label: {key: label, type: string, value: "Asset Spec (img2threejs primary)"}
+      label: {key: label, type: string, value: "Asset Spec (img2threejs-style)"}
       position: {key: position, type: object, value: {"x":0,"y":120}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:flight_asset_spec"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Plan committed diffable TypeScript+JSON specs for aircraft/props, with opaque TRELLIS.2 GLB only as a local fallback."}
+      output: {key: output, type: string, value: "Load the committed diffable TypeScript+JSON aircraft spec; no opaque fallback is needed for this mission."}
       role: {key: role, type: string, value: "asset"}
     - id: {key: id, type: string, value: "flight_runtime_gate"}
       type: {key: type, type: string, value: "FlightDemoValidation"}
-      label: {key: label, type: string, value: "Planned Runtime Gate"}
+      label: {key: label, type: string, value: "Runtime Readiness"}
       position: {key: position, type: object, value: {"x":0,"y":360}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:flight_runtime_gate"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Target validation must cover deterministic stepping, flight dynamics, terrain collision, camera source, input, and asset-spec-primary loading."}
+      output: {key: output, type: string, value: "Repository gates cover deterministic stepping, collision, input, Decisions-only persistence, strict invocation, and spec-primary loading."}
       role: {key: role, type: string, value: "validation"}
-      state: {key: state, type: string, value: "draft"}
+      state: {key: state, type: string, value: "ready"}
   edges:
 ---
 
 # Native Flight Sim
 
-This Source Files document is the design record for a planned browser-local flight simulator. It opens as a neutral 2D Flow Canvas with operator panels closed; it does not activate XR, mount a Flight Sim panel, register MCP tools, or start a runtime. The Singapore terrain, aircraft presentation, flight dynamics, inputs, camera source, waypoint objective, and HUD below remain target requirements until runtime-readiness and browser-smoke gates exist and pass.
+This Source Files document is the local runtime authority for one deterministic, browser-local flight mission. Applying it opens **Flight Sim** on the canonical authored XR world, prepares a healthy mission at tick zero, and waits for normalized input. It does not create another Canvas, renderer, terrain, collider catalog, persistence owner, or deployment surface.
 
-## Inspect the draft
+## Run locally
 
-From the repository root, run `npm run dev`. In Knowgrph, open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-flight-sim-demo.md**. Applying this document shows its 2D Flow Canvas design while Explorer remains available. It must leave XR and the proposed Flight Sim runtime inactive.
+From the repository root, run `npm run dev`. In Knowgrph, open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-flight-sim-demo.md** and apply the document. The source-authored `run_ready_demo.id: flight-sim` activates XR/3D and the Flight Sim panel; an imported path is not required, and a conflicting known path fails closed.
 
-## Planned controls
+## Controls
 
 | Action | Keyboard | Touch | Standard gamepad |
 |---|---|---|---|
-| Pitch / roll | W/A/S/D or arrow keys | Virtual stick | Left stick |
-| Yaw | Q / E | Stick edge | Shoulder axes |
+| Pitch / roll | W/A/S/D or arrow keys | Discrete Pitch/Roll buttons | Left stick |
+| Yaw | Q / E | Discrete Yaw buttons | Shoulder buttons |
 | Throttle up / down | Shift / Control | Throttle slider | Triggers |
-| Pause / Resume / Reset | Simulation controls | Simulation controls | Simulation controls |
+| Pause / Resume / Reset | HUD or FloatingPanel controls | HUD or FloatingPanel controls | HUD or FloatingPanel controls |
 
-The planned control contract uses `knowgrph.control_local_flight_sim` and `/flight.sim @canvas #flight`, with browser-local schema `knowgrph-flight-sim-mcp/v1`. Those commands and tools are not registered while this document remains draft; their definitions below are acceptance targets, not current runtime claims.
+The browser-local control contract uses `knowgrph.control_local_flight_sim` and strict `/flight.sim @canvas #flight`, with schema `knowgrph-flight-sim-mcp/v1`. Throttle is explicit: `/flight.sim @canvas #flight operation=throttle throttle=0.75`. Duplicate sigils, unknown keys, mixed native/structured input, and invalid lifecycle operations fail closed.
 
-The planned **FloatingPanel → Flight Sim** companion will reuse the same Canvas after implementation. Until then, applying this draft must not open a panel or substitute the generic motion-reference stage for the missing runtime.
+**FloatingPanel → Flight Sim** controls Open, Start, Stop, Restart, Throttle, Save, and Exit. The panel projects runtime state only; the aircraft stage remains actor-only inside the shared renderer.
 
-The target camera-source contract is independent of aircraft selection. After implementation, **FloatingPanel Camera → SHOOT** will offer **Fixed Follow** for stage-aware tracking or **Free Orbit** for direct pan, rotate, and zoom; the proposed invocation is `/camera.select @camera #camera camera=fixed-follow|free-orbit`. Timeline camera-mark playback is planned to own framing temporarily, then return to the selected source. Motion Control is planned as optional normalized player input only; its camera/LiteRT pose pipeline must never become the flight control policy.
+The camera-source contract remains independent of aircraft selection. **FloatingPanel Camera → SHOOT** offers **Fixed Follow** or **Free Orbit** through `/camera.select @camera #camera camera=fixed-follow|free-orbit`; Timeline camera-mark playback temporarily owns framing, then returns to the selected source. Motion Control is optional normalized player input only and never becomes flight policy.
 
-The target persistence contract keeps terminal flight results pending and never auto-saves them. **Save** is planned as the only operation that persists validated flight Decisions through browser-local WorkspaceFs. Malformed saved bytes must remain intact and block **Start** and **Restart** until the operator explicitly chooses **Reset local save**.
+Terminal results remain pending and never auto-save. **Save** is the only operation that persists validated Decisions through browser-local WorkspaceFs at `/game-flight-sim/mission-1-decisions.md`. Malformed bytes remain intact and block Start and Restart until **Reset local save** succeeds.
 
-## Planned asset pipeline (native, in-repo)
+## Asset pipeline
 
-The target asset pipeline loads aircraft and scene props from **img2threejs output — small, diffable TypeScript plus a JSON scene spec** committed in-repo, human-editable, and offline-loadable as the primary representation. A **TRELLIS.2 opaque binary GLB** is planned only where a spec is unavailable, as a committed local file flagged as an opaque fallback. Both remain design requirements until their loaders exist: no image-to-3D model, network fetch, or Cloudflare resource may be invoked at runtime, and the future loader must prefer the spec when both exist. The feature framing is inspired by an external flight-sim project but copies none of its source and takes no dependency on it.
+The aircraft loads from committed img2threejs-style TypeScript plus `vehicle-airplane.scene.json`: small, diffable, human-auditable, and offline. The Must scope admits only that exact spec, rejects non-null opaque fallback metadata, and has GLB fallback count zero. A future local GLB exception would require separate implementation and proof. Runtime code performs no image-to-3D model call, asset fetch, or Cloudflare request. The feature framing takes inspiration from an external flight-sim project but copies none of its source and has no dependency on it.
 
-## Promotion gates
+## Runtime-readiness gates
 
-- [x] Draft source opens a 2D Flow Canvas, closes the FloatingPanel, and does not select XR/3D or auto-start.
-- [ ] After promotion to `run_ready_demo`, the source-backed seed activates XR, 3D rendering, and its implemented canonical stage.
-- [ ] Airplane flight runs through one native deterministic physics owner (in-repo dynamics; no external engine).
-- [ ] Keyboard, touch, and standard gamepad inputs normalize to one flight control state.
-- [ ] Fixed Follow and Free Orbit are user-selectable through Camera and `/camera.select`; Timeline playback remains the temporary higher-priority framing owner.
-- [ ] Normal `npm run dev` exposes this canonical Source Files document exactly once.
-- [ ] Applying the document keeps Explorer available and starts with the Airplane selected.
-- [ ] Aircraft and props load from committed img2threejs TypeScript+JSON specs; any GLB is a committed local opaque fallback, and no image-to-3D model or network call runs at runtime.
-- [ ] FloatingPanel Flight Sim reuses the same shared-XR Canvas and provides Open, Start, Stop, Restart, Throttle, Save, and Exit.
-- [ ] Strict `/flight.sim @canvas #flight` invocation and browser-local WebMCP schema/tools reject duplicate or conflicting bindings.
-- [ ] Two identical input traces yield identical canonical flight results (deterministic replay).
-- [ ] Motion Control is optional player input only; it never becomes the flight control policy.
-- [ ] Terminal Decisions remain pending until explicit Save; malformed hydration blocks Start and Restart until explicit Reset.
-- [ ] Source-authored `run_ready_demo.id` owns imported activation without a path alias and conflicts fail closed.
-- [ ] No remote assets, provider calls, external runtime dependencies, or external source copies are required.
+- [x] Source identity is `flight-sim`, independent of import path, with conflict rejection.
+- [x] Flight is an overlay on the Physics source-authored XR world; it owns no second world or Canvas.
+- [x] `npm run game-flight-sim:runtime-ready` passes on the final candidate.
+- [x] `npm run game-flight-sim:browser-smoke` passes serially on the same exact candidate revision.
+- [ ] The protected PR integrates the verified candidate.
+
+The unchecked gates are proof/release state, not missing runtime behavior. This scope authorizes no Agentic workspace-seed projection, Prod/Cloudflare deployment, or public release.

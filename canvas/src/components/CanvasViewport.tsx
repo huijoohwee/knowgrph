@@ -10,8 +10,8 @@ import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
-import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
-import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
+import { isNativeXrRunReadyDemoActive, isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { useCanvasGameplayOverlayState } from '@/features/canvas/useCanvasGameplayOverlayState'
 import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
 
 import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
@@ -66,6 +66,7 @@ const ThreeGraphLazy = React.lazy(() => import('@/lib/three/ThreeGraph.impl'))
 const GameFpsHudLazy = React.lazy(() =>
   import('@/features/game-fps/GameFpsHud').then(mod => ({ default: mod.GameFpsHud })),
 )
+const FlightSimHudLazy = React.lazy(() => import('@/features/game-flight-sim/FlightSimHud').then(mod => ({ default: mod.FlightSimHud })))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const StrybldrTimelineBottomPanelLazy = React.lazy(() =>
   import('@/features/strybldr/StrybldrTimelineBottomPanel').then(mod => ({ default: mod.StrybldrTimelineBottomPanel })),
@@ -138,15 +139,13 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
-  const gameMode = React.useSyncExternalStore(
-    subscribeGameModeSnapshot,
-    readGameModeSnapshot,
-    readGameModeSnapshot,
-  )
-  const gameFpsActive = gameMode.active
+  const nativeXrRunReadyDemo = isNativeXrRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
+  const { gameFpsActive, flightSimActive } = useCanvasGameplayOverlayState()
+  const gameplayOverlayActive = gameFpsActive || flightSimActive
   const sourceFilesBootstrap = useSourceFilesBootstrapSnapshot()
   const sourceFilesBootstrapReady = sourceFilesBootstrap.phase === 'ready'
   const gameFpsHudVisible = gameFpsActive && sourceFilesBootstrapReady
+  const flightSimHudVisible = flightSimActive && sourceFilesBootstrapReady
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const activeSourceFile = React.useMemo(
     () => resolvePreferredEnabledComposedSourceFile({
@@ -297,7 +296,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const isTouchViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const [activatedHeavyRuntimeSurfaces, setActivatedHeavyRuntimeSurfaces] = React.useState<Partial<Record<'3d' | 'geo', true>>>({})
-  const heavyRuntimeIntentSurface = xrPhysicsRunReadyDemo || gameFpsActive ? null : resolveCanvasViewportHeavyRuntimeIntentSurface({
+  const heavyRuntimeIntentSurface = nativeXrRunReadyDemo || gameplayOverlayActive ? null : resolveCanvasViewportHeavyRuntimeIntentSurface({
     isTouchViewport,
     geospatialOverlayOwnsViewport,
     canvasRenderMode,
@@ -316,7 +315,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     && !liveCanvasHeroEmbedPreview
     && !heavyRuntimeIntentBlocked
     && !isNarrowViewport
-    && !gameFpsActive
+    && !gameplayOverlayActive
     && (
       (activeSurface === '2d' && supportsCanvas2dMinimap(canvas2dRenderer))
       || (activeSurface === '3d' && effectiveCanvas3dMode === '3d')
@@ -330,8 +329,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
     && active2dSurface !== 'storyboard'
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
-  const workspaceXrViewportInset = xrPhysicsRunReadyDemo
-    && !gameFpsActive
+  const workspaceXrViewportInset = nativeXrRunReadyDemo
+    && !gameplayOverlayActive
     && !liveCanvasHeroVisible
     && workspaceEditorOverlayOpen
     && String(workspaceVisibleCanvasLeft || '').trim()
@@ -357,11 +356,13 @@ export function CanvasViewport(props: CanvasViewportProps) {
         ? 'Canvas source initialization error'
         : gameFpsActive
           ? 'Deterministic Game Mode'
-          : sourceFilesBootstrapReady && xrPhysicsRunReadyDemo
-            ? 'Interactive XR Physics Playground'
-            : variant === 'embeddedPreview'
-              ? 'Canvas Preview Only'
-              : 'Canvas viewport'}
+          : flightSimActive
+            ? 'Deterministic Flight Sim'
+            : sourceFilesBootstrapReady && nativeXrRunReadyDemo
+              ? 'Interactive XR Physics Playground'
+              : variant === 'embeddedPreview'
+                ? 'Canvas Preview Only'
+                : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
         {liveCanvasHeroVisible && liveCanvasHeroSource ? (
@@ -588,8 +589,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </>
         ) : null}
       </React.Suspense>
-      {sourceFilesBootstrapReady && xrPhysicsRunReadyDemo && !gameFpsActive && !liveCanvasHeroVisible ? <XrNativeControllerDemoHud /> : null}
+      {sourceFilesBootstrapReady && xrPhysicsRunReadyDemo && !gameplayOverlayActive && !liveCanvasHeroVisible ? <XrNativeControllerDemoHud /> : null}
       {gameFpsHudVisible ? <GameFpsHudLazy /> : null}
+      {flightSimHudVisible ? <FlightSimHudLazy /> : null}
       {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>
   )

@@ -23,6 +23,7 @@ const requiredPaths = [
   'canvas/src/features/game-fps/gameFpsRuntime.ts',
   'canvas/src/features/game-fps/gameFpsSimulationClock.ts',
   'canvas/src/features/game-fps/gameFpsDecisionStore.ts',
+  'canvas/src/features/workspace-fs/workspaceDecisionStore.ts',
   'canvas/src/features/game-fps/gameModeRuntime.ts',
   'canvas/src/features/game-fps/gameModeXrSpatialProfile.ts',
   'canvas/src/features/game-fps/gameModeMcpContract.mjs',
@@ -245,7 +246,7 @@ if (JSON.stringify(gameAwareThreeOwners) !== JSON.stringify(expectedGameAwareThr
 const missionStageSource = featureSources.find(({ name }) => name === 'GameFpsMissionStage.tsx')?.source || ''
 const simulationClockSource = featureSources.find(({ name }) => name === 'gameFpsSimulationClock.ts')?.source || ''
 const modelSource = featureSources.find(({ name }) => name === 'gameFpsModel.ts')?.source || ''
-const decisionStoreSource = featureSources.find(({ name }) => name === 'gameFpsDecisionStore.ts')?.source || ''
+const decisionStoreSource = await text('canvas/src/features/workspace-fs/workspaceDecisionStore.ts')
 const missionStageTags = [...missionStageSource.matchAll(/^\s*<([a-z][A-Za-z0-9]*)\b/gm)].map(match => match[1])
 const missionStageComponentTags = [...missionStageSource.matchAll(/^\s*<([A-Z][A-Za-z0-9]*)\b/gm)].map(match => match[1])
 const allowedMissionStageTags = ['group', 'mesh', 'capsuleGeometry', 'meshStandardMaterial']
@@ -303,6 +304,7 @@ if (physicsSeed?.run_ready_demo?.canonical_source_file !== `/${physicsSeedPath}`
 
 const workspaceSeedPaths = (await listMarkdownFiles(path.join(root, 'docs/workspace-seeds'))).sort()
 const gameOrPhysicsDemoIdPattern = /(?:^|-)(?:game-(?:fps|mode)|(?:fps|mode)-game|xr-physics|physics-(?:xr|playground))(?:-|$)/
+const flightOverlaySeedPath = 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'
 for (const relPath of workspaceSeedPaths) {
   if (relPath === physicsSeedPath) continue
   const source = await text(relPath)
@@ -319,6 +321,14 @@ for (const relPath of workspaceSeedPaths) {
   const surfaceMode = String(frontmatter.kgCanvasSurfaceMode || '').trim().toLowerCase()
   const threeMode = String(frontmatter.kgCanvas3dMode || '').trim().toLowerCase()
   const declaresStandaloneXrWorld = Boolean(runReadyId) && (surfaceMode === 'xr' || threeMode === 'xr')
+  const sharedXrScene = frontmatter.shared_xr_scene
+  const declaresCanonicalFlightOverlay = relPath === flightOverlaySeedPath
+    && runReadyId === 'flight-sim'
+    && sharedXrScene
+    && typeof sharedXrScene === 'object'
+    && !Array.isArray(sharedXrScene)
+    && sharedXrScene.source_authority === `/${physicsSeedPath}`
+    && sharedXrScene.world_ownership === 'overlay-only'
   const declaresGameOrHomeAuthority = Object.hasOwn(frontmatter, 'game_mode')
     || Object.hasOwn(frontmatter, 'game_mode_xr_fidelity_status')
     || Object.hasOwn(frontmatter, 'home_apex')
@@ -327,7 +337,7 @@ for (const relPath of workspaceSeedPaths) {
     path.basename(relPath, path.extname(relPath)).toLowerCase().replace(/[_\s]+/g, '-'),
   )
   if (gameOrPhysicsDemoIdPattern.test(runReadyId)
-    || declaresStandaloneXrWorld
+    || (declaresStandaloneXrWorld && !declaresCanonicalFlightOverlay)
     || declaresGameOrHomeAuthority
     || pathLooksLikeAlternateAuthority) {
     throw new Error(`alternate standalone Game Mode/XR Physics source authority is forbidden: ${relPath}`)
@@ -388,6 +398,7 @@ if (agenticCanvasOsDocsRoot) {
 }
 
 const threeGraph = await text('canvas/src/lib/three/ThreeGraph.impl.tsx')
+const threeGameplayOverlay = await text('canvas/src/lib/three/ThreeGameplayOverlay.tsx')
 const gameSourceTestCommand = String(canvasPackage.scripts?.['test:smoke:game-fps:source'] || '')
 if (!gameSourceTestCommand.includes('--import ./scripts/source-authority-test-bootstrap.mjs')
   || !gameSourceTestCommand.includes('--test-concurrency=1')) {
@@ -426,7 +437,8 @@ if (!canvasViewport.includes("const sourceFilesBootstrapReady = sourceFilesBoots
   || !canvasViewport.includes('sourceFilesBootstrapReady && !documentSwitchOwnsViewport')
   || !canvasViewport.includes('sourceFilesBootstrapReady && xrPhysicsRunReadyDemo')
   || !canvasViewport.includes('const gameFpsHudVisible = gameFpsActive && sourceFilesBootstrapReady')
-  || !canvasStartupRuntimes.includes('{sourceFilesBootstrapReady ? <XrPhysicsRunReadyDemoRuntime /> : null}')
+  || !canvasStartupRuntimes.includes('{sourceFilesBootstrapReady ? <>')
+  || !canvasStartupRuntimes.includes('<XrPhysicsRunReadyDemoRuntime />')
   || !xrRuntimeBridge.includes('if (!sourceFilesBootstrapReady) return')
   || (xrRuntimeBridge.match(/if \(!readSourceFilesBootstrapReady\(\)\) return false/g) || []).length !== 2
   || !canvasSourceAuthorityBoundary.includes('<SourceFilesDocumentIntentProvider intentKey={intentKey}>')
@@ -439,11 +451,11 @@ if (!canvasViewport.includes("const sourceFilesBootstrapReady = sourceFilesBoots
 }
 const xrGraphStageAuthority = threeGraph.match(/const xrGraphStageAuthority = mode === 'xr'[\s\S]*?const xrSceneAuthority/)?.[0] || ''
 const xrSceneAuthority = threeGraph.match(/const xrSceneAuthority = mode !== 'xr'[\s\S]*?const xrStandaloneFit/)?.[0] || ''
-if (!/xrPhysicsRunReadyDemo\s*\? 'native-controller'\s*: 'motion-reference'/.test(xrGraphStageAuthority)
+if (!/nativeXrRunReadyDemo\s*\? 'native-controller'\s*: 'motion-reference'/.test(xrGraphStageAuthority)
   || !xrSceneAuthority.includes(': xrGraphStageAuthority')
   || !xrSceneAuthority.includes('? xrGraphStageAuthority')
   || !xrSceneAuthority.includes("? 'empty-world'")
-  || !threeGraph.includes("const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo")
+  || !threeGraph.includes("const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !nativeXrRunReadyDemo")
   || !threeGraph.includes('xrGraphStageAuthority={xrGraphStageAuthority}')
   || (threeGraph.match(/data-kg-xr-scene-authority=\{xrSceneAuthority\}/g) || []).length !== 2) {
   throw new Error('canonical XR Physics must first mount native-controller; authored motion-reference and settled empty-world must remain disjoint')
@@ -453,7 +465,7 @@ if (!xrCanonicalPhysicsStage.includes('<XrNativeControllerDemoStage')
   || xrCanonicalPhysicsStage.includes('XrPhysicsStageRuntime')
   || !xrMotionReferenceGraphStage.includes('<XrMotionReferenceStage')
   || xrMotionReferenceGraphStage.includes('XrNativeControllerDemoStage')
-  || !threeGraph.includes("xrPhysicsRunReadyDemo ? 'native-controller' : 'motion-reference'")
+  || !threeGraph.includes("nativeXrRunReadyDemo ? 'native-controller' : 'motion-reference'")
   || !deepLinkRuntime.includes('createWorkspaceFsMutationTransaction(fs)')
   || !deepLinkRuntime.includes('cancelIntent: () => {')
   || !deepLinkRuntime.includes('mirrorToHost: false')
@@ -461,16 +473,13 @@ if (!xrCanonicalPhysicsStage.includes('<XrNativeControllerDemoStage')
   || !persistedWorkspaceFs.includes('options?.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(p)')) {
   throw new Error('canonical XR source activation must unmount hidden duplicate stages and roll back stale local-only imports across every persisted source owner')
 }
-const stageMounts = threeGraph.match(/<GameFpsMissionStageLazy\b/g)?.length ?? 0
+const stageMounts = threeGameplayOverlay.match(/<GameFpsMissionStageLazy\b/g)?.length ?? 0
 if (stageMounts !== 1) throw new Error(`expected one Game FPS stage mount, received ${stageMounts}`)
-const positiveGameConditionedMounts = [...threeGraph.matchAll(
-  /(?<![!\w])(?:gameFpsActive|gameMode\.active)\s*(?:\?|&&)\s*<([A-Z][A-Za-z0-9]*)/g,
-)].map(match => match[1])
-if (positiveGameConditionedMounts.length !== 1
-  || positiveGameConditionedMounts[0] !== 'GameFpsMissionStageLazy') {
-  throw new Error(`Game-conditioned Three mounts must remain actor-only, received ${positiveGameConditionedMounts.join(', ')}`)
+if (!threeGameplayOverlay.includes('if (props.gameFpsActive)')
+  || !threeGameplayOverlay.includes('return <GameFpsMissionStageLazy coordinateScale={props.coordinateScale} />')) {
+  throw new Error('Game-conditioned Three mounts must remain actor-only in the shared gameplay projection')
 }
-if (!threeGraph.includes('{!gameFpsActive ? <ControlsLazy')) {
+if (!threeGraph.includes('{!gameFpsStageActive ? <ControlsLazy')) {
   throw new Error('Game FPS must suppress the shared OrbitControls owner')
 }
 const xrWorldPlacement = threeGraph.match(/<XrWorldPlacement\b[\s\S]*?<\/XrWorldPlacement>/)?.[0] || ''
@@ -480,8 +489,8 @@ const missingPauseTargets = authoredWorldTargets.filter(component => {
   return !mount.includes('paused={authoredWorldPaused}')
 })
 const spatialCaptureMount = xrWorldPlacement.match(/<SpatialCaptureManifestStage\b[\s\S]*?\n\s*\/>/)?.[0] || ''
-if (!xrWorldPlacement.includes('{gameFpsStage}')
-  || !threeGraph.includes('const authoredWorldPaused = resolveAuthoredWorldPaused(paused, gameFpsActive)')
+if (!xrWorldPlacement.includes('{gameplayStage}')
+  || !threeGraph.includes('const authoredWorldPaused = resolveAuthoredWorldPaused(paused, gameplayOverlayActive)')
   || missingPauseTargets.length > 0
   || !spatialCaptureMount.includes('dimmed={paused}')
   || (xrWorldPlacement.match(/paused=\{authoredWorldPaused\}/g) || []).length !== authoredWorldTargets.length) {

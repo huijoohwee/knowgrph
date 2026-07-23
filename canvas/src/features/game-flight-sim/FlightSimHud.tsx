@@ -1,0 +1,189 @@
+import React from 'react'
+import { subscribeGlobalCancelEvents } from '@/lib/browser/globalCancelEvents'
+import { flightSimAirspeed, flightSimHeadingDegrees } from './flightModel'
+import {
+  flightSimInputFromHeldTouches,
+  releaseFlightSimHeldTouch,
+  setFlightSimTouchInput,
+  type FlightSimTouchControl,
+} from './flightSimInput'
+import {
+  openFlightSimSurface,
+  isFlightSimHydrationPending,
+  persistFlightSimPendingDecisions,
+  readFlightSimSnapshot,
+  resetFlightSimLocalPersistence,
+  restartFlightSim,
+  setFlightSimThrottle,
+  startFlightSim,
+  stopFlightSim,
+  subscribeFlightSimSnapshot,
+} from './flightSimRuntime'
+import {
+  readFlightSimDecisionStore,
+  resolveFlightSimEffectiveSaveStatus,
+  subscribeFlightSimDecisionStore,
+} from './flightSimDecisionStore'
+
+const buttonClass = 'min-h-11 rounded-xl border border-white/25 bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-sm disabled:opacity-50'
+
+export function FlightSimHud() {
+  const flight = React.useSyncExternalStore(
+    subscribeFlightSimSnapshot,
+    readFlightSimSnapshot,
+    readFlightSimSnapshot,
+  )
+  const save = React.useSyncExternalStore(
+    subscribeFlightSimDecisionStore,
+    readFlightSimDecisionStore,
+    readFlightSimDecisionStore,
+  )
+  const heldTouches = React.useRef(new Map<number, FlightSimTouchControl>())
+  const publishTouches = React.useCallback(() => {
+    setFlightSimTouchInput(flightSimInputFromHeldTouches(heldTouches.current))
+  }, [])
+  const beginTouch = React.useCallback((control: FlightSimTouchControl) => (
+    event: React.PointerEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault()
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Partial touch implementations may not expose an active capture target.
+    }
+    heldTouches.current.set(event.pointerId, control)
+    publishTouches()
+  }, [publishTouches])
+  const endTouch = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    releaseFlightSimHeldTouch(heldTouches.current, event.nativeEvent)
+    publishTouches()
+  }, [publishTouches])
+  const touchHandlers = React.useCallback((control: FlightSimTouchControl) => ({
+    onPointerDown: beginTouch(control),
+    onPointerUp: endTouch,
+    onPointerCancel: endTouch,
+    onLostPointerCapture: endTouch,
+  }), [beginTouch, endTouch])
+  const cancelHeldTouches = React.useCallback((event?: Event) => {
+    releaseFlightSimHeldTouch(
+      heldTouches.current,
+      event && 'pointerId' in event ? event as PointerEvent : undefined,
+    )
+    publishTouches()
+  }, [publishTouches])
+  React.useEffect(() => subscribeGlobalCancelEvents({
+    listener: cancelHeldTouches,
+    capture: true,
+    includeLostPointerCapture: true,
+    visibilityBehavior: 'hidden-only',
+  }), [cancelHeldTouches])
+  React.useEffect(() => () => {
+    heldTouches.current.clear()
+    setFlightSimTouchInput({})
+  }, [])
+
+  const airspeed = flightSimAirspeed(flight.aircraft)
+  const heading = flightSimHeadingDegrees(flight.aircraft.yaw)
+  const terminal = flight.phase === 'completed' || flight.phase === 'crashed'
+  const flightControlsEnabled = flight.active
+    && (flight.phase === 'ready' || flight.phase === 'flying')
+  const hydrationPending = isFlightSimHydrationPending()
+  const effectiveSaveStatus = resolveFlightSimEffectiveSaveStatus(
+    save.status,
+    flight.pendingDecisions.length,
+  )
+  const saveLabel = effectiveSaveStatus === 'saving'
+    ? 'Saving Decisions…'
+    : effectiveSaveStatus === 'error'
+        ? 'Local save needs attention'
+        : effectiveSaveStatus === 'pending'
+          ? 'Decision pending'
+          : effectiveSaveStatus === 'saved'
+            ? 'Decisions saved locally'
+          : 'Local save ready'
+  const objective = hydrationPending
+    ? 'Loading local Decisions…'
+    : flight.phase === 'completed'
+    ? 'Route complete'
+    : flight.phase === 'crashed'
+      ? `Aircraft stopped by ${flight.collisionId || 'terrain'}`
+      : flight.phase === 'flying'
+        ? `Waypoint ${Math.min(flight.waypointIndex + 1, flight.waypointCount)} of ${flight.waypointCount}`
+        : flight.phase === 'ready'
+          ? 'Ready · apply flight input'
+          : 'Flight Sim stopped'
+
+  return (
+    <section
+      className="pointer-events-none absolute inset-0 z-[230] select-none overflow-hidden text-white"
+      aria-label="Flight Sim HUD"
+      data-kg-flight-sim-hud="1"
+      data-kg-flight-sim-phase={flight.phase}
+      data-kg-flight-sim-tick={String(flight.tick)}
+      data-kg-flight-sim-airspeed={airspeed.toFixed(4)}
+      data-kg-flight-sim-altitude={flight.aircraft.position[1].toFixed(4)}
+      data-kg-flight-sim-heading={heading.toFixed(4)}
+      data-kg-flight-sim-pitch={flight.aircraft.pitch.toFixed(4)}
+      data-kg-flight-sim-roll={flight.aircraft.roll.toFixed(4)}
+      data-kg-flight-sim-throttle={flight.aircraft.throttle.toFixed(4)}
+      data-kg-flight-sim-waypoint-index={String(flight.waypointIndex)}
+      data-kg-flight-sim-runtime-error={flight.runtimeError || undefined}
+      data-kg-flight-sim-hydration={hydrationPending ? 'loading' : save.hydrationBlocked ? 'blocked' : 'ready'}
+      data-kg-flight-sim-pending-decisions={String(flight.pendingDecisions.length)}
+      data-kg-flight-sim-save-status={save.status}
+      data-kg-flight-sim-effective-save-status={effectiveSaveStatus}
+      data-kg-flight-sim-save-error={save.error || undefined}
+    >
+      <header className="absolute left-3 right-3 top-3 grid grid-cols-1 gap-2 pt-[env(safe-area-inset-top)] sm:flex sm:items-start sm:justify-between sm:gap-3">
+        <section className="max-w-none rounded-xl border border-white/20 bg-slate-950/75 px-3 py-2 shadow-lg backdrop-blur-sm sm:max-w-[58vw]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">Local deterministic flight mission</p>
+          <p className="mt-1 text-sm font-semibold">{objective}</p>
+          <p className="mt-1 text-[11px] text-slate-300">{saveLabel}</p>
+          {flight.runtimeError ? <p className="mt-1 text-[11px] text-rose-200" role="alert">{flight.runtimeError}</p> : null}
+          {save.error ? <p className="mt-1 text-[11px] text-rose-200" role="alert">{save.error}</p> : null}
+        </section>
+        <section className="grid min-w-0 grid-cols-3 gap-2 rounded-xl border border-white/20 bg-slate-950/75 px-2 py-2 text-center shadow-lg backdrop-blur-sm sm:min-w-[22rem] sm:grid-cols-6">
+          <span className="text-[10px] text-slate-300">KTS<strong className="block text-sm text-white">{(airspeed * 1.94384).toFixed(0)}</strong></span>
+          <span className="text-[10px] text-slate-300">ALT<strong className="block text-sm text-white">{flight.aircraft.position[1].toFixed(1)}</strong></span>
+          <span className="text-[10px] text-slate-300">HDG<strong className="block text-sm text-white">{heading.toFixed(0)}°</strong></span>
+          <span className="text-[10px] text-slate-300">PIT<strong className="block text-sm text-white">{(flight.aircraft.pitch * 180 / Math.PI).toFixed(1)}°</strong></span>
+          <span className="text-[10px] text-slate-300">ROL<strong className="block text-sm text-white">{(flight.aircraft.roll * 180 / Math.PI).toFixed(1)}°</strong></span>
+          <span className="text-[10px] text-slate-300">THR<strong className="block text-sm text-white">{Math.round(flight.aircraft.throttle * 100)}%</strong></span>
+        </section>
+      </header>
+
+      <section className="pointer-events-auto absolute bottom-32 left-3 grid grid-cols-3 gap-1 pb-[env(safe-area-inset-bottom)] sm:bottom-3" aria-label="Touch flight controls">
+        <span />
+        <button className={buttonClass} type="button" disabled={!flightControlsEnabled} {...touchHandlers('pitch-up')}>Pitch ▲</button>
+        <span />
+        <button className={buttonClass} type="button" disabled={!flightControlsEnabled} {...touchHandlers('roll-left')}>Roll ◀</button>
+        <button className={buttonClass} type="button" disabled={!flightControlsEnabled} {...touchHandlers('pitch-down')}>Pitch ▼</button>
+        <button className={buttonClass} type="button" disabled={!flightControlsEnabled} {...touchHandlers('roll-right')}>Roll ▶</button>
+      </section>
+
+      <section className="pointer-events-auto absolute bottom-3 left-3 right-3 flex max-w-none flex-wrap items-center justify-end gap-1 pb-[env(safe-area-inset-bottom)] sm:left-auto sm:max-w-[56vw]">
+        <button className={buttonClass} type="button" disabled={!flightControlsEnabled} {...touchHandlers('yaw-left')}>Yaw ◀</button>
+        <button className={buttonClass} type="button" disabled={!flightControlsEnabled} {...touchHandlers('yaw-right')}>Yaw ▶</button>
+        <label className="rounded-xl border border-white/25 bg-slate-950/75 px-2 py-1 text-[10px] font-semibold">
+          THROTTLE
+          <input
+            className="block w-28"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={flight.aircraft.throttle}
+            disabled={!flightControlsEnabled}
+            onChange={event => setFlightSimThrottle(Number(event.currentTarget.value))}
+          />
+        </label>
+        {!flight.active ? <button className={buttonClass} type="button" onClick={() => void openFlightSimSurface()}>Open</button> : null}
+        {flight.active && flight.phase === 'stopped' ? <button className={buttonClass} type="button" disabled={hydrationPending || save.hydrationBlocked} onClick={() => startFlightSim()}>Start</button> : null}
+        {flight.phase === 'ready' || flight.phase === 'flying' ? <button className={buttonClass} type="button" onClick={stopFlightSim}>Stop</button> : null}
+        <button className={buttonClass} type="button" disabled={!flight.active || hydrationPending || save.hydrationBlocked} onClick={restartFlightSim}>Restart</button>
+        {terminal ? <button className={buttonClass} type="button" disabled={save.status === 'saving'} onClick={() => void persistFlightSimPendingDecisions()}>{save.status === 'error' && save.retainedCount > 0 ? 'Retry save' : 'Save Decisions'}</button> : null}
+        {save.hydrationBlocked ? <button className={buttonClass} type="button" onClick={() => void resetFlightSimLocalPersistence()}>Reset local save</button> : null}
+      </section>
+    </section>
+  )
+}

@@ -7,6 +7,7 @@ import {
 } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import {
   activateXrSceneSurface,
+  isXrGameplaySurfaceView,
   registerXrSceneGameModeExitHandler,
 } from '@/features/three/xrSceneSurfaceRuntime'
 import {
@@ -196,7 +197,9 @@ export function openGameModeSurface(options: Readonly<{
       canvasRenderMode: state.canvasRenderMode,
       canvas3dMode: state.canvas3dMode,
       floatingPanelOpen: state.floatingPanelOpen,
-      floatingPanelView: state.floatingPanelView,
+      floatingPanelView: isXrGameplaySurfaceView(state.floatingPanelView)
+        ? 'motionControl'
+        : state.floatingPanelView,
     })
   }
   let spatialProfileRefreshed = false

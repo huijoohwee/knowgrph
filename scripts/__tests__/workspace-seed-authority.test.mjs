@@ -6,6 +6,9 @@ import test from 'node:test'
 
 import {
   DRAFT_WORKSPACE_SEED_BASENAMES,
+  FLIGHT_COMPANION_BASENAME,
+  FLIGHT_SEED_BASENAME,
+  FLIGHT_SEED_RELATIVE_PATH,
   PHYSICS_SEED_RELATIVE_PATH,
   resolveWorkspaceSeedSiblingRootsFromGitCommonDir,
   verifyWorkspaceSeedAuthority,
@@ -15,6 +18,46 @@ const canonicalSeed = `---
 canonical_source_file: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
 source_root: "knowgrph/docs"
 source_backed: true
+---
+`
+const flightRuntimeSeed = `---
+status: "runtime-ready"
+runtime_status: "runtime-ready"
+runtime_claim: "local-runtime-ready"
+publish_scope: "local-only"
+kgCanvasSurfaceMode: "xr"
+kgCanvasRenderMode: "3d"
+kgCanvas3dMode: "xr"
+kgFloatingPanelOpen: true
+kgFloatingPanelView: "flightSim"
+run_ready_demo:
+  id: "flight-sim"
+  canonical_source_file: "/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md"
+  source_root: "knowgrph/docs"
+  source_backed: true
+  native_runtime: true
+  auto_start: true
+  external_dependencies: []
+shared_xr_scene:
+  source_authority: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
+  world_ownership: "overlay-only"
+flight_sim:
+  invocation: "/flight.sim @canvas #flight operation=open"
+  inspect_tool: "knowgrph.inspect_local_flight_sim"
+  control_tool: "knowgrph.control_local_flight_sim"
+---
+`
+const flightCompanion = `---
+status: "projection-pending"
+runtime_claim: "local-runtime-ready-source"
+kgCanvasSurfaceMode: "2d"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "flow"
+kgFloatingPanelOpen: false
+kgBottomPanelOpen: false
+activatable_seed: false
+note_kind: "projection-contract"
+run_ready_demo_id: "flight-sim"
 ---
 `
 const safeDraftPresentation = [
@@ -38,6 +81,11 @@ const fixture = async () => {
   await mkdir(publishRoot, { recursive: true })
   await writeFile(path.join(path.dirname(canonicalPath), 'README.md'), '# Workspace Seed Authority\n')
   await writeFile(canonicalPath, canonicalSeed)
+  await writeFile(path.join(knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH), flightRuntimeSeed)
+  await writeFile(
+    path.join(knowgrphRoot, 'docs/workspace-seeds', FLIGHT_COMPANION_BASENAME),
+    flightCompanion,
+  )
   for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
     const frontmatter = basename.endsWith('.companion.md')
       ? `status: "draft"\nactivatable_seed: false\nnote_kind: "projection-contract"\n${safeDraftPresentation}`
@@ -91,16 +139,16 @@ test('rejects every missing authored draft document', async t => {
   }
 })
 
-test('rejects a draft document that declares runtime activation', async t => {
+test('rejects a flight runtime source without canonical shared-XR overlay authority', async t => {
   const roots = await fixture()
   t.after(() => rm(roots.root, { recursive: true, force: true }))
   await writeFile(
-    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
-    '---\nstatus: "draft"\nruntime_status: "draft"\nrun_ready_demo:\n  id: "flight-sim"\n---\n',
+    path.join(roots.knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
+    flightRuntimeSeed.replace('world_ownership: "overlay-only"', 'world_ownership: "standalone"'),
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /draft workspace document knowgrph-game-flight-sim-demo\.md must remain non-activating/,
+    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
   )
 })
 
@@ -174,12 +222,12 @@ test('rejects live activation flags nested in a planned run-ready contract', asy
       const roots = await fixture()
       t.after(() => rm(roots.root, { recursive: true, force: true }))
       await writeFile(
-        path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
+        path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-mmorpg-demo.md'),
         `---\nstatus: draft\nruntime_status: draft\n${safeDraftPresentation}\nplanned_run_ready_demo:\n  id: planned\n${plannedContractCase.contract}\n---\n`,
       )
       await assert.rejects(
         () => verifyWorkspaceSeedAuthority(roots),
-        /draft workspace document knowgrph-game-flight-sim-demo\.md must remain non-activating/,
+        /draft workspace document knowgrph-game-mmorpg-demo\.md must remain non-activating/,
       )
     })
   }
@@ -189,7 +237,7 @@ test('accepts runtime-equivalent safe aliases and ignores Markdown body examples
   const roots = await fixture()
   t.after(() => rm(roots.root, { recursive: true, force: true }))
   await writeFile(
-    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
+    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-mmorpg-demo.md'),
     [
       '---',
       'status: draft',
@@ -221,11 +269,11 @@ test('does not accept safe presentation markers from the Markdown body', async t
   const roots = await fixture()
   t.after(() => rm(roots.root, { recursive: true, force: true }))
   await writeFile(
-    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.companion.md'),
+    path.join(roots.knowgrphRoot, 'docs/workspace-seeds', FLIGHT_COMPANION_BASENAME),
     [
       '---',
-      'status: draft',
-      'runtime_claim: planned-contract-only',
+      'status: projection-pending',
+      'runtime_claim: local-runtime-ready-source',
       'activatable_seed: false',
       'note_kind: projection-contract',
       '---',
@@ -235,12 +283,16 @@ test('does not accept safe presentation markers from the Markdown body', async t
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /draft workspace document knowgrph-game-flight-sim-demo\.companion\.md must remain non-activating.*missing=/,
+    /projection companion knowgrph-game-flight-sim-demo\.companion\.md must remain non-activating.*missing=/,
   )
 })
 
 test('rejects draft documents projected into Agentic Canvas OS', async t => {
-  for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
+  for (const basename of [
+    FLIGHT_SEED_BASENAME,
+    FLIGHT_COMPANION_BASENAME,
+    ...DRAFT_WORKSPACE_SEED_BASENAMES,
+  ]) {
     await t.test(basename, async t => {
       const roots = await fixture()
       t.after(() => rm(roots.root, { recursive: true, force: true }))

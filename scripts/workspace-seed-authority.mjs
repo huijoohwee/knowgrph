@@ -5,14 +5,17 @@ import { load as loadYaml } from 'js-yaml'
 export const WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH = 'docs/workspace-seeds'
 export const PHYSICS_SEED_BASENAME = 'knowgrph-physics-playground-demo.md'
 export const PHYSICS_SEED_RELATIVE_PATH = `${WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH}/${PHYSICS_SEED_BASENAME}`
+export const FLIGHT_SEED_BASENAME = 'knowgrph-game-flight-sim-demo.md'
+export const FLIGHT_SEED_RELATIVE_PATH = `${WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH}/${FLIGHT_SEED_BASENAME}`
+export const FLIGHT_COMPANION_BASENAME = 'knowgrph-game-flight-sim-demo.companion.md'
 export const DRAFT_WORKSPACE_SEED_BASENAMES = Object.freeze([
-  'knowgrph-game-flight-sim-demo.companion.md',
-  'knowgrph-game-flight-sim-demo.md',
   'knowgrph-game-mmorpg-demo.companion.md',
   'knowgrph-game-mmorpg-demo.md',
 ])
 export const KNOWGRPH_WORKSPACE_SEED_INVENTORY = Object.freeze([
   'README.md',
+  FLIGHT_COMPANION_BASENAME,
+  FLIGHT_SEED_BASENAME,
   ...DRAFT_WORKSPACE_SEED_BASENAMES,
   PHYSICS_SEED_BASENAME,
 ])
@@ -147,6 +150,87 @@ const requireCanonicalIdentity = source => {
   }
 }
 
+const requireFlightRuntimeIdentity = source => {
+  const frontmatter = parseYamlFrontmatter(FLIGHT_SEED_BASENAME, source)
+  const runReadyDemo = isRecord(frontmatter.run_ready_demo) ? frontmatter.run_ready_demo : {}
+  const sharedScene = isRecord(frontmatter.shared_xr_scene) ? frontmatter.shared_xr_scene : {}
+  const flightSim = isRecord(frontmatter.flight_sim) ? frontmatter.flight_sim : {}
+  const missing = []
+  const requireValue = (label, actual, expected) => {
+    if (actual !== expected) missing.push(`${label}=${JSON.stringify(expected)}`)
+  }
+
+  requireValue('status', frontmatter.status, 'runtime-ready')
+  requireValue('runtime_status', frontmatter.runtime_status, 'runtime-ready')
+  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-ready')
+  requireValue('publish_scope', frontmatter.publish_scope, 'local-only')
+  requireValue('kgCanvasSurfaceMode', readCanvasSurfaceMode(frontmatter.kgCanvasSurfaceMode), 'xr')
+  requireValue('kgCanvasRenderMode', readCanvasRenderMode(frontmatter.kgCanvasRenderMode), '3d')
+  requireValue('kgCanvas3dMode', normalizePresetToken(frontmatter.kgCanvas3dMode), 'xr')
+  requireValue('kgFloatingPanelOpen', readBooleanPreset(frontmatter.kgFloatingPanelOpen), true)
+  requireValue('kgFloatingPanelView', frontmatter.kgFloatingPanelView, 'flightSim')
+  requireValue('run_ready_demo.id', runReadyDemo.id, 'flight-sim')
+  requireValue(
+    'run_ready_demo.canonical_source_file',
+    runReadyDemo.canonical_source_file,
+    `/${FLIGHT_SEED_RELATIVE_PATH}`,
+  )
+  requireValue('run_ready_demo.source_root', runReadyDemo.source_root, 'knowgrph/docs')
+  requireValue('run_ready_demo.source_backed', readBooleanPreset(runReadyDemo.source_backed), true)
+  requireValue('run_ready_demo.native_runtime', readBooleanPreset(runReadyDemo.native_runtime), true)
+  requireValue('run_ready_demo.auto_start', readBooleanPreset(runReadyDemo.auto_start), true)
+  if (!Array.isArray(runReadyDemo.external_dependencies) || runReadyDemo.external_dependencies.length !== 0) {
+    missing.push('run_ready_demo.external_dependencies=[]')
+  }
+  requireValue(
+    'shared_xr_scene.source_authority',
+    sharedScene.source_authority,
+    `/${PHYSICS_SEED_RELATIVE_PATH}`,
+  )
+  requireValue('shared_xr_scene.world_ownership', sharedScene.world_ownership, 'overlay-only')
+  requireValue('flight_sim.invocation', flightSim.invocation, '/flight.sim @canvas #flight operation=open')
+  requireValue('flight_sim.inspect_tool', flightSim.inspect_tool, 'knowgrph.inspect_local_flight_sim')
+  requireValue('flight_sim.control_tool', flightSim.control_tool, 'knowgrph.control_local_flight_sim')
+
+  const forbidden = Object.keys(frontmatter).filter(key => key.startsWith('planned_'))
+  if (missing.length > 0 || forbidden.length > 0) {
+    throw new Error(
+      `runtime-ready workspace document ${FLIGHT_SEED_BASENAME} has invalid authority; `
+      + `missing=${JSON.stringify(missing)} forbidden=${JSON.stringify(forbidden)}`,
+    )
+  }
+}
+
+const requireFlightCompanionIdentity = source => {
+  const frontmatter = parseYamlFrontmatter(FLIGHT_COMPANION_BASENAME, source)
+  const missing = []
+  const requireValue = (label, actual, expected) => {
+    if (actual !== expected) missing.push(`${label}=${JSON.stringify(expected)}`)
+  }
+  requireValue('status', frontmatter.status, 'projection-pending')
+  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-ready-source')
+  requireValue('kgCanvasSurfaceMode', readCanvasSurfaceMode(frontmatter.kgCanvasSurfaceMode), '2d')
+  requireValue('kgCanvasRenderMode', readCanvasRenderMode(frontmatter.kgCanvasRenderMode), '2d')
+  requireValue('kgCanvas2dRenderer', readCanvas2dRenderer(frontmatter.kgCanvas2dRenderer), 'flow')
+  requireValue('kgFloatingPanelOpen', readBooleanPreset(frontmatter.kgFloatingPanelOpen), false)
+  requireValue('kgBottomPanelOpen', readBooleanPreset(frontmatter.kgBottomPanelOpen), false)
+  requireValue('activatable_seed', readBooleanPreset(frontmatter.activatable_seed), false)
+  requireValue('note_kind', frontmatter.note_kind, 'projection-contract')
+  requireValue('run_ready_demo_id', frontmatter.run_ready_demo_id, 'flight-sim')
+  const forbidden = [
+    'run_ready_demo',
+    'kgCanvas3dMode',
+    'kgFloatingPanelView',
+    ...DRAFT_IMPLEMENTED_RUNTIME_KEYS,
+  ].filter(key => Object.hasOwn(frontmatter, key))
+  if (missing.length > 0 || forbidden.length > 0) {
+    throw new Error(
+      `projection companion ${FLIGHT_COMPANION_BASENAME} must remain non-activating; `
+      + `missing=${JSON.stringify(missing)} forbidden=${JSON.stringify(forbidden)}`,
+    )
+  }
+}
+
 const requireDraftIdentity = (basename, source) => {
   const frontmatter = parseYamlFrontmatter(basename, source)
   const isCompanion = basename.endsWith('.companion.md')
@@ -206,6 +290,16 @@ export async function verifyWorkspaceSeedAuthority({
   if (!await isFile(canonicalPath)) throw new Error(`canonical workspace seed is missing: ${canonicalPath}`)
   const source = await readFile(canonicalPath, 'utf8')
   requireCanonicalIdentity(source)
+  const flightSource = await readFile(
+    path.resolve(knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
+    'utf8',
+  )
+  requireFlightRuntimeIdentity(flightSource)
+  const flightCompanionSource = await readFile(
+    path.resolve(knowgrphRoot, WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH, FLIGHT_COMPANION_BASENAME),
+    'utf8',
+  )
+  requireFlightCompanionIdentity(flightCompanionSource)
   for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
     const draftSource = await readFile(
       path.resolve(knowgrphRoot, WORKSPACE_SEED_DIRECTORY_RELATIVE_PATH, basename),

@@ -289,7 +289,7 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   if (!threeGraphSource.includes('XR_PHYSICS_RUN_READY_GRAPH') || !threeGraphSource.includes('!xrDocumentLoaded && !xrPhysicsRunReadyDemo')) {
     throw new Error('expected standalone launch to bypass the authored XR empty-world loading surface')
   }
-  if (!xrRunReadyRuntimeSource.includes('pausedForGameModeRef')
+  if (!xrRunReadyRuntimeSource.includes('pausedForGameplayRef')
     || !xrRunReadyRuntimeSource.includes('pauseXrNativeControllerDemo()')
     || !xrRunReadyRuntimeSource.includes('resumeXrNativeControllerDemo()')) {
     throw new Error('expected Game Mode to pause and resume the existing XR controller without resetting its world')

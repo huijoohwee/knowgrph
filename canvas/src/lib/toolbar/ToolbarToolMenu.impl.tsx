@@ -52,6 +52,7 @@ import {
   FloatingPanelHeaderStatus,
   useFloatingPanelDevStatusMetrics,
 } from '@/lib/toolbar/ToolbarToolMenuStatus'
+import { FloatingPanelXrSceneView } from '@/lib/toolbar/FloatingPanelXrSceneViews'
 
 type RequestedFloatingPanelView = FloatingPanelView; type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
@@ -79,10 +80,6 @@ type FloatingPanelOverflowOption = {
 }
 
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
-const MediaCatalogPanelLazy = React.lazy(() => import('@/features/command-menu/CommandMenuCatalogPanel'))
-const XrAnimationFloatingPanelViewLazy = React.lazy(() => import('@/features/three/XrAnimationFloatingPanelView'))
-const MotionControlFloatingPanelViewLazy = React.lazy(() => import('@/features/three/MotionControlFloatingPanelView'))
-const GameModeFloatingPanelViewLazy = React.lazy(() => import('@/features/game-fps/GameModeFloatingPanelView'))
 const StoryboardWidgetFloatingPanelViewLazy = React.lazy(() => import('@/features/storyboard-widget-manager/StoryboardWidgetFloatingPanelView').then(mod => ({ default: mod.StoryboardWidgetFloatingPanelView })))
 const FlowchartFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/FlowchartFloatingPanelView').then(mod => ({ default: mod.FlowchartFloatingPanelView })))
 const GitGraphFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })))
@@ -90,9 +87,8 @@ const GanttFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/
 const TimelineFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/TimelineFloatingPanelView').then(mod => ({ default: mod.TimelineFloatingPanelView })))
 const ArchitectureFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/ArchitectureFloatingPanelView').then(mod => ({ default: mod.ArchitectureFloatingPanelView })))
 const EventModelingFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })))
-const StrybldrCameraFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'animation', 'motionControl', 'gameMode', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'animation', 'motionControl', 'gameMode', 'flightSim', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
 
 const FLOATING_PANEL_PRIMARY_VIEW_BUTTON_SPECS: FloatingPanelViewButtonSpec[] = [
   { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
@@ -102,6 +98,7 @@ const FLOATING_PANEL_PRIMARY_VIEW_BUTTON_SPECS: FloatingPanelViewButtonSpec[] = 
   { view: 'animation', title: 'Animation', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.animation },
   { view: 'motionControl', title: UI_LABELS.motionControl, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.motionControl },
   { view: 'gameMode', title: UI_LABELS.gameMode, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gameMode },
+  { view: 'flightSim', title: UI_LABELS.flightSim, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.flightSim },
   { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
   { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
   { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
@@ -473,31 +470,7 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
             {floatingPanelView === 'skillsCommands' && <FloatingPanelSkillsCommandsView />} {floatingPanelView === 'promptPresets' && <FloatingPanelPromptPresetsView />}
             {floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />}
-            {floatingPanelView === 'media' && (
-              <React.Suspense fallback={null}>
-                <MediaCatalogPanelLazy />
-              </React.Suspense>
-            )}
-            {floatingPanelView === 'animation' && (
-              <React.Suspense fallback={null}>
-                <XrAnimationFloatingPanelViewLazy />
-              </React.Suspense>
-            )}
-            {floatingPanelView === 'motionControl' && (
-              <React.Suspense fallback={null}>
-                <MotionControlFloatingPanelViewLazy />
-              </React.Suspense>
-            )}
-            {floatingPanelView === 'gameMode' && (
-              <React.Suspense fallback={null}>
-                <GameModeFloatingPanelViewLazy />
-              </React.Suspense>
-            )}
-            {floatingPanelView === 'camera' && (
-              <React.Suspense fallback={null}>
-                <StrybldrCameraFloatingPanelViewLazy />
-              </React.Suspense>
-            )}
+            <FloatingPanelXrSceneView view={floatingPanelView} />
             {floatingPanelView === 'design' && <DesignFloatingPanelView active={designPanelsAvailable} />}
             {floatingPanelView === 'chat' && (
               <React.Suspense fallback={null}>
