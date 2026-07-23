@@ -126,6 +126,35 @@ test('cache revision owner removes stale assets and every scoped HTML variant', 
   ])
 })
 
+test('cache revision owner removes owned HTML poison without erasing sibling app caches', async () => {
+  const cacheStorage = createCacheStorage({
+    'workbox-precache-v2': [
+      `/knowgrph/assets/${CURRENT_REVISION}/index.js`,
+    ],
+    'kg-static': [
+      { path: '/favicon.ico', contentType: 'text/html; charset=utf-8' },
+      { path: '/favicon.svg', contentType: 'image/svg+xml' },
+    ],
+    'singabldr-pwa:static:20260504-2': [
+      { path: '/singabldr/', contentType: 'text/html; charset=utf-8' },
+      { path: '/singabldr/index.html', contentType: 'text/html; charset=utf-8' },
+    ],
+  })
+
+  const result = await pruneStaleServiceWorkerCacheEntries({
+    cacheStorage,
+    origin: ORIGIN,
+    sourceRevision: CURRENT_REVISION,
+  })
+
+  assert.deepEqual(result, { ready: true, deletedPaths: ['/favicon.ico'] })
+  assert.deepEqual(cacheStorage.readPaths('kg-static'), ['/favicon.svg'])
+  assert.deepEqual(cacheStorage.readPaths('singabldr-pwa:static:20260504-2'), [
+    '/singabldr/',
+    '/singabldr/index.html',
+  ])
+})
+
 test('cache revision owner does not prune while the active revision precache is unavailable', async () => {
   const stalePath = `/knowgrph/assets/${PREVIOUS_REVISION}/old-lazy.js`
   const cacheStorage = createCacheStorage({

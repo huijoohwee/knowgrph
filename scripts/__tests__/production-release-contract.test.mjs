@@ -14,10 +14,12 @@ const docsSeedLibrary = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'lib',
 const pagesSyncScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'sync-pages-knowgrph.mjs'), 'utf8')
 const pagesFunctionsBuildScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'build-pages-functions-worker.mjs'), 'utf8')
 const agentReadyFunction = fs.readFileSync(path.resolve(repoRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs'), 'utf8')
+const rootAgentReadyFunction = fs.readFileSync(path.resolve(repoRoot, 'cloudflare', 'pages', 'root-agent-ready-index.mjs'), 'utf8')
 const productionReadinessBuild = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-runtime-readiness-build.mjs'), 'utf8')
 const pagesDeploymentScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'pages-production-deployment.mjs'), 'utf8')
 const productionFidelityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'verify-production-fidelity.mjs'), 'utf8')
 const productionServiceWorkerUpgradeScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'verify-production-service-worker-upgrade.mjs'), 'utf8')
+const serviceWorkerUpgradeCacheProofScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'service-worker-upgrade-cache-proof.mjs'), 'utf8')
 const productionMirrorArtifactScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-mirror-artifact.mjs'), 'utf8')
 const gameModeSourceAuthorityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-game-fps-readiness.mjs'), 'utf8')
 const protectedMainAuthorityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'assert-protected-main-release-authority.mjs'), 'utf8')
@@ -127,6 +129,22 @@ test('Pages mirror sync preserves the agent-ready route local module closure', (
     assert.match(pagesSyncScript, new RegExp(fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   }
   assert.match(pagesFunctionsBuildScript, /process\.env\.KNOWGRPH_PUBLISH_REPOSITORY_ROOT/)
+})
+
+test('apex Home has one canonical shell and a real Pages not-found boundary', () => {
+  assert.doesNotMatch(rootAgentReadyFunction, /rootHtmlResponse|rootNoscriptFallbackMarkup|loadWebMcpScript/)
+  assert.doesNotMatch(rootAgentReadyFunction, /data-kg-live-canvas-launch|<iframe class="live-canvas"/)
+  assert.match(rootAgentReadyFunction, /throw new Error\("canonical Knowgrph app shell is invalid"\)/)
+  assert.match(productionFidelityScript, /missing assets must not resolve through the apex Home app shell/)
+  assert.match(productionFidelityScript, /missingResponse\.status, 404/)
+  assert.match(productionFidelityScript, /'\/index\.html'/)
+  assert.match(productionFidelityScript, /'\/hackamap\/'/)
+  assert.match(productionFidelityScript, /the Pages 404 boundary must preserve the sibling Singabldr app/)
+  assert.match(productionFidelityScript, /\/singabldr\/manifest\.webmanifest/)
+  assert.match(productionFidelityScript, /\/singabldr\/sw\.js/)
+  assert.match(productionMirrorArtifactScript, /'404\.html'/)
+  assert.match(productionMirrorArtifactScript, /productionMirrorArtifactDeletionEntries = \['index\.html'\]/)
+  assert.match(releaseWorkflow, /huijoohwee\/404\.html/)
 })
 
 test('production release is automatic only for protected main and retains rollback evidence', () => {
@@ -262,11 +280,16 @@ test('verified production mirror is published only after live smoke', () => {
   assert.match(productionServiceWorkerUpgradeScript, /cachedAssetNamespaces\[0\] === expectedRevision/)
   assert.match(productionServiceWorkerUpgradeScript, /cachedHtmlPaths/)
   assert.match(productionServiceWorkerUpgradeScript, /evidence\.cachedHtmlPaths\.length === 0/)
+  assert.match(productionServiceWorkerUpgradeScript, /preservedSiblingHtmlPaths/)
+  assert.match(productionServiceWorkerUpgradeScript, /service worker convergence must preserve sibling application HTML caches/)
   assert.match(productionServiceWorkerUpgradeScript, /precacheHtmlPaths/)
   assert.match(productionServiceWorkerUpgradeScript, /evidence\.precacheHtmlPaths\.length === 0/)
   assert.match(productionServiceWorkerUpgradeScript, /seedStaleRuntimeCacheProof/)
-  assert.match(productionServiceWorkerUpgradeScript, /service-worker-upgrade-stale-runtime-proof\.js/)
-  assert.match(productionServiceWorkerUpgradeScript, /kgSwUpgradeStaleHtmlProof/)
+  assert.match(serviceWorkerUpgradeCacheProofScript, /service-worker-upgrade-stale-runtime-proof\.js/)
+  assert.match(serviceWorkerUpgradeCacheProofScript, /kgSwUpgradeStaleHtmlProof/)
+  assert.match(serviceWorkerUpgradeCacheProofScript, /caches\.open\('kg-static'\)/)
+  assert.match(serviceWorkerUpgradeCacheProofScript, /singabldr-pwa:static:20260504-2/)
+  assert.match(serviceWorkerUpgradeCacheProofScript, /\/favicon\.ico\?kgSwUpgradeStaleHtmlProof=/)
   assert.match(
     productionServiceWorkerUpgradeScript,
     /assert\.deepEqual\(\s*evidence\.seededCachePaths\?\.htmlPaths,/,

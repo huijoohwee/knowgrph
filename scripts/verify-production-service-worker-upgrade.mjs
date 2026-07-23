@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { chromium } from 'playwright'
+import { seedStaleRuntimeCacheProof } from './service-worker-upgrade-cache-proof.mjs'
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/
 const EVIDENCE_SCHEMA = 'knowgrph-production-service-worker-upgrade/v2'
@@ -234,15 +235,22 @@ const readServiceWorkerRevisionEvidence = async page => page.evaluate(async () =
     .sort()
   const cachedAssetPaths = []
   const cachedHtmlPaths = []
+  const preservedSiblingHtmlPaths = []
   const precacheAssetPaths = []
   const precacheHtmlPaths = []
   for (const cacheName of cacheNames) {
     const cache = await caches.open(cacheName)
+    const isKnowgrphOwnedCache = ['kg-assets', 'kg-static', 'kg-data'].includes(cacheName)
+      || (
+        cacheName.startsWith('workbox-precache')
+        && cacheName.includes(`${window.location.origin}/knowgrph/`)
+      )
     const requests = await cache.keys()
     for (const request of requests) {
       const url = new URL(request.url)
       if (url.origin !== window.location.origin) continue
       const isAsset = url.pathname.startsWith('/knowgrph/assets/')
+      const isScopedPath = url.pathname === '/knowgrph' || url.pathname.startsWith('/knowgrph/')
       const response = await cache.match(request)
       const contentType = String(response?.headers.get('content-type') || '').trim()
       const isHtml = url.pathname === '/knowgrph'
@@ -251,7 +259,8 @@ const readServiceWorkerRevisionEvidence = async page => page.evaluate(async () =
         || /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/i.test(contentType)
       const cacheKey = `${url.pathname}${url.search}`
       if (isAsset) cachedAssetPaths.push(url.pathname)
-      if (isHtml) cachedHtmlPaths.push(cacheKey)
+      if (isHtml && (isKnowgrphOwnedCache || isScopedPath)) cachedHtmlPaths.push(cacheKey)
+      if (isHtml && !isKnowgrphOwnedCache && !isScopedPath) preservedSiblingHtmlPaths.push(cacheKey)
       if (cacheName.startsWith('workbox-precache')) {
         if (isAsset) precacheAssetPaths.push(url.pathname)
         if (isHtml) precacheHtmlPaths.push(cacheKey)
@@ -283,6 +292,7 @@ const readServiceWorkerRevisionEvidence = async page => page.evaluate(async () =
     cachedAssetCount: cachedAssetPaths.length,
     cachedAssetNamespaces,
     cachedHtmlPaths: [...new Set(cachedHtmlPaths)].sort(),
+    preservedSiblingHtmlPaths: [...new Set(preservedSiblingHtmlPaths)].sort(),
     precacheCacheNames,
     precacheAssetCount: precacheAssetPaths.length,
     precacheAssetNamespaces,
@@ -367,36 +377,6 @@ const observePageFailures = page => {
   })
   return { pageErrors, scriptPaths, poisonedModules }
 }
-
-const seedStaleRuntimeCacheProof = async (page, previousRevision) => page.evaluate(
-  async ({ revision }) => {
-    const assetPath = `/knowgrph/assets/${revision}/service-worker-upgrade-stale-runtime-proof.js`
-    const htmlPaths = [
-      `/knowgrph?kgSwUpgradeStaleHtmlProof=${revision}`,
-      `/knowgrph/deep-link?kgSwUpgradeStaleHtmlProof=${revision}`,
-    ]
-    const cache = await caches.open('kg-assets')
-    await cache.put(
-      new Request(assetPath),
-      new Response('export const staleRuntimeProof = true', {
-        headers: { 'Content-Type': 'text/javascript' },
-      }),
-    )
-    for (const htmlPath of htmlPaths) {
-      await cache.put(
-        new Request(htmlPath),
-        new Response('<!doctype html><title>stale service worker proof</title>', {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        }),
-      )
-    }
-    if (!await cache.match(assetPath) || !(await Promise.all(htmlPaths.map(htmlPath => cache.match(htmlPath)))).every(Boolean)) {
-      throw new Error('failed to seed stale CacheStorage proof entries')
-    }
-    return { assetPath, htmlPaths }
-  },
-  { revision: previousRevision },
-)
 
 const launchProfile = () => chromium.launchPersistentContext(profileDirectory, {
   channel: 'chrome',
@@ -490,7 +470,16 @@ const verify = async () => {
     [
       `/knowgrph?kgSwUpgradeStaleHtmlProof=${evidence.previousRevision}`,
       `/knowgrph/deep-link?kgSwUpgradeStaleHtmlProof=${evidence.previousRevision}`,
+      `/favicon.ico?kgSwUpgradeStaleHtmlProof=${evidence.previousRevision}`,
     ],
+  )
+  assert.equal(
+    evidence.seededCachePaths?.siblingCacheName,
+    'singabldr-pwa:static:20260504-2',
+  )
+  assert.deepEqual(
+    evidence.seededCachePaths?.siblingHtmlPaths,
+    ['/singabldr/', '/singabldr/index.html'],
   )
   assert.ok(
     isExpectedServiceWorkerRevision(evidence.serviceWorker, evidence.previousRevision, false, false),
@@ -514,6 +503,11 @@ const verify = async () => {
       expectedRevision,
       true,
       true,
+    )
+    assert.deepEqual(
+      upgradeServiceWorker.preservedSiblingHtmlPaths,
+      evidence.seededCachePaths.siblingHtmlPaths,
+      'service worker convergence must preserve sibling application HTML caches',
     )
     await upgradePage.waitForTimeout(1_000)
     assert.deepEqual(
@@ -545,6 +539,11 @@ const verify = async () => {
       expectedRevision,
       true,
       true,
+    )
+    assert.deepEqual(
+      finalServiceWorker.preservedSiblingHtmlPaths,
+      evidence.seededCachePaths.siblingHtmlPaths,
+      'converged service worker must retain sibling application HTML caches',
     )
     await finalPage.waitForTimeout(1_000)
 

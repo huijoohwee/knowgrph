@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { agentReadyHomepageLinkHeaderValue, buildAgentReadyStaticFiles } from '../cloudflare/pages/knowgrph-agent-ready.mjs'
+import { buildKnowgrphRedirects } from './production-pages-routing.mjs'
 import { buildProductionRuntimeReadiness, findRuntimeReadinessPathsNeedingUpdate, productionRuntimeReadinessHeaderLines } from './production-runtime-readiness-build.mjs'
 
 const checkMode = process.argv.includes('--check')
@@ -185,6 +186,7 @@ const joinRel = (...parts) => parts.join('/')
 const joinToken = (...parts) => parts.join('')
 const joinKebab = (...parts) => parts.join('-')
 const obsoleteGeneratedMirrorFiles = new Set([
+  'index.html',
   joinRel('knowgrph', '.well-known', 'runtime-readiness.json'),
   joinRel('canvas', 'src', 'features', 'agent-ready', joinToken('knowgrph', 'Skill', 'Pack', 'Contract.mjs')),
   joinRel('canvas', 'src', 'features', 'chat', joinToken('knowgrph', 'Skill', 'Pack', 'ChatArtifacts.ts')),
@@ -206,8 +208,6 @@ const blockedRelativeFiles = new Set([
 const preservedRelativeRoots = new Set([
   'imports',
 ])
-const GENERATED_REDIRECTS_START = '# BEGIN knowgrph generated top-level file routes'
-const GENERATED_REDIRECTS_END = '# END knowgrph generated top-level file routes'
 const GENERATED_AGENT_HEADERS_START = '# BEGIN knowgrph generated agent-ready headers'
 const GENERATED_AGENT_HEADERS_END = '# END knowgrph generated agent-ready headers'
 const GENERATED_APP_SHELL_HEADERS_START = '# BEGIN knowgrph generated app-shell cache headers'
@@ -417,41 +417,6 @@ const removeEmptyDirs = async (rootDir) => {
   await walk(rootDir)
 }
 
-const buildKnowgrphRedirects = (existing, rootFiles) => {
-  const generatedLines = [
-    GENERATED_REDIRECTS_START,
-    '/knowgrph /knowgrph 200',
-    '/knowgrph/ /knowgrph/ 200',
-    '/knowgrph/share/* /knowgrph/share/:splat 200',
-    '/knowgrph/doc/* /knowgrph/doc/:splat 200',
-    '/knowgrph/doc-default/* /knowgrph/doc-default/:splat 200',
-    '/knowgrph/mcp /knowgrph/mcp 200',
-    '/knowgrph/robots.txt /knowgrph/robots.txt 200',
-    '/knowgrph/sitemap.xml /knowgrph/sitemap.xml 200',
-    '/knowgrph/.well-known/* /knowgrph/.well-known/:splat 200',
-    ...rootFiles.map(rel => `/knowgrph/${rel} /content/knowgrph/${rel} 200`),
-    GENERATED_REDIRECTS_END,
-  ]
-  const nextBlock = generatedLines.join('\n')
-  const managedBlockRegex = new RegExp(
-    `${GENERATED_REDIRECTS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_REDIRECTS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
-  )
-  let next = existing.replace(
-    /^\/knowgrph\/\*\.js .*?\n^\/knowgrph\/\*\.mjs .*?\n^\/knowgrph\/\*\.css .*?\n^\/knowgrph\/\*\.svg .*?\n^\/knowgrph\/\*\.ico .*?\n^\/knowgrph\/\*\.json .*?\n^\/knowgrph\/\*\.wasm .*?\n^\/knowgrph\/\*\.txt .*?\n^\/knowgrph\/\*\.webmanifest .*?\n^\/knowgrph\/\*\.map .*?\n/gm,
-    '',
-  )
-  if (managedBlockRegex.test(next)) {
-    next = next.replace(managedBlockRegex, nextBlock)
-  } else {
-    const anchor = '/knowgrph/imports/* /content/knowgrph/imports/:splat 200'
-    if (!next.includes(anchor)) {
-      throw new Error(`Missing expected knowgrph redirects anchor in ${redirectsPath}`)
-    }
-    next = next.replace(anchor, `${anchor}\n${nextBlock}`)
-  }
-  return next
-}
-
 const buildAgentReadyHeaders = (existing, artifacts) => {
   const staticArtifactHeaderLines = [
     GENERATED_AGENT_HEADERS_START,
@@ -496,8 +461,6 @@ const buildAgentReadyHeaders = (existing, artifacts) => {
     GENERATED_AGENT_HOMEPAGE_HEADERS_START,
     '/',
     `  Link: ${agentReadyHomepageLinkHeaderValue}`,
-    '/index.html',
-    `  Link: ${agentReadyHomepageLinkHeaderValue}`,
     GENERATED_AGENT_HOMEPAGE_HEADERS_END,
   ]
   const homepageHeaderBlock = homepageHeaderLines.join('\n')
@@ -536,6 +499,10 @@ if (!(await existsDir(distDir))) {
 
 const sourceFiles = await listFiles(distDir)
 const rootManagedSourceFiles = [{ rel: 'knowgrph-live-canvas-hero.md', src: liveCanvasHeroMarkdownSource }]
+const publishRootManagedSourceFiles = [{
+  rel: '404.html',
+  src: path.resolve(knowgrphRoot, 'cloudflare', 'pages', '404.html'),
+}]
 const runtimeReadiness = await buildProductionRuntimeReadiness({
   sourceRevision, knowgrphRoot, mirrorRoot, contentRoot: targetDir,
   artifactEntries: [
@@ -594,6 +561,11 @@ if (await existsDir(publicRouteDir)) {
     publicFilesToRemove.push(rel)
   }
 }
+const publishRootManagedFilesToCopy = []
+for (const entry of publishRootManagedSourceFiles) {
+  const dst = path.resolve(mirrorRoot, entry.rel)
+  if (await plainFileNeedsUpdate(entry.src, dst)) publishRootManagedFilesToCopy.push(entry)
+}
 const rootFiles = [...new Set([
   ...sourceFiles,
   ...rootManagedSourceFiles.map(entry => entry.rel),
@@ -601,7 +573,7 @@ const rootFiles = [...new Set([
   .filter(rel => !rel.includes('/') && rel !== 'index.html' && !rel.startsWith('_'))
   .sort((a, b) => a.localeCompare(b))
 const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
-const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
+const nextRedirects = buildKnowgrphRedirects({ existing: existingRedirects, rootFiles, redirectsPath })
 const redirectsNeedUpdate = nextRedirects !== existingRedirects
 const agentReadyFunctionNeedsUpdate = await plainFileNeedsUpdate(agentReadyFunctionSource, agentReadyFunctionTarget)
 const youtubeTranscriptFunctionNeedsUpdate = await plainFileNeedsUpdate(youtubeTranscriptFunctionSource, youtubeTranscriptFunctionTarget)
@@ -654,6 +626,7 @@ if (checkMode) {
     publicFilesToCopy.length > 0 ||
     publicRootManagedFilesToCopy.length > 0 ||
     publicFilesToRemove.length > 0 ||
+    publishRootManagedFilesToCopy.length > 0 ||
     redirectsNeedUpdate ||
     agentReadyFunctionNeedsUpdate ||
     youtubeTranscriptFunctionNeedsUpdate ||
@@ -713,6 +686,10 @@ if (checkMode) {
       console.error(`  stale public route files needing removal (${publicFilesToRemove.length}):`)
       for (const rel of publicFilesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
       if (publicFilesToRemove.length > 20) console.error(`  - ... ${publicFilesToRemove.length - 20} more`)
+    }
+    if (publishRootManagedFilesToCopy.length > 0) {
+      console.error(`  publish-root files needing sync (${publishRootManagedFilesToCopy.length}):`)
+      for (const entry of publishRootManagedFilesToCopy) console.error(`  - ${entry.rel}`)
     }
     if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
     if (agentReadyFunctionNeedsUpdate) console.error('  - Knowgrph agent-ready Pages Function is out of sync')
@@ -810,6 +787,11 @@ if (checkMode) {
   if (redirectsNeedUpdate) {
     await fs.writeFile(redirectsPath, nextRedirects, 'utf8')
   }
+  let publishRootCopiedCount = 0
+  for (const entry of publishRootManagedFilesToCopy) {
+    await copyPlainFile(entry.src, path.resolve(mirrorRoot, entry.rel))
+    publishRootCopiedCount += 1
+  }
   if (agentReadyFunctionNeedsUpdate) {
     await copyPlainFile(agentReadyFunctionSource, agentReadyFunctionTarget)
   }
@@ -900,6 +882,6 @@ if (checkMode) {
   }
 
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyRuntimeUpdated=${agentReadyRuntimeUpdated}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyPromptContractUpdated=${agentReadyPromptContractNeedsUpdate ? 'yes' : 'no'}, agentReadyResourceContractUpdated=${agentReadyResourceContractNeedsUpdate ? 'yes' : 'no'}, mcpAppsReadyContractUpdated=${mcpAppsReadyContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnContractUpdated=${vdeoxplnContractNeedsUpdate ? 'yes' : 'no'}, localMcpToolNamesUpdated=${localMcpToolNamesNeedsUpdate ? 'yes' : 'no'}, probeTreeContractUpdated=${probeTreeContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnRoutingToolsUpdated=${vdeoxplnRoutingToolsNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated}, obsoleteGeneratedMirrorFilesRemoved=${obsoleteGeneratedMirrorFilesRemoved})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, publishRootCopied=${publishRootCopiedCount}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, headersUpdated=${headersNeedUpdate ? 'yes' : 'no'}, agentReadyFunctionUpdated=${agentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, youtubeTranscriptFunctionUpdated=${youtubeTranscriptFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameFunctionUpdated=${videoFrameFunctionNeedsUpdate ? 'yes' : 'no'}, videoFrameSharedProviderUpdated=${videoFrameSharedProviderNeedsUpdate ? 'yes' : 'no'}, agentReadyRuntimeUpdated=${agentReadyRuntimeUpdated}, agentReadyDocRouteUpdated=${agentReadyDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyDefaultDocRouteUpdated=${agentReadyDefaultDocRouteNeedsUpdate ? 'yes' : 'no'}, agentReadyShareRouteUpdated=${agentReadyShareRouteNeedsUpdate ? 'yes' : 'no'}, agentReadySharedUpdated=${agentReadySharedNeedsUpdate ? 'yes' : 'no'}, agentReadyDiscoveryUpdated=${agentReadyDiscoveryNeedsUpdate ? 'yes' : 'no'}, rootAgentReadySharedUpdated=${rootAgentReadySharedNeedsUpdate ? 'yes' : 'no'}, rootAgentReadyFunctionUpdated=${rootAgentReadyFunctionNeedsUpdate ? 'yes' : 'no'}, agentReadyToolContractUpdated=${agentReadyToolContractNeedsUpdate ? 'yes' : 'no'}, agentReadyPromptContractUpdated=${agentReadyPromptContractNeedsUpdate ? 'yes' : 'no'}, agentReadyResourceContractUpdated=${agentReadyResourceContractNeedsUpdate ? 'yes' : 'no'}, mcpAppsReadyContractUpdated=${mcpAppsReadyContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnContractUpdated=${vdeoxplnContractNeedsUpdate ? 'yes' : 'no'}, localMcpToolNamesUpdated=${localMcpToolNamesNeedsUpdate ? 'yes' : 'no'}, probeTreeContractUpdated=${probeTreeContractNeedsUpdate ? 'yes' : 'no'}, vdeoxplnRoutingToolsUpdated=${vdeoxplnRoutingToolsNeedsUpdate ? 'yes' : 'no'}, sharedDocumentStructureInspectionUpdated=${sharedDocumentStructureInspectionNeedsUpdate ? 'yes' : 'no'}, agentSurfaceInspectionUpdated=${agentSurfaceInspectionNeedsUpdate ? 'yes' : 'no'}, publishedDocShareTokenUpdated=${publishedDocShareTokenNeedsUpdate ? 'yes' : 'no'}, knowgrphStorageSyncContractUpdated=${knowgrphStorageSyncContractNeedsUpdate ? 'yes' : 'no'}, sharedD1Updated=${sharedD1NeedsUpdate ? 'yes' : 'no'}, sharedPublishedDocUpdated=${sharedPublishedDocNeedsUpdate ? 'yes' : 'no'}, agentReadyStaticUpdated=${agentReadyStaticUpdated}, obsoleteGeneratedMirrorFilesRemoved=${obsoleteGeneratedMirrorFilesRemoved})`,
   )
 }

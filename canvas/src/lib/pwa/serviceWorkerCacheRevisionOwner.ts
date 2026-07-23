@@ -1,5 +1,6 @@
 const SOURCE_REVISION_PATTERN = /^[0-9a-f]{40}$/
 const DEFAULT_SCOPE_PATH = '/knowgrph/'
+const KNOWGRPH_RUNTIME_CACHE_NAMES = new Set(['kg-assets', 'kg-static', 'kg-data'])
 const REVISION_REQUEST = 'KG_SERVICE_WORKER_SOURCE_REVISION_REQUEST'
 const REVISION_RESPONSE = 'KG_SERVICE_WORKER_SOURCE_REVISION_RESPONSE'
 const REVISION_RESPONSE_TIMEOUT_MS = 2_000
@@ -161,35 +162,38 @@ export async function pruneStaleServiceWorkerCacheEntries(
   const scopeRoot = scopePath.slice(0, -1)
   const assetRoot = `${scopePath}assets/`
   const expectedAssetPrefix = `${assetRoot}${options.sourceRevision}/`
+  const scopeUrl = new URL(scopePath, options.origin).toString()
   const staleEntries: Array<{ cache: CacheTarget; request: Request; pathname: string }> = []
   let expectedPrecacheReady = false
 
   for (const cacheName of await options.cacheStorage.keys()) {
     const cache = await options.cacheStorage.open(cacheName)
+    const isKnowgrphOwnedCache = KNOWGRPH_RUNTIME_CACHE_NAMES.has(cacheName)
+      || (cacheName.startsWith('workbox-precache') && cacheName.includes(scopeUrl))
     for (const request of await cache.keys()) {
       const url = new URL(request.url)
       if (url.origin !== options.origin) continue
       const isScopedPath = url.pathname === scopeRoot || url.pathname.startsWith(scopePath)
-      let isScopedHtml = isScopedPath && (
+      let isHtml = isScopedPath && (
         url.pathname === scopeRoot
         || url.pathname === scopePath
         || url.pathname.endsWith('.html')
       )
       let cachedResponse: Response | undefined
-      if (isScopedPath && !isScopedHtml) {
+      if (!isHtml && (isScopedPath || isKnowgrphOwnedCache)) {
         cachedResponse = await cache.match(request)
-        isScopedHtml = isHtmlContentType(cachedResponse?.headers.get('content-type') ?? null)
+        isHtml = isHtmlContentType(cachedResponse?.headers.get('content-type') ?? null)
       }
       if (
         cacheName.startsWith('workbox-precache')
         && url.pathname.startsWith(expectedAssetPrefix)
         && cachedResponse
-        && !isScopedHtml
+        && !isHtml
       ) {
         expectedPrecacheReady = true
       }
       if (
-        isScopedHtml
+        isHtml
         || (url.pathname.startsWith(assetRoot) && !url.pathname.startsWith(expectedAssetPrefix))
       ) {
         staleEntries.push({ cache, request, pathname: url.pathname })
