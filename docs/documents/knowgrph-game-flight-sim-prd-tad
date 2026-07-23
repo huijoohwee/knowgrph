@@ -30,7 +30,7 @@ constraints:
   - "no automatic Git operation or production deployment"
   - "one authored scene owner on the single React Three Fiber Canvas; no second renderer, Canvas, or world"
 constraints_inspiration:
-  - "refer to github.com/Arnie016/flight-simulator-fable5 for inspiration only; FORBID source copy and FORBID any runtime/build dependency on it"
+  - "refer to flight-simulator for inspiration only; FORBID source copy and FORBID any runtime/build dependency on it"
 source_references:
   agentic_ecs: "docs/documents/knowgrph-agentic-entity-component-system-prd-tad.md"
   sibling_game_fps: "docs/documents/knowgrph-game-fps-prd-tad.md"
@@ -42,7 +42,7 @@ source_references:
   planned_flight_runtime: "proposed canvas/src/features/game-flight-sim/ (not present)"
   planned_asset_spec_pipeline: "proposed canvas/src/features/game-flight-sim/assetSpec/ (not present)"
   validation_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
-  asset_inspiration_reference_only: "github.com/Arnie016/flight-simulator-fable5 (inspiration only; no source copy, no dependency)"
+  asset_inspiration_reference_only: "flight-simulator (inspiration only; no source copy, no dependency)"
 ---
 
 # Knowgrph Game Flight Sim PRD/TAD
@@ -57,7 +57,7 @@ This PRD/TAD is a normative **planned contract**, not documentation of an implem
 
 Knowgrph gains one browser-local FloatingPanel **Flight Sim** mode that runs a bounded single-player flight mission inside the existing React Three Fiber Canvas, over the same authored XR terrain catalog the physics playground already ships (procedural Singapore waterfront, airplane/helicopter subjects). It opens from a source-backed run-ready document, the shared XR surface catalog, browser WebMCP, or the strict `/flight.sim @canvas #flight` invocation. Desktop keyboard/pointer, mobile touch, standard gamepad, and optional Motion Control input arm one deterministic native Agentic ECS flight mission with in-repo flight dynamics, AABB terrain collision, a visible HUD, selectable camera source, and Decisions-only WorkspaceFs persistence.
 
-Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. The distinctive capability of this module is its **asset representation**: aircraft and scene props are authored as **img2threejs output — small, diffable TypeScript plus a JSON scene spec** that is git-diffable, human-auditable, editable, and offline-loadable; **TRELLIS.2's opaque binary GLB is retained only as a fallback** for assets that cannot yet be expressed as a spec. Asset generation (image-to-3D) is an offline authoring step, never a runtime dependency. The effect and feature framing are inspired by `Arnie016/flight-simulator-fable5`, but this module copies none of its source and takes no dependency on it.
+Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. The distinctive capability of this module is its **asset representation**: aircraft and scene props are authored as **img2threejs output — small, diffable TypeScript plus a JSON scene spec** that is git-diffable, human-auditable, editable, and offline-loadable; **TRELLIS.2's opaque binary GLB is retained only as a fallback** for assets that cannot yet be expressed as a spec. Asset generation (image-to-3D) is an offline authoring step, never a runtime dependency. The effect and feature framing are inspired by `flight-simulator`, but this module copies none of its source and takes no dependency on it.
 
 ## Product Requirements
 
@@ -105,7 +105,7 @@ A secondary user, the solo maintainer, wants aircraft/prop assets to arrive as s
 - Hosted or local LLMs, agent reasoning, narrative generation, model escalation, edge-ML policy models, ONNX Runtime, and token budgets.
 - Rapier, Yuka, `behaviortree.js`, recastnavigation, bitECS, or another game/ECS/physics engine.
 - Runtime image-to-3D generation, streaming asset generation, or any remote model call to produce assets during play.
-- Any copy of, or runtime/build dependency on, `Arnie016/flight-simulator-fable5` (inspiration only).
+- Any copy of, or runtime/build dependency on, `flight-simulator` (inspiration only).
 - Remote assets, D1, R2, KV, Durable Objects, Workers, Pages, or production routes; automatic Git commits, pushes, pull requests, or deployments from the browser runtime.
 
 ### User stories
@@ -245,7 +245,7 @@ Aircraft and scene props are represented, in priority order:
 1. **Primary — img2threejs TypeScript + JSON scene spec.** An offline authoring step converts a reference image into **small, diffable TypeScript plus a JSON scene spec** (geometry primitives, transforms, materials, and node graph). The spec is committed in-repo, reviews cleanly in a pull request, is human-editable, and loads fully offline. It is the canonical asset representation because it maximizes diffability, auditability, and TCO-zero storage, and because a text spec is deterministic to load.
 2. **Fallback — TRELLIS.2 GLB.** Where an asset cannot yet be expressed as a spec, an offline image-to-3D step (TRELLIS.2) may produce a **binary GLB**. The GLB is committed as a **local file, flagged as an opaque-binary fallback**, and loaded through the existing GLB asset path. It is used sparingly; the fallback count is a tracked success metric to be minimized.
 
-Both paths are **offline authoring artifacts**: no image-to-3D model, network fetch, or Cloudflare resource is invoked at runtime to obtain an asset. The loader prefers a spec when both exist. This pipeline is inspired by the feature framing of `Arnie016/flight-simulator-fable5` but copies none of its source and takes no dependency on it, and it introduces no runtime asset-generation dependency.
+Both paths are **offline authoring artifacts**: no image-to-3D model, network fetch, or Cloudflare resource is invoked at runtime to obtain an asset. The loader prefers a spec when both exist. This pipeline is inspired by the feature framing of `flight-simulator` but copies none of its source and takes no dependency on it, and it introduces no runtime asset-generation dependency.
 
 ### Persistence and resume
 
@@ -300,7 +300,7 @@ Aircraft and props are represented as **img2threejs small, diffable TypeScript +
 **Consequences:**
 - **Positive:** diffable, auditable, editable, offline, TCO-near-zero assets; deterministic loading; no runtime model/network dependency.
 - **Negative:** some complex assets may need the GLB fallback until spec coverage improves; the spec authoring step is an offline prerequisite.
-- **Neutral:** `Arnie016/flight-simulator-fable5` remains inspiration only; the fallback count is tracked and minimized as a success metric.
+- **Neutral:** `flight-simulator-fable5` remains inspiration only; the fallback count is tracked and minimized as a success metric.
 
 ### ADR-5: Persist Decisions through browser-local WorkspaceFs; Dev-only readiness
 
