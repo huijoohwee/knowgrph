@@ -378,6 +378,17 @@ def _apply_exact_authored_source(
                 '[data-kg-xr-scene-media-drop="1"]',
               )
               const canvas = root?.querySelector('canvas') || null
+              const documentCanvases = Array.from(
+                document.querySelectorAll('canvas'),
+              )
+              const rendererCanvases = documentCanvases.filter(
+                candidate => String(
+                  candidate.dataset.engine || '',
+                ).startsWith('three.js'),
+              )
+              const auxiliaryCanvases = documentCanvases.filter(
+                candidate => !rendererCanvases.includes(candidate),
+              )
               const nativeController =
                 controller.readXrNativeControllerDemo()
               const physicsSnapshot = {
@@ -407,7 +418,14 @@ def _apply_exact_authored_source(
                 controller: controllerSnapshot,
                 controllerFrame:
                   controller.readSharedXrNativeControllerDemoFrame(),
-                canvasCount: document.querySelectorAll('canvas').length,
+                canvasCount: documentCanvases.length,
+                rendererCanvasCount: rendererCanvases.length,
+                auxiliaryCanvasCount: auxiliaryCanvases.length,
+                auxiliaryCanvasesLocalOnly: auxiliaryCanvases.every(
+                  candidate => Boolean(candidate.closest(
+                    '[data-kg-motion-control-preview="local-only"]',
+                  )),
+                ),
                 rootCount: document.querySelectorAll(
                   '[data-kg-xr-scene-media-drop="1"]',
                 ).length,

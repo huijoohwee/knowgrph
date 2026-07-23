@@ -490,6 +490,12 @@ def main() -> None:
                     "canvasCount": active_scene["canvasCount"],
                     "documentCanvasCount":
                         active_scene["documentCanvasCount"],
+                    "rendererCanvasCount":
+                        active_scene["rendererCanvasCount"],
+                    "auxiliaryCanvasCount":
+                        active_scene["auxiliaryCanvasCount"],
+                    "auxiliaryCanvasesLocalOnly":
+                        active_scene["auxiliaryCanvasesLocalOnly"],
                     "preFlightCanvasIdentityRetained":
                         active_scene["canvasStable"],
                     "authoredXrSceneRetained": True,

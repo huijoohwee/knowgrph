@@ -4,11 +4,9 @@ from typing import Any
 
 from playwright.sync_api import Page
 
-
 FLIGHT_WEB_MCP_DEADLINE_MS = 2_000
 FLIGHT_TOOL_NAMES = {
-    "knowgrph.inspect_local_flight_sim",
-    "knowgrph.control_local_flight_sim",
+    "knowgrph.inspect_local_flight_sim", "knowgrph.control_local_flight_sim",
 }
 def _diagnostic_case(
     operation: str,
@@ -167,8 +165,7 @@ def control_flight_via_web_mcp(
         "operation": invocation.rsplit("operation=", 1)[-1].split()[0],
         "elapsedMs": timed["elapsedMs"],
         "deadlineMs": FLIGHT_WEB_MCP_DEADLINE_MS,
-        "withinDeadline":
-            timed["elapsedMs"] <= FLIGHT_WEB_MCP_DEADLINE_MS,
+        "withinDeadline": timed["elapsedMs"] <= FLIGHT_WEB_MCP_DEADLINE_MS,
         "ok": timed["result"].get("ok") is True,
         "errorCode": timed["result"].get("errorCode"),
     }
@@ -384,8 +381,6 @@ def verify_flight_web_mcp(
                 f"Flight WebMCP timeout did not fail closed: {diagnostic}"
             )
     return evidence
-
-
 def verify_flight_exit(
     page: Page,
     calls: list[dict[str, Any]],
@@ -426,6 +421,12 @@ def verify_flight_exit(
           const readRestoredSurface = () => {
             const state = store.useGraphStore.getState()
             const canvases = Array.from(document.querySelectorAll('canvas'))
+            const rendererCanvases = canvases.filter(
+              canvas => String(canvas.dataset.engine || '').startsWith('three.js'),
+            )
+            const auxiliaryCanvases = canvases.filter(
+              canvas => !rendererCanvases.includes(canvas),
+            )
             const roots = Array.from(document.querySelectorAll(
               '[data-kg-xr-scene-media-drop="1"]',
             ))
@@ -452,12 +453,19 @@ def verify_flight_exit(
               controllerFrame:
                 controller.readSharedXrNativeControllerDemoFrame(),
               canvasCount: canvases.length,
+              rendererCanvasCount: rendererCanvases.length,
+              auxiliaryCanvasCount: auxiliaryCanvases.length,
+              auxiliaryCanvasesLocalOnly: auxiliaryCanvases.every(
+                canvas => Boolean(canvas.closest(
+                  '[data-kg-motion-control-preview="local-only"]',
+                )),
+              ),
               rootCount: roots.length,
               baselineCanvasIdentityRetained:
                 baseline instanceof HTMLCanvasElement
                 && baseline.isConnected
-                && canvases.length === 1
-                && canvases[0] === baseline,
+                && rendererCanvases.length === 1
+                && rendererCanvases[0] === baseline,
             }
           }
           const beforeExit = readRestoredSurface()
@@ -537,6 +545,9 @@ def verify_flight_exit(
         "controller": expected_controller,
         "controllerFrame": expected_controller_frame,
         "canvasCount": prior_surface["canvasCount"],
+        "rendererCanvasCount": prior_surface["rendererCanvasCount"],
+        "auxiliaryCanvasCount": prior_surface["auxiliaryCanvasCount"],
+        "auxiliaryCanvasesLocalOnly": True,
         "rootCount": prior_surface["rootCount"],
         "baselineCanvasIdentityRetained": True,
     }
@@ -547,8 +558,7 @@ def verify_flight_exit(
         "operation": "exit",
         "elapsedMs": evidence["exitElapsedMs"],
         "deadlineMs": FLIGHT_WEB_MCP_DEADLINE_MS,
-        "withinDeadline":
-            evidence["exitElapsedMs"] <= FLIGHT_WEB_MCP_DEADLINE_MS,
+        "withinDeadline": evidence["exitElapsedMs"] <= FLIGHT_WEB_MCP_DEADLINE_MS,
         "ok": exit_result.get("ok") is True,
         "errorCode": exit_result.get("errorCode"),
     }
@@ -557,8 +567,9 @@ def verify_flight_exit(
         "operation": "inspect-inactive",
         "elapsedMs": inactive_inspection["elapsedMs"],
         "deadlineMs": FLIGHT_WEB_MCP_DEADLINE_MS,
-        "withinDeadline":
-            inactive_inspection["elapsedMs"] <= FLIGHT_WEB_MCP_DEADLINE_MS,
+        "withinDeadline": (
+            inactive_inspection["elapsedMs"] <= FLIGHT_WEB_MCP_DEADLINE_MS
+        ),
         "ok": inactive_inspection["result"].get("ok") is True,
         "errorCode": inactive_inspection["result"].get("errorCode"),
     }

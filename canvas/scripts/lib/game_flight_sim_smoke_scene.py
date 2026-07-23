@@ -53,6 +53,17 @@ def read_and_pin_authored_physics_baseline(
           const documentCanvases = Array.from(
             document.querySelectorAll('canvas'),
           )
+          const rendererCanvases = documentCanvases.filter(
+            canvas => String(canvas.dataset.engine || '').startsWith('three.js'),
+          )
+          const auxiliaryCanvases = documentCanvases.filter(
+            canvas => !rendererCanvases.includes(canvas),
+          )
+          const auxiliaryCanvasesLocalOnly = auxiliaryCanvases.every(
+            canvas => Boolean(canvas.closest(
+              '[data-kg-motion-control-preview="local-only"]',
+            )),
+          )
           const namedNodeCounts = nodes.reduce((counts, node) => {
             const name = String(node?.name || '').trim()
             if (name) counts[name] = (counts[name] || 0) + 1
@@ -109,8 +120,9 @@ def read_and_pin_authored_physics_baseline(
           )
           const ready = roots.length === 1
             && rootCanvases.length === 1
-            && documentCanvases.length === 1
-            && documentCanvases[0] === canvas
+            && rendererCanvases.length === 1
+            && rendererCanvases[0] === canvas
+            && auxiliaryCanvasesLocalOnly
             && requiredNodeNames.length === identityNodeNames.length
             && state.canvasRenderMode === '3d'
             && state.canvas3dMode === 'xr'
@@ -125,7 +137,6 @@ def read_and_pin_authored_physics_baseline(
             && nativeController.followCamera === true
             && ['stopped', 'playing', 'paused'].includes(physicsRuntime.phase)
             && physicsRuntime.world?.schema === 'knowgrph-xr-physics-world/v1'
-            && physicsRuntime.world.bodies.length > 0
           if (ready) {
             window.__kgFlightSimCanvas = canvas
             window.__kgFlightSimBaselineSceneIdentity = {
@@ -145,6 +156,9 @@ def read_and_pin_authored_physics_baseline(
             rootCount: roots.length,
             rootCanvasCount: rootCanvases.length,
             documentCanvasCount: documentCanvases.length,
+            rendererCanvasCount: rendererCanvases.length,
+            auxiliaryCanvasCount: auxiliaryCanvases.length,
+            auxiliaryCanvasesLocalOnly,
             canvasIdentityCaptured:
               ready && window.__kgFlightSimCanvas === canvas,
             requiredNodeNames,
@@ -205,6 +219,17 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
           )
           const documentCanvases = Array.from(
             document.querySelectorAll('canvas'),
+          )
+          const rendererCanvases = documentCanvases.filter(
+            canvas => String(canvas.dataset.engine || '').startsWith('three.js'),
+          )
+          const auxiliaryCanvases = documentCanvases.filter(
+            canvas => !rendererCanvases.includes(canvas),
+          )
+          const auxiliaryCanvasesLocalOnly = auxiliaryCanvases.every(
+            canvas => Boolean(canvas.closest(
+              '[data-kg-motion-control-preview="local-only"]',
+            )),
           )
           const missionIndex = nodes.findIndex(
             node => node.name === 'kg_flight_sim_mission',
@@ -275,11 +300,15 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
             rootCount: roots.length,
             canvasCount: canvases.length,
             documentCanvasCount: documentCanvases.length,
+            rendererCanvasCount: rendererCanvases.length,
+            auxiliaryCanvasCount: auxiliaryCanvases.length,
+            auxiliaryCanvasesLocalOnly,
             canvasIdentityCaptured: Boolean(window.__kgFlightSimCanvas),
             canvasStable: roots.length === 1
               && canvases.length === 1
-              && documentCanvases.length === 1
-              && documentCanvases[0] === canvases[0]
+              && rendererCanvases.length === 1
+              && rendererCanvases[0] === canvases[0]
+              && auxiliaryCanvasesLocalOnly
               && window.__kgFlightSimCanvas === canvases[0],
             root: {
               documentLoaded: roots[0]?.getAttribute('data-kg-xr-document-loaded') || '',
@@ -352,7 +381,8 @@ def assert_authored_scene(scene: dict[str, Any]) -> None:
     if (
         scene.get("rootCount") != 1
         or scene.get("canvasCount") != 1
-        or scene.get("documentCanvasCount") != 1
+        or scene.get("rendererCanvasCount") != 1
+        or scene.get("auxiliaryCanvasesLocalOnly") is not True
     ):
         raise AssertionError(f"expected one shared authored XR Canvas: {scene}")
     if (

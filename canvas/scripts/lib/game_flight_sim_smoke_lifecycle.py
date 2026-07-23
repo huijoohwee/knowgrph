@@ -240,6 +240,13 @@ def verify_surface_failure_paths(page: Page) -> dict[str, Any]:
           const capture = () => {
             const state = store.useGraphStore.getState()
             const physicsState = physics.readXrPhysicsRuntime()
+            const canvases = Array.from(document.querySelectorAll('canvas'))
+            const rendererCanvases = canvases.filter(
+              canvas => String(canvas.dataset.engine || '').startsWith('three.js'),
+            )
+            const auxiliaryCanvases = canvases.filter(
+              canvas => !rendererCanvases.includes(canvas),
+            )
             return {
               canvas: {
                 canvasRenderMode: state.canvasRenderMode,
@@ -262,9 +269,16 @@ def verify_surface_failure_paths(page: Page) -> dict[str, Any]:
                 frame: JSON.stringify(physics.readXrPhysicsRuntimeFrame()),
               },
               controller: camera.readXrNativeControllerCamera().mode,
-              canvasCount: document.querySelectorAll('canvas').length,
-              canvasStable: document.querySelectorAll('canvas').length === 1
-                && document.querySelector('canvas') === window.__kgFlightSimCanvas,
+              canvasCount: canvases.length,
+              rendererCanvasCount: rendererCanvases.length,
+              auxiliaryCanvasCount: auxiliaryCanvases.length,
+              auxiliaryCanvasesLocalOnly: auxiliaryCanvases.every(
+                canvas => Boolean(canvas.closest(
+                  '[data-kg-motion-control-preview="local-only"]',
+                )),
+              ),
+              canvasStable: rendererCanvases.length === 1
+                && rendererCanvases[0] === window.__kgFlightSimCanvas,
             }
           }
           physics.pauseXrPhysicsRuntime()
