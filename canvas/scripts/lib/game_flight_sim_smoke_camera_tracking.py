@@ -144,9 +144,15 @@ def read_fixed_follow_state(page: Page) -> dict[str, Any]:
           const native = await import(
             '/src/features/three/xrNativeControllerDemoRuntime.ts'
           )
+          const coordinates = await import(
+            '/src/features/game-flight-sim/flightSimSpatialScale.ts'
+          )
           const store = await import('/src/hooks/useGraphStore.ts')
           const snapshot = flight.readFlightSimSnapshot()
-          const scale = native.XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
+          const scale = coordinates.resolveFlightSimGameplayCoordinateScale(
+            native.XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE,
+            true,
+          )
           const horizontal = Math.cos(snapshot.aircraft.pitch)
           const forward = [
             -Math.sin(snapshot.aircraft.yaw) * horizontal,
