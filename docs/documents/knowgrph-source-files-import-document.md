@@ -1,3 +1,24 @@
+---
+title: "Knowgrph Source Files Import"
+id: "md:knowgrph-source-files-import-document"
+version: "1.1.0"
+updated: "2026-07-23"
+status: "active"
+doc_type: "Workflow and Runtime Reference"
+frontmatter_contract: "required"
+document_runtime_status: "runtime-ready-dev"
+runtime_scope: "Frontmatter parsing, source validation, MCP grammar resolution, and read-only Source Files discovery; importer status remains section-specific."
+deploy_boundary: "No Prod mirror or Cloudflare mutation is authorized by this document."
+mcp:
+  grammar_tool: "knowgrph.agentic_canvas_os.docs.invoke"
+  published_source_tools: ["search", "fetch"]
+  webmcp_source_tools: ["knowgrph.list_source_files", "knowgrph.read_source_file"]
+  source_availability: "Read-only after the document is present in the configured published Source Files workspace."
+invocation:
+  normalize: "/source.normalize @source.frontmatter @source.body #frontmatter #no-legacy"
+  verify: "/runtime-ready.check @local-harness @runtime-proof #runtime-ready #vcc"
+---
+
 # Knowgrph Source Files Import (Workflow → Workspace Actions)
 
 ## Design Mantras
@@ -17,6 +38,8 @@
 **UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → collapsible subsections (**Sample Dataset**, **Dataset fetch limits**, **Source Files**) → Source Files header "New Source File" (icon) → creates empty `.md` + selects it → opens the markdown workspace / Editor Workspace → left-side **Explorer** sidebar with sections (**Source Files**, **Outline**, **Backlinks**).
 
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
+
+**Storage And Sync Settings**: MainPanel Settings → `Document Storage & Sync` exposes Online/Offline only mode, the `GitHub/knowgrph/docs` and `GitHub/huijoohwee/docs` roots, offline fallback state, and explicit `Sync now`. Import remains local-first: Offline only never discards imported content, and online publication routes Knowgrph product/workspace-seed paths to `knowgrph-docs`, collaborative workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths as write targets.
 
 **Initialization-File Bootstrap Contract**: The canonical family contains the three legacy root seeds sourced from `huijoohwee/docs`—`/workspace-readme.md`, `/knowgrph-agentic-video-canvas-demo.md`, and `/knowgrph-maps-places.md`—plus `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, sourced from Knowgrph and published under the same path in Agentic Canvas OS. A cold unselected workspace starts from the physics seed; its frontmatter owns XR/3D and Motion Control initialization. Explicit deep links, imported embeds, persisted non-initialization documents, and a custom validation-seed environment remain authoritative in their declared scopes.
 
@@ -175,7 +198,7 @@ sequenceDiagram
   - `knowgrph/canvas/src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` wires selection and active workspace path to `setMarkdownDocument(...)`.
   - `knowgrph/canvas/src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx` renders the Source Files ingest controls in the markdown workspace toolbar.
 - **Geospatial Mode (Gympgrph)**:
-  - `gympgrph/src/geospatialDatasets.ts` exposes a lightweight dataset-add API for hosts.
+  - `gympgrph/src/datasets.ts` exposes the lightweight `addGeospatialDatasetUrl` API for hosts.
   - `gympgrph/src/hooks/store/geospatialSlice.ts` persists `mapOverlayDatasets` under `kg:ui:geospatial:*` keys.
 
 ### Component Inventory
@@ -195,7 +218,7 @@ sequenceDiagram
 | Curation UI | Explorer sidebar | `MarkdownPanelLayout.tsx` (Singabldr) | Built |
 | Curation UI | Workspace runtime | `MarkdownWorkspaceRuntime.impl.tsx` | Built |
 | Curation UI | Toolbar ingest controls | `MarkdownWorkspaceToolbar.tsx` | Built |
-| Geospatial | Dataset add API | `geospatialDatasets.ts` (Gympgrph) | Built |
+| Geospatial | Dataset add API | `datasets.ts` (Gympgrph) | Built |
 | Geospatial | Dataset store | `geospatialSlice.ts` (Gympgrph) | Built |
 | Utilities | URL normalization | `url.ts` → `normalizeGitHubBlobLikeUrl` | Built |
 | Fetch | Bounded remote fetch | `fetchRemoteText.ts` → `fetchRemoteTextDetailed` | Built |
@@ -328,4 +351,4 @@ Note: The current website-import artifact set is `raw.html`, `page.md`, `convers
 | Utilities | Centralize parsing | - [ ] Reuse URL normalization; forbid ad-hoc GitHub URL handling | `knowgrph/canvas/src/lib/url.ts` | `normalizeGitHubBlobLikeUrl` | URL | URL | Normalize blob-like URLs to the canonical fetch URL when possible |
 | Fetch | Bound remote work | - [ ] Bound fetch; forbid indefinite streaming | `knowgrph/canvas/src/lib/net/fetchRemoteText.ts` | `fetchRemoteTextDetailed` | URL | `{ ok,text }` | Timeout + max-bytes guard |
 | Curation UI | Preserve discoverability | - [ ] Show Source Files/Outline/Backlinks in Explorer; forbid hidden state | `singabldr/.../MarkdownPanelLayout.tsx` | `MarkdownPanelLayout` | `sourceFiles`, `tokens` | Explorer sidebar | Render Source Files tree + Outline (TOC) + Backlinks as stable sections |
-| Geospatial | Avoid duplicate import surfaces | - [ ] Consolidate dataset import; forbid conflicting UIs | `gympgrph/src/features/geospatial/GeospatialPanel.tsx` | `GeospatialPanel` | Dataset list | Dataset list UI | Geo panel does not provide dataset-add inputs; adding is consolidated into Source Files import |
+| Geospatial | Avoid duplicate import surfaces | - [ ] Consolidate dataset import; forbid conflicting UIs | `gympgrph/src/GeospatialPanelHost.tsx` | `GeospatialPanelHost` | Dataset list | Dataset list UI | Geo panel does not provide dataset-add inputs; adding is consolidated into Source Files import |

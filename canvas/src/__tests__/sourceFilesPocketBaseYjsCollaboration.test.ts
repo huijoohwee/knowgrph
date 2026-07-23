@@ -230,6 +230,7 @@ export async function testCollaborationSaveBridgeCommitsFormattedJsonThroughGitH
       workspaceId: 'kgws:test',
       documentKey: '/docs/shared.json',
       documentKind: 'json',
+      repositoryTarget: 'workspace-docs',
       serializedText: '{"rawEditorTextMustNotWin":true}',
       yjsStateBase64: encodeCollaborationYDocStateBase64(doc),
       activePeerCount: 2,
@@ -246,7 +247,7 @@ export async function testCollaborationSaveBridgeCommitsFormattedJsonThroughGitH
       {
         KNOWGRPH_STORAGE_GITHUB_TOKEN: 'test-token',
         KNOWGRPH_STORAGE_GITHUB_OWNER: 'owner',
-        KNOWGRPH_STORAGE_GITHUB_REPO: 'repo',
+        KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO: 'repo',
         KNOWGRPH_STORAGE_GITHUB_BRANCH: 'main',
       },
     )
@@ -260,7 +261,7 @@ export async function testCollaborationSaveBridgeCommitsFormattedJsonThroughGitH
     if (decoded !== '{\n  "z": 1\n}\n') {
       throw new Error(`expected bridge to format concurrent JSON before GitHub commit, got ${JSON.stringify(decoded)}`)
     }
-    if (String(putRequest?.body?.message || '') !== 'chore(sync): save shared.json from collaboration bridge') {
+    if (String(putRequest?.body?.message || '') !== 'chore(sync): save shared.json from workspace-docs collaboration bridge') {
       throw new Error(`expected bridge-owned commit message, got ${JSON.stringify(putRequest?.body?.message)}`)
     }
   } finally {
@@ -278,6 +279,7 @@ export async function testCollaborationSaveBridgeRejectsConcurrentJsonWithoutCrd
         workspaceId: 'kgws:test',
         documentKey: '/docs/shared.json',
         documentKind: 'json',
+        repositoryTarget: 'workspace-docs',
         serializedText: '{"z":1}',
         yjsStateBase64: '',
         activePeerCount: 2,
@@ -293,6 +295,34 @@ export async function testCollaborationSaveBridgeRejectsConcurrentJsonWithoutCrd
   const result = await response.json() as { ok?: boolean; code?: string; error?: string }
   if (response.status !== 409 || result.code !== 'conflict' || !String(result.error || '').includes('requires Yjs CRDT state')) {
     throw new Error(`expected bridge to reject concurrent raw JSON saves without CRDT state, got ${JSON.stringify(result)}`)
+  }
+}
+
+export async function testCollaborationSaveBridgeRejectsRepositoryTargetMismatch() {
+  const response = await readStorageWorker().fetch(
+    new Request(`https://example.com${buildKnowgrphCollaborationSavePath()}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId: 'kgws:test',
+        documentKey: '/docs/team-note.md',
+        documentKind: 'markdown',
+        repositoryTarget: 'knowgrph-docs',
+        serializedText: '# Team note',
+        yjsStateBase64: '',
+        activePeerCount: 1,
+        pocketBaseRoomId: null,
+        savedByPeerId: 'peer_a',
+        saveBoundary: 'explicit',
+      } satisfies KnowgrphCollaborationSaveRequest),
+    }),
+    {},
+  )
+  const result = await response.json() as { code?: string; error?: string }
+  if (response.status !== 400 || result.code !== 'bad_request'
+    || !String(result.error || '').includes('owning GitHub docs root')) {
+    throw new Error(`expected repository authority mismatch rejection, got ${JSON.stringify(result)}`)
   }
 }
 
@@ -323,6 +353,7 @@ export async function testCollaborationSaveBridgeIgnoresStalePocketBaseAwareness
           workspaceId: 'kgws:test',
           documentKey: '/docs/shared.json',
           documentKind: 'json',
+          repositoryTarget: 'workspace-docs',
           serializedText: '{"z":1}',
           yjsStateBase64: '',
           activePeerCount: 2,
@@ -334,7 +365,7 @@ export async function testCollaborationSaveBridgeIgnoresStalePocketBaseAwareness
       {
         KNOWGRPH_STORAGE_GITHUB_TOKEN: 'test-token',
         KNOWGRPH_STORAGE_GITHUB_OWNER: 'owner',
-        KNOWGRPH_STORAGE_GITHUB_REPO: 'repo',
+        KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO: 'repo',
         KNOWGRPH_STORAGE_POCKETBASE_URL: 'https://pocketbase.test',
       },
     )
@@ -387,6 +418,7 @@ export async function testCollaborationSaveBridgePrefersRequestYjsStateOverStale
           workspaceId: 'kgws:test',
           documentKey: '/docs/shared.json',
           documentKind: 'json',
+          repositoryTarget: 'workspace-docs',
           serializedText: '{"rawEditorTextMustNotWin":true}',
           yjsStateBase64: encodeCollaborationYDocStateBase64(freshDoc),
           activePeerCount: 2,
@@ -398,7 +430,7 @@ export async function testCollaborationSaveBridgePrefersRequestYjsStateOverStale
       {
         KNOWGRPH_STORAGE_GITHUB_TOKEN: 'test-token',
         KNOWGRPH_STORAGE_GITHUB_OWNER: 'owner',
-        KNOWGRPH_STORAGE_GITHUB_REPO: 'repo',
+        KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO: 'repo',
         KNOWGRPH_STORAGE_POCKETBASE_URL: 'https://pocketbase.test',
       },
     )

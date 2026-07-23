@@ -459,14 +459,14 @@ export type KnowgrphMediaAssetDeleteResponse = {
     d1: 'deleted' | 'missing'
   }
 }
-
 export type KnowgrphCollaborationDocumentKind = 'markdown' | 'json'
-
+export type KnowgrphDocumentRepositoryTarget = 'knowgrph-docs' | 'workspace-docs'
 export type KnowgrphCollaborationSaveRequest = {
   apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
   workspaceId: string
   documentKey: string
   documentKind: KnowgrphCollaborationDocumentKind
+  repositoryTarget: KnowgrphDocumentRepositoryTarget
   serializedText: string
   yjsStateBase64: string
   activePeerCount: number
@@ -474,18 +474,17 @@ export type KnowgrphCollaborationSaveRequest = {
   savedByPeerId: string | null
   saveBoundary: 'explicit' | 'autosave'
 }
-
 export type KnowgrphCollaborationSaveResponse = {
   ok: true
   apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
   workspaceId: string
   documentKey: string
+  repositoryTarget: KnowgrphDocumentRepositoryTarget
   githubPath: string
   commitSha: string | null
   contentSha: string | null
   committedAtMs: number
 }
-
 export type KnowgrphStorageR2ObjectLike = {
   body?: ReadableStream<Uint8Array> | null
   httpEtag?: string
@@ -537,7 +536,8 @@ export type KnowgrphStorageWorkerEnv = {
   KNOWGRPH_STORAGE_BLOB_MAX_BYTES?: string
   KNOWGRPH_STORAGE_GITHUB_TOKEN?: string
   KNOWGRPH_STORAGE_GITHUB_OWNER?: string
-  KNOWGRPH_STORAGE_GITHUB_REPO?: string
+  KNOWGRPH_STORAGE_GITHUB_KNOWGRPH_REPO?: string
+  KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO?: string
   KNOWGRPH_STORAGE_GITHUB_BRANCH?: string
   KNOWGRPH_STORAGE_GITHUB_COMMITTER_NAME?: string
   KNOWGRPH_STORAGE_GITHUB_COMMITTER_EMAIL?: string

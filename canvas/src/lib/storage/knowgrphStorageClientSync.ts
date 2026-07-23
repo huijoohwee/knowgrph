@@ -81,8 +81,8 @@ export type KnowgrphStorageSyncNowArgs = {
   onSyncCompleted?: ((result: KnowgrphStorageSyncRunResult) => void | Promise<void>) | null
   dbState?: KnowgrphStorageDb | null
 }
-
 export type KnowgrphStorageSyncRunResult = {
+  transportStatus: 'synced' | 'offline-queued'
   workspaceId: string
   deviceId: string
   pushedCount: number
@@ -103,7 +103,6 @@ export type KnowgrphStorageSyncRunResult = {
   lastPushCursor: string | null
   lastPullCursor: string | null
 }
-
 type SyncPushOutcome = {
   pushedCount: number
   appliedCount: number
@@ -114,7 +113,6 @@ type SyncPushOutcome = {
   conflictEntries: KnowgrphStorageSyncRunResult['conflictEntries']
   ackCursor: string | null
 }
-
 const inFlightSyncByWorkspace = new Map<string, Promise<KnowgrphStorageSyncRunResult>>()
 const pollTimerByWorkspace = new Map<string, number>()
 const routeUnavailableUntilByApiOrigin = new Map<string, number>()
@@ -396,6 +394,7 @@ const buildSkippedSyncResult = (args: {
   currentCursor: Awaited<ReturnType<typeof readCursorRow>>
   unresolvedConflictCount: number
 }): KnowgrphStorageSyncRunResult => ({
+  transportStatus: 'offline-queued',
   workspaceId: args.workspaceId,
   deviceId: args.deviceId,
   pushedCount: 0,
@@ -1014,6 +1013,7 @@ export const syncKnowgrphStorageNow = async (
       updatedAtMs: nowMs,
     })
     const result: KnowgrphStorageSyncRunResult = {
+      transportStatus: 'synced',
       workspaceId,
       deviceId,
       pushedCount: pushOutcome.pushedCount,

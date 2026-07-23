@@ -61,6 +61,7 @@ import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/worksp
 import { invalidateCachedWorkspaceActiveEntrySnapshot } from '@/features/source-files/workspaceActiveEntryCache'
 import {
   readWorkspaceSeedSyncEnabledSetting,
+  readWorkspaceCloudSyncEnabledSetting,
   readWorkspaceSeedSyncIdleMaxMsSetting,
   readWorkspaceSeedSyncPollMsSetting,
   readWorkspaceSourceFilesDocsOnlySetting,
@@ -292,19 +293,17 @@ export function SourceFilesPersistenceBootstrap() {
   const knowgrphStorageRuntimeDepsPromiseRef = React.useRef<Promise<KnowgrphStorageRuntimeDependencies> | null>(null)
   const knowgrphStorageRuntimeEpochRef = React.useRef(0)
   const [workspaceSyncSettingsRev, setWorkspaceSyncSettingsRev] = React.useState(0)
-
   React.useEffect(() => {
     return subscribeWorkspaceStoreSyncSettingsChanged(() => {
       setWorkspaceSyncSettingsRev(prev => prev + 1)
     })
   }, [])
-
   const [workspaceSeedSyncEnabled, setWorkspaceSeedSyncEnabled] = React.useState(() => readWorkspaceSeedSyncEnabledSetting())
+  const [workspaceCloudSyncEnabled, setWorkspaceCloudSyncEnabled] = React.useState(() => readWorkspaceCloudSyncEnabledSetting())
   const [workspaceSeedSyncPollMs, setWorkspaceSeedSyncPollMs] = React.useState(() => readWorkspaceSeedSyncPollMsSetting())
   const [workspaceSeedSyncIdleMaxMs, setWorkspaceSeedSyncIdleMaxMs] = React.useState(() => readWorkspaceSeedSyncIdleMaxMsSetting())
   const [workspaceSourceFilesDocsOnly, setWorkspaceSourceFilesDocsOnly] = React.useState(() => readWorkspaceSourceFilesDocsOnlySetting())
   const [workspaceSourceFilesSyncDebounceMs, setWorkspaceSourceFilesSyncDebounceMs] = React.useState(() => readWorkspaceSourceFilesSyncDebounceMsSetting())
-
   const readReusableWorkspaceSourceIndexSnapshot = React.useCallback(() => {
     const cached = reusableWorkspaceSourcesByPathRef.current
     if (cached) return cached
@@ -924,6 +923,7 @@ export function SourceFilesPersistenceBootstrap() {
 
   React.useEffect(() => {
     setWorkspaceSeedSyncEnabled(readWorkspaceSeedSyncEnabledSetting())
+    setWorkspaceCloudSyncEnabled(readWorkspaceCloudSyncEnabledSetting())
     setWorkspaceSeedSyncPollMs(readWorkspaceSeedSyncPollMsSetting())
     setWorkspaceSeedSyncIdleMaxMs(readWorkspaceSeedSyncIdleMaxMsSetting())
     setWorkspaceSourceFilesDocsOnly(readWorkspaceSourceFilesDocsOnlySetting())
@@ -954,7 +954,7 @@ export function SourceFilesPersistenceBootstrap() {
     sourceFilesSnapshot?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
     storageSyncSignature?: string
   }): KnowgrphStorageQueueRequest | null => {
-    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceSeedSyncEnabled) return null
+    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceCloudSyncEnabled) return null
     const workspaceId = readKnowgrphStorageWorkspaceId({
       workspaceId: args?.workspaceId,
       workspaceState: args?.workspaceState,
@@ -971,7 +971,7 @@ export function SourceFilesPersistenceBootstrap() {
       sourceFilesSnapshot,
       signature: `${workspaceId}:${storageSyncSignature}`,
     }
-  }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, readKnowgrphStorageWorkspaceId, workspaceSeedSyncEnabled])
+  }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, readKnowgrphStorageWorkspaceId, workspaceCloudSyncEnabled])
 
   const rememberKnowgrphStorageQueuedSnapshot = React.useCallback((request: KnowgrphStorageQueueRequest) => {
     lastQueuedKnowgrphStorageSignatureRef.current = request.signature
@@ -1062,7 +1062,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   const runKnowgrphStorageQueueRequest = React.useCallback((request: KnowgrphStorageQueueRequest) => {
-    if (!readKnowgrphStorageRuntimeSyncEnabled() || !readWorkspaceSeedSyncEnabledSetting()) return
+    if (!readKnowgrphStorageRuntimeSyncEnabled()) return
     if (!request.workspaceId) return
     if (activeKnowgrphWorkspaceIdRef.current && activeKnowgrphWorkspaceIdRef.current !== request.workspaceId) return
     if (lastQueuedKnowgrphStorageSignatureRef.current === request.signature) return
@@ -1128,10 +1128,10 @@ export function SourceFilesPersistenceBootstrap() {
   }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, resolveKnowgrphStorageQueueRequest, resolveSourceFilesComposeRequest])
 
   const applySourceFilesPersistenceStorageRequest = React.useCallback((request: SourceFilesPersistenceEffectRequest) => {
-    if (!workspaceSeedSyncEnabled) return
+    if (!workspaceCloudSyncEnabled) return
     if (knowgrphInboundApplyInFlightRef.current) return
     scheduleKnowgrphStorageQueueRequest(request.knowgrphStorageQueueRequest)
-  }, [scheduleKnowgrphStorageQueueRequest, workspaceSeedSyncEnabled])
+  }, [scheduleKnowgrphStorageQueueRequest, workspaceCloudSyncEnabled])
 
   const applySuppressedSourceFilesPersistenceComposeRequest = React.useCallback((compositionSignature: string): boolean => {
     if (Date.now() >= suppressComposeUntilMsRef.current) return false
@@ -1258,7 +1258,7 @@ export function SourceFilesPersistenceBootstrap() {
     changes: unknown
   }) => {
     if (activeKnowgrphWorkspaceIdRef.current !== args.workspaceId) return
-    if (!readKnowgrphStorageRuntimeSyncEnabled() || !readWorkspaceSeedSyncEnabledSetting()) return
+    if (!readKnowgrphStorageRuntimeSyncEnabled()) return
     const deps = knowgrphStorageRuntimeDepsRef.current
     if (!deps) return
     knowgrphInboundApplyInFlightRef.current = true
@@ -1281,7 +1281,7 @@ export function SourceFilesPersistenceBootstrap() {
     const epoch = knowgrphStorageRuntimeEpochRef.current
     void ensureKnowgrphStorageRuntimeDependencies().then(deps => {
       if (epoch !== knowgrphStorageRuntimeEpochRef.current) return
-      if (!readKnowgrphStorageRuntimeSyncEnabled() || !readWorkspaceSeedSyncEnabledSetting()) return
+      if (!readKnowgrphStorageRuntimeSyncEnabled()) return
       knowgrphStorageLoopCleanupRef.current = deps.startKnowgrphStorageSyncLoop({
         workspaceId: request.workspaceId,
         baseUrl: deps.baseUrl,
@@ -1372,7 +1372,7 @@ export function SourceFilesPersistenceBootstrap() {
   ])
 
   React.useEffect(() => {
-    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceSeedSyncEnabled) {
+    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceCloudSyncEnabled) {
       stopKnowgrphStorageWorkspaceRuntime()
       return
     }
@@ -1403,7 +1403,7 @@ export function SourceFilesPersistenceBootstrap() {
     readKnowgrphStorageWorkspaceSelection,
     resolveKnowgrphStorageWorkspaceRequest,
     stopKnowgrphStorageWorkspaceRuntime,
-    workspaceSeedSyncEnabled,
+    workspaceCloudSyncEnabled,
   ])
 
   React.useEffect(() => {

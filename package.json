@@ -116,6 +116,7 @@
     "storage:d1:migrate:remote": "npx --yes wrangler d1 migrations apply knowgrph-storage --remote --config cloudflare/workers/knowgrph-storage/wrangler.toml",
     "storage:d1:seed:docs": "node ./scripts/seed-storage-docs-to-cloudflare.mjs",
     "storage:d1:seed:docs:dry-run": "node ./scripts/seed-storage-docs-to-cloudflare.mjs --dry-run",
+    "storage:docs:check": "node ./scripts/check-storage-docs-runtime.mjs",
     "storage:deploy": "npm run storage:d1:migrate:remote && npm run storage:worker:deploy && npm run storage:d1:seed:docs",
     "workers:deploy": "npm run storage:deploy && npm run payment:worker:deploy",
     "hygiene:check": "node ./scripts/check-hygiene-compliance.mjs --changed",
