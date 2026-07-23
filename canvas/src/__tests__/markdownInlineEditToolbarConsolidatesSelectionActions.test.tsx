@@ -123,6 +123,15 @@ export async function testInlineEditToolbarMoreMenuIncludesSelectionActionsAndNo
 
     const showOnCanvas = findButtonByExactText(doc.body, 'Show on Canvas')
     if (!showOnCanvas) throw new Error('expected Show on Canvas inside inline toolbar More menu')
+    if (findButtonByExactText(doc.body, 'Show in Editor')) {
+      throw new Error('did not expect an unwired Show in Editor action')
+    }
+    if (!findButtonByExactText(doc.body, 'Link: Inline URL (default)')) {
+      throw new Error('expected legacy link-display actions to be consolidated into More')
+    }
+    if (!findButtonByExactText(doc.body, 'Link: Horizontal Card')) {
+      throw new Error('expected horizontal-card link display action inside More')
+    }
     showOnCanvas.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick(2)
 
