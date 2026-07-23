@@ -49,14 +49,27 @@ def _read_source_identity(
           const workspaceModule = await import(
             '/src/features/workspace-fs/workspaceFs.ts'
           )
+          const seedProvider = await import(
+            '/src/features/workspace-fs/workspaceSeedProvider.ts'
+          )
           const state = store.useGraphStore.getState()
           const workspace = await workspaceModule.getWorkspaceFs()
           const sourcePath = `/${demos.FLIGHT_SIM_DEMO_REPO_REL_PATH}`
           const sourceText = await workspace.readFileText(sourcePath)
-          const authoredSeeds = await workspaceModule.getWorkspaceSeedFiles()
+          const authoredSeeds = await seedProvider
+            .readWorkspaceInitializationDocsMirrorEntries({
+              preferCompleteDataset: true,
+            })
+          const sourceBasename =
+            demos.FLIGHT_SIM_DEMO_WORKSPACE_SEED_BASENAME
           const authoredSeed = authoredSeeds.find(
-            seed => seed.path
-              === workspaceModule.TEST_VALIDATION_WORKSPACE_SEED_PATH,
+            seed => {
+              const relPath = String(seed?.relPath || '')
+                .replace(/^\\/+/, '')
+              return relPath === sourceBasename
+                || relPath === `workspace-seeds/${sourceBasename}`
+                || relPath === `docs/workspace-seeds/${sourceBasename}`
+            },
           )
           const graphMetadata = state.graphData?.metadata
             && typeof state.graphData.metadata === 'object'
@@ -90,8 +103,10 @@ def _read_source_identity(
           return {
             documentName: state.markdownDocumentName,
             sourcePath,
-            authoredSeedPath: authoredSeed?.path || null,
-            authoredSeedFallback: authoredSeed?.isFallback ?? null,
+            authoredSeedPath: authoredSeed?.relPath || null,
+            authoredSeedAuthority: authoredSeed?.authority || null,
+            authoredSeedByteIdentical:
+              authoredSeed?.text === expectedSourceText,
             authoredSeedHead: String(authoredSeed?.text || '').slice(0, 120),
             demoId: demos.resolveWorkspaceRunReadyDemoIdForDocument(
               state.markdownDocumentName,
@@ -162,6 +177,9 @@ def _apply_exact_authored_source(
               const workspaceModule = await import(
                 '/src/features/workspace-fs/workspaceFs.ts'
               )
+              const seedProvider = await import(
+                '/src/features/workspace-fs/workspaceSeedProvider.ts'
+              )
               const demos = await import(
                 '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
               )
@@ -169,11 +187,20 @@ def _apply_exact_authored_source(
               await workspace.ensureSeed()
               const sourcePath =
                 `/${demos.FLIGHT_SIM_DEMO_REPO_REL_PATH}`
-              const authoredSeeds =
-                await workspaceModule.getWorkspaceSeedFiles()
+              const authoredSeeds = await seedProvider
+                .readWorkspaceInitializationDocsMirrorEntries({
+                  preferCompleteDataset: true,
+                })
+              const sourceBasename =
+                demos.FLIGHT_SIM_DEMO_WORKSPACE_SEED_BASENAME
               const authored = authoredSeeds.find(
-                seed => seed.path
-                  === workspaceModule.TEST_VALIDATION_WORKSPACE_SEED_PATH,
+                seed => {
+                  const relPath = String(seed?.relPath || '')
+                    .replace(/^\\/+/, '')
+                  return relPath === sourceBasename
+                    || relPath === `workspace-seeds/${sourceBasename}`
+                    || relPath === `docs/workspace-seeds/${sourceBasename}`
+                },
               )
               const sourceText = await workspace.readFileText(sourcePath)
               const hasSourceText = typeof sourceText === 'string'
@@ -193,7 +220,10 @@ def _apply_exact_authored_source(
                 applied,
                 activeTextByteIdentical: hasSourceText
                   && state.markdownDocumentText === sourceText,
-                authoredFallback: authored?.isFallback ?? null,
+                authoredSourcePath: authored?.relPath || null,
+                authoredSourceAuthority: authored?.authority || null,
+                authoredSourceByteIdentical:
+                  authored?.text === expectedSourceText,
                 byteIdentical: hasSourceText
                   && sourceText === expectedSourceText,
                 documentName: state.markdownDocumentName,
@@ -206,7 +236,7 @@ def _apply_exact_authored_source(
         ),
         lambda value: (
             value.get("activeTextByteIdentical") is True
-            and value.get("authoredFallback") is False
+            and value.get("authoredSourceByteIdentical") is True
             and value.get("byteIdentical") is True
             and str(value.get("documentName") or "").endswith(SOURCE_BASENAME)
             and str(value.get("sourcePath") or "").endswith(SOURCE_BASENAME)
@@ -240,6 +270,7 @@ def apply_and_verify_exact_authored_source(
             and value.get("demoId") == SOURCE_DEMO_ID
             and value.get("active") is True
             and value.get("sourceDeclaration") is True
+            and value.get("authoredSeedByteIdentical") is True
             and value.get("workspaceSourceMaterialized") is True
             and value.get("workspaceSourceByteIdentical") is True
             and value.get("graphOwnedByDocument") is True
