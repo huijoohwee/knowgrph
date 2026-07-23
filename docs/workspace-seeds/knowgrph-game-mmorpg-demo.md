@@ -3,12 +3,12 @@ title: "Knowgrph Native MMORPG World"
 doc_type: "Workspace Demo"
 status: "draft"
 runtime_status: "draft"
+runtime_claim: "planned-contract-only"
 publish_scope: "local-only"
-kgCanvasSurfaceMode: "xr"
-kgCanvasRenderMode: "3d"
-kgCanvas3dMode: "xr"
-kgFloatingPanelOpen: true
-kgFloatingPanelView: "mmorpgWorld"
+kgCanvasSurfaceMode: "2d"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "flow"
+kgFloatingPanelOpen: false
 kgBottomPanelOpen: false
 kgBottomPanelTab: "timeline"
 kgDocumentSemanticMode: "document"
@@ -17,7 +17,7 @@ kgMultiDimTableModeEnabled: false
 kgDocumentStructureBaselineLock: false
 planned_run_ready_demo:
   id: "mmorpg"
-  activation: "applied-source-document"
+  activation: "disabled-until-runtime-ready"
   identity_authority: "future source-authored run_ready_demo.id after runtime-readiness approval"
   imported_path_alias_required: false
   identity_conflict: "fail closed when path and source identity disagree"
@@ -28,16 +28,16 @@ planned_run_ready_demo:
   source_root: "knowgrph/docs"
   source_backed: true
   clean_canvas_recommended: true
-  native_runtime: true
-  presentation: "full-frame-playground"
-  document_presentation: "workspace-playground"
-  auto_start: true
+  native_runtime: false
+  presentation: "design-only-flow-canvas"
+  document_presentation: "workspace-design-record"
+  auto_start: false
   external_dependencies: []
   forbid_external_copy_or_dependency: true
 scope_reconciliation:
   tension: "a networked massively-multiplayer shared world conflicts with the zero-infra, local-first, offline-first, and no-Supabase constraints"
-  resolution: "this seed activates an offline, single-player, MMO-style RPG world; networked shared-world play is deferred and out of scope for this seed"
-native_mmorpg_demo:
+  resolution: "the planned runtime is an offline, single-player, MMO-style RPG world; networked shared-world play is deferred and out of scope"
+planned_native_mmorpg_demo:
   runtime_owner: "MMORPG World surface on the shared XR Canvas"
   multiplayer: "none — offline single-player only in this increment"
   deterministic_step: true
@@ -70,7 +70,7 @@ native_mmorpg_demo:
       movement: "standard left stick"
       interact: "standard primary action"
   lifecycle: ["develop-and-run", "pause", "resume", "reset", "exit"]
-asset_provenance_pipeline:
+planned_asset_provenance_pipeline:
   tracks:
     procedural: "Track A (preferred) — in-repo deterministic TypeScript + JSON generators (zones, props, loot); diffable"
     ai_generated: "Track B — img2threejs TypeScript + JSON scene spec (primary) with TRELLIS.2 opaque binary GLB (fallback); offline authoring"
@@ -86,7 +86,7 @@ asset_provenance_pipeline:
   native_in_repo: true
   forbid_external_copy_or_dependency: true
   inspiration_reference_only: "github.com/Julian-adv/OpenMMO (inspiration only; no source copy, no dependency)"
-motion_control:
+planned_motion_control:
   runtime: "browser-local LiteRT.js"
   model: "Google BlazePose GHUM Full"
   permission: "explicit Start action"
@@ -94,7 +94,7 @@ motion_control:
   frame_persistence: false
   world_role: "optional normalized player input only; never an NPC, dialogue, or quest policy"
   invocation: "/motion.control @canvas #pose operation=start backend=auto"
-mmorpg_world:
+planned_mmorpg_world:
   companion_view: "mmorpgWorld"
   invocation: "/mmorpg @canvas #world operation=open"
   invocation_prefix: "/mmorpg @canvas #world"
@@ -121,7 +121,7 @@ mmorpg_world:
   malformed_hydration: "preserve bytes and block Start and Restart until explicit Reset"
   multiplayer_boundary: "no networked multiplayer session, remote sync, Supabase call, or Cloudflare resource is opened or required; fail closed if a remote/multiplayer path is invoked"
   validation_input_forbid_hardcode_in_repo: true
-runtime_validation:
+planned_runtime_validation:
   mode_activation: ["xr surface", "3d renderer", "xr stage"]
   required_states: ["ready", "running", "paused"]
   replayable: true
@@ -132,7 +132,7 @@ runtime_validation:
   asset_license_gate: true
   editor_chrome: true
   status: "pending — no runtime-readiness proof exists yet for this draft module"
-mcp_control:
+planned_mcp_control:
   inspect_tool: "knowgrph.inspect_local_mmorpg"
   control_tool: "knowgrph.control_local_mmorpg"
   launch: "/mmorpg @canvas #world operation=open"
@@ -145,11 +145,11 @@ flow:
   nodes:
     - id: {key: id, type: string, value: "mmorpg_demo_entry"}
       type: {key: type, type: string, value: "MmorpgDemoControl"}
-      label: {key: label, type: string, value: "Develop and Run"}
+      label: {key: label, type: string, value: "Design and Gate"}
       position: {key: position, type: object, value: {"x":0,"y":-360}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:mmorpg_demo_entry"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Apply this Source Files document to launch the native offline RPG world over the authored XR zone."}
+      output: {key: output, type: string, value: "Inspect the planned offline RPG runtime as a non-activating 2D Flow Canvas design; XR launch remains gated."}
       role: {key: role, type: string, value: "lifecycle"}
       state: {key: state, type: string, value: "draft"}
     - id: {key: id, type: string, value: "mmorpg_world"}
@@ -158,7 +158,7 @@ flow:
       position: {key: position, type: object, value: {"x":0,"y":-120}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:mmorpg_world"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Explore a zone, talk to NPCs, accept and complete one quest, and pick up an item under deterministic in-repo systems."}
+      output: {key: output, type: string, value: "Plan one zone, authored NPC dialogue, a bounded quest, and an item pickup under deterministic in-repo systems."}
       role: {key: role, type: string, value: "controller"}
     - id: {key: id, type: string, value: "mmorpg_asset_provenance"}
       type: {key: type, type: string, value: "MmorpgDemoAssetProvenance"}
@@ -166,15 +166,15 @@ flow:
       position: {key: position, type: object, value: {"x":0,"y":120}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:mmorpg_asset_provenance"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Load assets from committed local files across three tracks; prefer diffable specs; enforce a provenance + license gate; no runtime generation or fetch."}
+      output: {key: output, type: string, value: "Plan committed local assets across three tracks, preferring diffable specs and requiring a provenance + license gate."}
       role: {key: role, type: string, value: "asset"}
     - id: {key: id, type: string, value: "mmorpg_runtime_gate"}
       type: {key: type, type: string, value: "MmorpgDemoValidation"}
-      label: {key: label, type: string, value: "Native Runtime Gate"}
+      label: {key: label, type: string, value: "Planned Runtime Gate"}
       position: {key: position, type: object, value: {"x":0,"y":360}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:mmorpg_runtime_gate"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Verify deterministic stepping, movement/collision, NPC/quest/inventory, camera source, input, asset provenance/license gate, and the no-multiplayer boundary."}
+      output: {key: output, type: string, value: "Target validation must cover deterministic stepping, movement/collision, NPC/quest/inventory, camera source, input, asset provenance/license gating, and the no-multiplayer boundary."}
       role: {key: role, type: string, value: "validation"}
       state: {key: state, type: string, value: "draft"}
   edges:
@@ -182,15 +182,15 @@ flow:
 
 # Native MMORPG World
 
-This Source Files document activates a playable, browser-local, **offline single-player MMO-style RPG world** inside the normal Knowgrph workspace, over the same authored XR terrain the physics playground ships. This module is `draft`; no runtime-readiness proof exists yet.
+This Source Files document is the design record for a planned browser-local, **offline single-player MMO-style RPG world**. It opens as a neutral 2D Flow Canvas with operator panels closed; it does not activate XR, mount an MMORPG panel, register MCP tools, or start a runtime.
 
-A **networked massively-multiplayer** shared world conflicts with the zero-infra, local-first, offline-first, and no-Supabase constraints and is **out of scope for this seed**: it activates an offline, single-player, "MMO-flavored" world (zones, NPCs, quests, inventory, progression), not a networked one. See `docs/documents/knowgrph-game-mmorpg-prd-tad.md`.
+A **networked massively-multiplayer** shared world conflicts with the zero-infra, local-first, offline-first, and no-Supabase constraints and is **out of scope**. The target design is an offline, single-player, "MMO-flavored" world (zones, NPCs, quests, inventory, progression). See `docs/documents/knowgrph-game-mmorpg-prd-tad.md`.
 
-## Run
+## Inspect the draft
 
-From the repository root, run `npm run dev`. In Knowgrph, open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-mmorpg-demo.md**. Applying this document mounts the MMORPG World on the shared React Three Fiber Canvas over the authored Singapore zone while Explorer remains available.
+From the repository root, run `npm run dev`. In Knowgrph, open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-mmorpg-demo.md**. Applying this document shows its 2D Flow Canvas design while Explorer remains available. It must leave XR and the proposed MMORPG runtime inactive.
 
-## Controls
+## Planned controls
 
 | Action | Keyboard | Touch | Standard gamepad |
 |---|---|---|---|
@@ -199,27 +199,28 @@ From the repository root, run `npm run dev`. In Knowgrph, open **Explorer → So
 | Inventory | I | Inventory button | Menu action |
 | Pause / Resume / Reset | Simulation controls | Simulation controls | Simulation controls |
 
-The same runtime is MCP-controllable through `knowgrph.control_local_mmorpg`; use `/mmorpg @canvas #world operation=open`, then `operation=start`, `operation=interact`, `operation=stop`, `operation=restart`, `operation=save`, or `operation=exit`. Exactly one `/mmorpg` command, one `@canvas` binding, and one `#world` semantic are accepted; duplicate sigils, unknown keys, mixed structured/native input, and invalid lifecycle operations fail closed. Browser-local WebMCP exposes schema `knowgrph-mmorpg-mcp/v1` through `knowgrph.inspect_local_mmorpg` and `knowgrph.control_local_mmorpg`; it adds no stdio tool, HTTP mutation route, remote gateway, or deployment authority, and the private Agentic ECS stdio lane remains exactly three tools.
+The planned control contract uses `knowgrph.control_local_mmorpg` and `/mmorpg @canvas #world`, with browser-local schema `knowgrph-mmorpg-mcp/v1`. Those commands and tools are not registered while this document remains draft; their definitions below are acceptance targets, not current runtime claims.
 
-**FloatingPanel → MMORPG World** is a companion surface on the same Canvas. Opening it keeps the authored atmosphere, Singapore zone, and props visibly mounted and overlays only the player, NPCs, world props, camera, and HUD. The synchronous WebGL probe fails closed before world start and exposes a visible local fallback without a second or remote renderer. Start prepares a healthy tick-zero frame and waits for normalized desktop, pointer, touch, gamepad, Motion Control, or MCP input before deterministic ticks begin. Stop followed by Start resumes the exact in-memory world tick and state. Exiting restores the shared XR input and simulation ownership. No networked multiplayer session, remote sync, Supabase call, or Cloudflare resource is opened or required; the world is single-player and offline, and any remote/multiplayer path fails closed.
+The planned **FloatingPanel → MMORPG World** companion will reuse the same Canvas after implementation. Until then, applying this draft must not open a panel or substitute the generic motion-reference stage for the missing runtime.
 
-Camera source is independent of world selection. In **FloatingPanel Camera → SHOOT**, choose **Fixed Follow** or **Free Orbit**, or invoke `/camera.select @camera #camera camera=fixed-follow` / `camera=free-orbit`. Motion Control remains an optional normalized player-input source only; it never becomes an NPC, dialogue, or quest policy.
+The target camera-source contract is independent of world selection. After implementation, **FloatingPanel Camera → SHOOT** will offer **Fixed Follow** or **Free Orbit**; the proposed invocation is `/camera.select @camera #camera camera=fixed-follow|free-orbit`. Motion Control is planned as optional normalized player input only and must never become an NPC, dialogue, or quest policy.
 
-Terminal world results remain pending and are not auto-saved. **Save** is the only operation that persists validated Decisions (dialogue outcomes, quest flags, world-tick results) through browser-local WorkspaceFs. Malformed saved bytes remain intact and block **Start** and **Restart** until the operator explicitly chooses **Reset local save**.
+The target persistence contract keeps terminal world results pending and never auto-saves them. **Save** is planned as the only operation that persists validated Decisions (dialogue outcomes, quest flags, world-tick results) through browser-local WorkspaceFs. Malformed saved bytes must remain intact and block **Start** and **Restart** until the operator explicitly chooses **Reset local save**.
 
-## Asset provenance (native, in-repo, three-track)
+## Planned asset provenance (native, in-repo, three-track)
 
-World content is a governed mix of committed local assets, loaded offline, each with a provenance + license record:
+The target world-content pipeline is a governed mix of committed local assets, loaded offline, each with a provenance + license record:
 
 - **Track A — Procedural / programmatic (preferred):** in-repo deterministic TypeScript + JSON generators (zones, props, loot) — most diffable, lowest TCO, deterministic.
 - **Track B — AI-generated (offline):** img2threejs TypeScript + JSON scene spec (primary, diffable) with a committed TRELLIS.2 opaque binary GLB fallback where a spec is unavailable.
 - **Track C — Internet-sourced:** FOSS/redistributable assets committed local with a mandatory provenance + license manifest (origin, license, attribution); license-gated.
 
-Every asset carries `{ assetId, track, origin, license, attribution, representation, diffable }`; the loader prefers a diffable spec/procedural representation; the license gate fails closed on a missing/incompatible license or empty origin. No image-to-3D model, asset generator, network fetch, or Cloudflare resource is invoked at runtime to obtain an asset. The asset-mix framing is inspired by an external MMO project but copies none of its source and takes no dependency on it.
+Every future asset must carry `{ assetId, track, origin, license, attribution, representation, diffable }`; the planned loader must prefer a diffable spec/procedural representation, and the planned license gate must fail closed on a missing/incompatible license or empty origin. No image-to-3D model, asset generator, network fetch, or Cloudflare resource may be invoked at runtime to obtain an asset. The asset-mix framing is inspired by an external MMO project but copies none of its source and takes no dependency on it.
 
-## Demo-ready checks
+## Promotion gates
 
-- [ ] Source-backed seed activates XR, 3D rendering, and the canonical XR stage.
+- [x] Draft source opens a 2D Flow Canvas, closes the FloatingPanel, and does not select XR/3D or auto-start.
+- [ ] After promotion to `run_ready_demo`, the source-backed seed activates XR, 3D rendering, and its implemented canonical stage.
 - [ ] The offline RPG world runs through one native deterministic simulation owner (in-repo movement/collision/NPC/quest/inventory; no external engine, navmesh, or LLM).
 - [ ] Keyboard, touch, and standard gamepad inputs normalize to one world control state.
 - [ ] Fixed Follow and Free Orbit are user-selectable through Camera and `/camera.select`; Timeline playback remains the temporary higher-priority framing owner.

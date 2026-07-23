@@ -3,9 +3,10 @@ title: "Knowgrph Game MMORPG PRD/TAD"
 id: "md:knowgrph-game-mmorpg-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-07-23"
 version: "0.1.0"
 status: "draft"
+runtime_claim: "planned-contract-only"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -42,8 +43,8 @@ source_references:
   motion_control: "canvas/src/features/three/motionControlRuntime.ts"
   workspace_fs: "canvas/src/features/workspace-fs/workspaceFs.ts"
   cost_log_contract: "contracts/cost-log.schema.js"
-  mmorpg_runtime: "canvas/src/features/game-mmorpg/"
-  asset_provenance_pipeline: "canvas/src/features/game-mmorpg/assetProvenance/"
+  planned_mmorpg_runtime: "proposed canvas/src/features/game-mmorpg/ (not present)"
+  planned_asset_provenance_pipeline: "proposed canvas/src/features/game-mmorpg/assetProvenance/ (not present)"
   validation_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   asset_inspiration_reference_only: "github.com/Julian-adv/OpenMMO (inspiration only; no source copy, no dependency)"
 ---
@@ -51,6 +52,10 @@ source_references:
 # Knowgrph Game MMORPG PRD/TAD
 
 Governed by the same solo-dev AI-native orientation as the sibling `knowgrph-game-fps-prd-tad.md` and `knowgrph-game-flight-sim-prd-tad.md`: every decision is evaluated through the four compounding lenses (min-viable-max-value, TCO-zero, token economics, harness-first). This module is a new increment; status is `draft` and no runtime-readiness proof exists yet. No production or Cloudflare deployment is authorized.
+
+## Status boundary
+
+This PRD/TAD is a normative **planned contract**, not documentation of an implemented runtime. The `canvas/src/features/game-mmorpg/` paths, MMORPG panel, `/mmorpg` command, WebMCP tools, asset/provenance loaders, persistence adapter, and package-script gates named below are proposed and do not currently exist or register in Knowgrph. Present-tense acceptance language states the behavior required for future promotion; it is not runtime proof.
 
 ## Scope reconciliation (read first)
 
@@ -197,9 +202,9 @@ Given core gameplay, when the world runs, then no networked multiplayer session,
 | **Token economics** | The world `World_Tick` performs zero model calls; asset generation is offline | Every tick emits a canonical `$0` Cost_Log; no runtime generation or provider call |
 | **Harness-first** | No ad-hoc model calls; deterministic RPG systems in-tick; any future generative content stays an offline authoring step | NPC/quest/dialogue logic is deterministic, not LLM-driven |
 
-### Ownership
+### Planned ownership
 
-| Concern | Canonical owner | Rule |
+| Concern | Proposed canonical owner | Rule |
 |---|---|---|
 | World domain | `canvas/src/features/game-mmorpg/` | Zone config, movement/NPC/quest/inventory systems, input normalization, HUD projection, local save adapter |
 | Surface lifecycle | `canvas/src/features/game-mmorpg/mmorpgRuntime.ts` | Own open/start/stop/restart/interact/save/exit state and previous-surface restoration |
@@ -320,7 +325,7 @@ The runtime writes canonical KGC Decisions through the existing browser-local fi
 
 ## Runtime Readiness Gate
 
-This module is `draft`; no runtime-readiness proof exists yet. The intended local, finite proof mirrors the sibling FPS and flight-sim gates:
+This module is `draft`; no runtime-readiness proof exists yet. The following command names are proposed for the future local, finite proof and are not registered package scripts:
 
 ```bash
 npm run game-mmorpg:runtime-ready
@@ -333,9 +338,9 @@ Both commands must be finite and local apart from ordinary build/test artifacts,
 
 | Dimension | Scope |
 |---|---|
-| Agentic OS-ready | Canonical `/mmorpg @canvas #world` metadata is projected through the pinned Agentic OS invocation dictionary; cross-repo integration is separately evidenced. |
-| AI Agent-ready | Browser agent-ready registration exposes read-only inspection and mutating lifecycle control without adding a model, prompt, reasoning path, or autonomous persistence. |
-| MCP-ready | `knowgrph.inspect_local_mmorpg` and `knowgrph.control_local_mmorpg` are browser-local WebMCP only. No stdio, HTTP mutation route, remote gateway, or deployment authority is added; the private Agentic ECS stdio lane remains exactly three tools. |
+| Agentic OS-ready | Planned `/mmorpg @canvas #world` metadata must be projected through the pinned Agentic OS invocation dictionary; no such projection exists while this module is draft. |
+| AI Agent-ready | Planned browser agent-ready registration must expose read-only inspection and mutating lifecycle control without adding a model, prompt, reasoning path, or autonomous persistence. |
+| MCP-ready | Planned `knowgrph.inspect_local_mmorpg` and `knowgrph.control_local_mmorpg` tools are not registered. Their future browser-local WebMCP implementation must add no stdio, HTTP mutation route, remote gateway, or deployment authority. |
 
 ## Release Boundary
 
