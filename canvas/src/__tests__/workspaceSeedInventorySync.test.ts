@@ -12,7 +12,7 @@ import {
   resetWorkspaceDocsMirrorSyncForPersistedFs,
   syncWorkspaceDocsMirrorEntries,
 } from '@/features/workspace-fs/workspaceFsPersistedReconciliation'
-import { resetCanonicalAgenticDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { resetCanonicalPublishedDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 
@@ -85,7 +85,7 @@ export async function testWorkspaceSeedProviderOverlaysLocalInventoryOnPublished
     delete process.env[REPO_LOCAL_ENV]
     process.env[DOCS_ROOT_ENV] = docsRoot
     process.env[SEEDS_ROOT_ENV] = seedsRoot
-    resetCanonicalAgenticDocsMirrorCacheForTests()
+    resetCanonicalPublishedDocsMirrorCacheForTests()
 
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
@@ -132,7 +132,7 @@ export async function testWorkspaceSeedProviderOverlaysLocalInventoryOnPublished
       throw new Error('expected non-seed documents to retain their published GitHub authority')
     }
   } finally {
-    resetCanonicalAgenticDocsMirrorCacheForTests()
+    resetCanonicalPublishedDocsMirrorCacheForTests()
     globalThis.fetch = previousFetch
     restore()
     restoreEnv(REPO_LOCAL_ENV, previousRepoLocal)

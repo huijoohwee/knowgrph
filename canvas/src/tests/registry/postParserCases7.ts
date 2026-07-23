@@ -225,8 +225,8 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["canvas.xrMode.physics.nativeController.runReadyLifecycle","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeReclaimsOffFallbackWithoutDoubleLaunch"],
   ["canvas.agenticEcs.projection.documentTextSeam","@/__tests__/agenticEcsCanvasProjection.test","testAgenticEcsCanvasProjectionUsesDocumentTextApplySeam"],
   ["workspace.sourceFiles.agenticDocs.runtimeOnly","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer"],
-  ["workspace.docsMirror.localRoots.agenticFallback","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrimaryRootIsAbsent"],
-  ["workspace.docsMirror.localRoots.githubUnavailable","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsUnavailable"],
+  ["workspace.docsMirror.localRoots.soleAgenticAuthority","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceDocsMirrorLocalRootsSelectsSoleAgenticRootWhenPrimaryRootIsAbsent"],
+  ["workspace.docsMirror.localRoots.repoLocalAuthority","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSeedProviderUsesDeclaredRepoLocalAgenticDocsAuthority"],
   ["workspace.selection.switch.pendingUsesExplorerSourceAuthority","@/__tests__/sourceFilesSwitchingFlowLayout.test","testSourceFilesPendingSwitchUsesExplorerSourceAuthority"],
   ["workspace.selection.switch.graphActivationFitTargetsDocument","@/__tests__/sourceFilesSwitchingFlowLayout.test","testSourceFilesGraphActivationFitWaitsForMatchingDocument"],
 ]
