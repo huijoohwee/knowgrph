@@ -60,6 +60,7 @@ MainPanel `Document Storage & Sync` therefore applies unchanged to spreadsheet-a
 - GitHub receives explicit or bounded autosave checkpoints with compare-and-set content SHA; D1 remains the read/index projection and never receives per-cell writes.
 - Explorer ownership remains path-derived: ordinary spreadsheet documents target `GitHub/huijoohwee/docs`, while any authored spreadsheet-like workspace seed under `/docs/workspace-seeds/**` targets `GitHub/knowgrph/docs/workspace-seeds`; IndexedDB remains the offline fallback.
 - Source Files local mirroring cannot redirect a spreadsheet seed through the general docs-root setting: seed reads and supported mutations resolve to `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`, and the host bridge rejects mismatched paths and root deletion.
+- Prod and offline bootstrap materialize the exact seed inventory from the revision-pinned read-only app bundle; repository-local Dev may overlay it only from the canonical Knowgrph seed directory, and no runtime GitHub tree request owns discovery.
 - Spreadsheet-like seed files participate in the same exact seed inventory reconciliation: a successful canonical local listing overlays the GitHub seed subtree in Dev, GitHub remains the online fallback, and stale cached seed rows are pruned only after an authority-marked inventory is available.
 
 ## Bounded Proof

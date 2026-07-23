@@ -6,6 +6,7 @@ import {
 } from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
 import { LIVE_CANVAS_HERO_SOURCE_SESSION_KEY } from '../canvas/src/features/canvas/liveCanvasHeroSourceSelectionContract.mjs'
 import { validateProductionRuntimeReadiness } from './production-runtime-readiness.mjs'
+import { KNOWGRPH_WORKSPACE_SEED_INVENTORY } from './workspace-seed-authority.mjs'
 
 const normalizeOrigin = value => {
   const url = new URL(String(value || 'https://airvio.co'))
@@ -160,6 +161,40 @@ const waitForHomeSourceAuthority = async page => {
   throw new Error(
     `Home source authority did not stabilize: ${JSON.stringify(lastEvidence)}`,
     { cause: lastError },
+  )
+}
+
+const readVisibleWorkspaceSeedInventory = async seedFolder => seedFolder.evaluate(section => {
+  const childList = section.nextElementSibling
+  if (!(childList instanceof HTMLUListElement)) return []
+  return Array.from(childList.querySelectorAll(':scope > li > section[aria-label^="File "]'))
+    .map(element => String(element.getAttribute('aria-label') || '').replace(/^File /, ''))
+    .filter(Boolean)
+    .sort()
+})
+
+const waitForWorkspaceSeedInventory = async page => {
+  const sourceFilesSection = page.getByRole('region', { name: 'Source Files', exact: true })
+  await sourceFilesSection.waitFor({ state: 'visible', timeout: 45_000 })
+  const sourceFilesToggle = sourceFilesSection.getByRole('button', { name: 'Source Files', exact: true })
+  if (await sourceFilesToggle.getAttribute('aria-expanded') === 'false') await sourceFilesToggle.click()
+  const sourceFilesContent = page.getByRole('region', { name: 'Source Files content', exact: true })
+  await sourceFilesContent.waitFor({ state: 'visible', timeout: 45_000 })
+  const seedFolder = sourceFilesContent.locator('section[aria-label="Folder workspace-seeds"]')
+  await seedFolder.waitFor({ state: 'visible', timeout: 45_000 })
+  if ((await readVisibleWorkspaceSeedInventory(seedFolder)).length === 0) {
+    await seedFolder.getByRole('button', { name: 'Folder workspace-seeds', exact: true }).click()
+  }
+  const expected = [...KNOWGRPH_WORKSPACE_SEED_INVENTORY].sort()
+  const deadline = Date.now() + 45_000
+  let observed = []
+  while (Date.now() < deadline) {
+    observed = await readVisibleWorkspaceSeedInventory(seedFolder)
+    if (JSON.stringify(observed) === JSON.stringify(expected)) return observed
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  throw new Error(
+    `Explorer Source Files workspace-seeds inventory mismatch: expected=${JSON.stringify(expected)} observed=${JSON.stringify(observed)}`,
   )
 }
 
@@ -373,6 +408,8 @@ try {
   const appText = await waitForCanvas(() => app.locator('body'))
   assert.match(appText, PHYSICS_PLAYGROUND_PATTERN)
   assert.match(appText, /Beach Ball/)
+  const workspaceSeedInventory = await waitForWorkspaceSeedInventory(app)
+  assert.deepEqual(workspaceSeedInventory, [...KNOWGRPH_WORKSPACE_SEED_INVENTORY].sort())
   assert.ok(browserAssetScripts.length > 0, 'browser proof must load exact-revision Knowgrph JavaScript assets')
   const exactReleaseAssetPrefix = `/knowgrph/assets/${expectedSourceRevision}/`
   const scriptsOutsideExactReleaseNamespace = [
