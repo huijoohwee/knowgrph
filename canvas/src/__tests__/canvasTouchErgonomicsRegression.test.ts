@@ -264,7 +264,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const markdownBlockquoteText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownBlockquoteBlock.tsx'))
   const markdownCalloutText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownCalloutBlock.tsx'))
   const markdownInlineMenusText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.inlineMenusOverlay.tsx'))
-  const markdownBubbleToolbarText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/markdownBlockContainerCore.bubbleToolbarOverlay.tsx'))
+  const markdownInlineSelectionToolbarText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/MarkdownInlineSelectionToolbar.tsx'))
   const markdownSelectionToolbarText = readUtf8(path.resolve(root, 'src/lib/markdown-core/ui/MarkdownSelectionActionMenuItems.tsx'))
   const markdownSidebarSectionText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownSidebarSection.tsx'))
   const dateCellEditorText = readUtf8(path.resolve(root, 'src/features/graph-data-table/ui/fast-grid/DateCellEditor.tsx'))
@@ -2277,25 +2277,25 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected markdown GeoJSON preview frames to use shared responsive viewport-safe height owners instead of local fixed height literals')
   }
   if (!markdownInlineMenusText.includes('uiToolbarRowScrollListClassName') || markdownInlineMenusText.includes('flex flex-wrap gap-1')) {
-    throw new Error('expected inline markdown bubble menus to scroll on one toolbar-owned reset list row')
+    throw new Error('expected inline markdown selection menus to scroll on one toolbar-owned reset list row')
   }
   if (
-    !markdownBubbleToolbarText.includes('allowOverflowVisible') ||
-    !markdownBubbleToolbarText.includes('uiToolbarRowScrollListClassName') ||
-    !markdownBubbleToolbarText.includes('uiToolbarResponsiveRowScrollClassName') ||
-    !markdownBubbleToolbarText.includes('uiToolbarTouchRowScrollClassName') ||
-    !markdownBubbleToolbarText.includes('UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME') ||
-    !markdownBubbleToolbarText.includes('markdownBubbleToolbarIconClassName') ||
-    !responsiveToolbarCssText.includes('touch-action: pan-x') || markdownBubbleToolbarText.includes("touchAction: 'pan-x") ||
-    markdownBubbleToolbarText.includes('flex flex-wrap items-center gap-1') ||
-    markdownBubbleToolbarText.includes('w-3 h-3') ||
-    markdownBubbleToolbarText.includes('h-3 w-3')
+    !markdownInlineSelectionToolbarText.includes('allowOverflowVisible') ||
+    !markdownInlineSelectionToolbarText.includes('uiToolbarRowScrollListClassName') ||
+    !markdownInlineSelectionToolbarText.includes('uiToolbarResponsiveRowScrollClassName') ||
+    !markdownInlineSelectionToolbarText.includes('uiToolbarTouchRowScrollClassName') ||
+    !markdownInlineSelectionToolbarText.includes('UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME') ||
+    !markdownInlineSelectionToolbarText.includes('markdownInlineSelectionToolbarIconClassName') ||
+    !responsiveToolbarCssText.includes('touch-action: pan-x') || markdownInlineSelectionToolbarText.includes("touchAction: 'pan-x") ||
+    markdownInlineSelectionToolbarText.includes('flex flex-wrap items-center gap-1') ||
+    markdownInlineSelectionToolbarText.includes('w-3 h-3') ||
+    markdownInlineSelectionToolbarText.includes('h-3 w-3')
   ) {
-    throw new Error('expected Viewer floating selection toolbar menus to reuse shared list, row-scroll, touch-scroll, visible-overflow, and compact glyph mobile toolbar primitives')
+    throw new Error('expected Viewer inline selection toolbar menus to reuse shared list, row-scroll, touch-scroll, visible-overflow, and compact glyph mobile toolbar primitives')
   }
   if (
-    !markdownBubbleToolbarText.includes('MarkdownSelectionActionMenuItems') ||
-    markdownBubbleToolbarText.includes('>Show on Canvas<') ||
+    !markdownInlineSelectionToolbarText.includes('MarkdownSelectionActionMenuItems') ||
+    markdownInlineSelectionToolbarText.includes('>Show on Canvas<') ||
     !markdownSelectionToolbarText.includes('Link: Inline URL (default)') ||
     !markdownSelectionToolbarText.includes('Link: Horizontal Card')
   ) {
