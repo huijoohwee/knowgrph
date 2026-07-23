@@ -154,15 +154,10 @@ def main() -> None:
         page.on("pageerror", lambda error: page_errors.append(str(error)))
         try:
             page.goto(target_url, wait_until="domcontentloaded")
-            hud = page.locator('[data-kg-flight-sim-hud="1"]').first
-            expect(hud).to_be_visible(timeout=120_000)
-            page.wait_for_selector(
-                'canvas[data-kg-flight-sim-first-frame="1"]',
-                timeout=120_000,
-            )
             source_application, source = apply_and_verify_exact_authored_source(
                 page
             )
+            hud = page.locator('[data-kg-flight-sim-hud="1"]').first
             expect(hud).to_be_visible(timeout=120_000)
             page.wait_for_selector(
                 'canvas[data-kg-flight-sim-first-frame="1"]',

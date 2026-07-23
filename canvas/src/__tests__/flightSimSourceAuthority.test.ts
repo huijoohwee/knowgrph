@@ -51,6 +51,37 @@ test('Flight Sim activation is source-authored and path conflicts fail closed', 
   )
 })
 
+test('Flight browser proof activates only after applying the authored source', () => {
+  const runner = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/run_game_flight_sim_browser_smoke.mjs',
+    ),
+    'utf8',
+  )
+  const verifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/verify_game_flight_sim_browser_smoke.py',
+    ),
+    'utf8',
+  )
+  assert.match(
+    runner,
+    /delete process\.env\.VITE_KNOWGRPH_RUN_READY_DEMO/,
+  )
+  assert.doesNotMatch(
+    runner,
+    /VITE_KNOWGRPH_RUN_READY_DEMO\s*\|\|=\s*['"]flight-sim['"]/,
+  )
+  assert.ok(
+    verifier.indexOf(
+      'source_application, source = apply_and_verify_exact_authored_source',
+    )
+      < verifier.indexOf("page.locator('[data-kg-flight-sim-hud=\"1\"]')"),
+  )
+})
+
 test('Flight Sim source declares an overlay on the canonical XR world', () => {
   const meta = frontmatter(seedSource)
   assert.equal(meta.status, 'runtime-ready')
