@@ -56,7 +56,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   const blockSelectionToolbarSyncPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.selectionToolbarSync.ts')
   const blockMarkdownFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.markdownFormatting.ts')
   const blockHtmlFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.htmlFormatting.ts')
-  const blockBubbleToolbarOverlayPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.bubbleToolbarOverlay.tsx')
+  const blockInlineSelectionToolbarPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownInlineSelectionToolbar.tsx')
   const blockInlineMenusOverlayPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.inlineMenusOverlay.tsx')
   const blockCommandMenuPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.commandMenu.tsx')
   const blockCommitPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.commit.ts')
@@ -79,7 +79,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
     fs.existsSync(blockSelectionToolbarSyncPath) ? readUtf8(blockSelectionToolbarSyncPath) : '',
     fs.existsSync(blockMarkdownFormattingPath) ? readUtf8(blockMarkdownFormattingPath) : '',
     fs.existsSync(blockHtmlFormattingPath) ? readUtf8(blockHtmlFormattingPath) : '',
-    fs.existsSync(blockBubbleToolbarOverlayPath) ? readUtf8(blockBubbleToolbarOverlayPath) : '',
+    fs.existsSync(blockInlineSelectionToolbarPath) ? readUtf8(blockInlineSelectionToolbarPath) : '',
     fs.existsSync(blockInlineMenusOverlayPath) ? readUtf8(blockInlineMenusOverlayPath) : '',
     fs.existsSync(blockCommandMenuPath) ? readUtf8(blockCommandMenuPath) : '',
     fs.existsSync(blockCommitPath) ? readUtf8(blockCommitPath) : '',
@@ -199,18 +199,18 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('rewriteInlineCodeSigilsToStyledSpansHtml')) {
     throw new Error('expected html inline editor to convert sigil inline-code tokens into styled normal text on edit-open')
   }
-  if (!blockText.includes('captureSelectionForFloatingToolbar')) {
-    throw new Error('expected floating selection toolbar to reuse shared interaction capture SSOT helper')
+  if (!blockText.includes('captureInlineSelectionForToolbarAction')) {
+    throw new Error('expected inline selection toolbar to reuse shared interaction capture SSOT helper')
   }
-  const bubbleToolbarText = readUtf8(path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.bubbleToolbarOverlay.tsx'))
-  if (!bubbleToolbarText.includes("title: 'Highlight'") || !bubbleToolbarText.includes('preventDefaultPointerDown(event)')) {
+  const inlineSelectionToolbarText = readUtf8(path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownInlineSelectionToolbar.tsx'))
+  if (!inlineSelectionToolbarText.includes("title: 'Highlight'") || !inlineSelectionToolbarText.includes('preventDefaultPointerDown(event)')) {
     throw new Error('expected highlight menu summary to preserve editor focus/selection on pointer down')
   }
-  if (!bubbleToolbarText.includes("title: 'Text color'") || !bubbleToolbarText.includes('preventDefaultPointerDown(event)')) {
+  if (!inlineSelectionToolbarText.includes("title: 'Text color'") || !inlineSelectionToolbarText.includes('preventDefaultPointerDown(event)')) {
     throw new Error('expected text color menu summary to preserve editor focus/selection on pointer down')
   }
-  if (!bubbleToolbarText.includes('title="Slash commands"') || !bubbleToolbarText.includes('title="Variable commands"')) {
-    throw new Error('expected bubble toolbar to expose / and @ command menu triggers')
+  if (!inlineSelectionToolbarText.includes('title="Slash commands"') || !inlineSelectionToolbarText.includes('title="Variable commands"')) {
+    throw new Error('expected inline selection toolbar to expose / and @ command menu triggers')
   }
   const inlineMenusText = readUtf8(blockInlineMenusOverlayPath)
   const commandMenuText = `${readUtf8(blockCommandMenuPath)}\n${readUtf8(path.resolve(root, 'src', 'lib', 'command-menu', 'InlineMediaCommandThumbnail.tsx'))}`

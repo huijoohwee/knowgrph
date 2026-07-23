@@ -1,6 +1,6 @@
 import React from 'react'
 import { areReplacementLinesNoop } from '@/features/markdown/ui/markdownEditParitySsot'
-import { captureSelectionForFloatingToolbar } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
+import { captureInlineSelectionForToolbarAction } from '@/lib/markdown-core/ui/markdownInlineSelectionToolbarInteractions'
 import { applyAppendixCommentToSelection, readAppendixAuthoringPromptConfig } from '@/lib/markdown/markdownAppendixComment'
 import { parseMarkdownCommentMarker } from '@/lib/markdown/markdownCommentMarker'
 import { promptForText } from '@/features/toolbar/ingestUtils'
@@ -228,7 +228,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const lastDocumentPointerDownTargetRef = React.useRef<Node | null>(null)
   const lastDocumentPointerDownAtRef = React.useRef<number>(0)
   const selectionSyncBurstTokenRef = React.useRef<number>(0)
-  const lastBubbleProbeRef = React.useRef<'show' | 'hide' | null>(null)
+  const lastInlineSelectionToolbarProbeRef = React.useRef<'show' | 'hide' | null>(null)
   const { probe, probeSelection } = useMarkdownBlockContainerRuntimeProbe({
     startLine,
     endLine,
@@ -335,8 +335,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     }
   }, [])
   const {
-    bubble,
-    setBubble,
+    inlineSelectionToolbar,
+    setInlineSelectionToolbar,
     slashMenu,
     setSlashMenu,
     variableMenu,
@@ -345,14 +345,14 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setLinkPopover,
     commentPreview,
     setCommentPreview,
-    bubbleAnchorRef,
+    inlineSelectionToolbarAnchorRef,
     slashAnchorRef,
     variableAnchorRef,
     linkAnchorRef,
     commentAnchorRef,
     slashMenuRef,
-    bubbleRafRef,
-    bubbleScheduleKey,
+    inlineSelectionToolbarRafRef,
+    inlineSelectionToolbarScheduleKey,
     editorMouseUpSyncScheduleKey,
     setSlashMenuStable,
     setVariableMenuStable,
@@ -515,7 +515,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setEditing,
     setSessionEditLineRange,
     setLinkPopover,
-    setBubble,
+    setInlineSelectionToolbar,
     linkRangeRef,
     liveSelectionSnapshotRef,
     readSelectionOffsetsForFormatting,
@@ -547,8 +547,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       if (/^`@comment:c-[^`\s]+`$/u.test(normalizedSelectedMarkdownToken)) {
         setCommentPreview({
           show: true,
-          leftPx: bubble.leftPx,
-          topPx: bubble.topPx + 28,
+          leftPx: inlineSelectionToolbar.leftPx,
+          topPx: inlineSelectionToolbar.topPx + 28,
           text: selectedText,
         })
         return
@@ -558,8 +558,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         if (parsedMarker.kind !== 'author-note') {
           setCommentPreview({
             show: true,
-            leftPx: bubble.leftPx,
-            topPx: bubble.topPx + 28,
+            leftPx: inlineSelectionToolbar.leftPx,
+            topPx: inlineSelectionToolbar.topPx + 28,
             text:
               parsedMarker.kind === 'review-comment'
                 ? parsedMarker.previewText
@@ -591,16 +591,16 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       publishMarkdownDraftWithoutDomMutation(mutation.nextMarkdown)
       setCommentPreview({
         show: true,
-        leftPx: bubble.leftPx,
-        topPx: bubble.topPx + 28,
+        leftPx: inlineSelectionToolbar.leftPx,
+        topPx: inlineSelectionToolbar.topPx + 28,
         text: selectedText,
       })
     })()
-  }, [bubble.leftPx, bubble.topPx, editorPresentation, getSelectionOffsets, publishMarkdownDraftWithoutDomMutation, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readMarkdownTokenFromHtmlSelection, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
+  }, [inlineSelectionToolbar.leftPx, inlineSelectionToolbar.topPx, editorPresentation, getSelectionOffsets, publishMarkdownDraftWithoutDomMutation, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readMarkdownTokenFromHtmlSelection, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
   const {
     captureSelectionForToolbarAction,
     holdToolbarInteraction,
-    updateBubble,
+    updateInlineSelectionToolbar,
     syncSelectionToolbarState,
     runSelectionSyncBurst,
   } = useMarkdownBlockContainerSelectionToolbarSync({
@@ -608,7 +608,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     editDisableRichUi,
     editorRef,
     getSelectionOffsets,
-    setBubble,
+    setInlineSelectionToolbar,
     setSlashMenu,
     setLinkPopover,
     toolbarInteractingRef,
@@ -618,11 +618,11 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     lastNonCollapsedDomRangeRef,
     liveSelectionSnapshotRef,
     selectionSyncSuspendUntilRef,
-    bubbleRafRef,
+    inlineSelectionToolbarRafRef,
     selectionSyncBurstTokenRef,
-    lastBubbleProbeRef,
+    lastInlineSelectionToolbarProbeRef,
     blurCommitTimerRef,
-    bubbleScheduleKey,
+    inlineSelectionToolbarScheduleKey,
     editorMouseUpSyncScheduleKey,
     probe,
   })
@@ -703,8 +703,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     variableMenu,
     setSlashMenuStable,
     slashMenu,
-    setBubble,
-    bubble,
+    setInlineSelectionToolbar,
+    inlineSelectionToolbar,
     blurCommitTimerRef,
     selectionSyncSuspendUntilRef,
     toolbarRef,
@@ -758,12 +758,12 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         editStaticChildren={editStaticChildren}
         editStaticChildrenMode={editStaticChildrenMode}
         editLeftRailClassName={editLeftRailClassName}
-        bubble={bubble}
+        inlineSelectionToolbar={inlineSelectionToolbar}
         slashMenu={slashMenu}
         variableMenu={variableMenu}
         linkPopover={linkPopover}
         commentPreview={commentPreview}
-        bubbleAnchorRef={bubbleAnchorRef}
+        inlineSelectionToolbarAnchorRef={inlineSelectionToolbarAnchorRef}
         slashAnchorRef={slashAnchorRef}
         variableAnchorRef={variableAnchorRef}
         linkAnchorRef={linkAnchorRef}

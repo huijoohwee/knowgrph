@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -37,7 +39,7 @@ const findButtonByExactText = (rootEl: HTMLElement, label: string): HTMLButtonEl
   return null
 }
 
-export async function testInlineEditToolbarMoreMenuIncludesSelectionActionsAndNoDuplicateBubble() {
+export async function testInlineEditToolbarMoreMenuIncludesCentralizedSelectionActions() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   ensureRangeRect(dom)
   const doc = dom.window.document
@@ -140,5 +142,58 @@ export async function testInlineEditToolbarMoreMenuIncludesSelectionActionsAndNo
   } finally {
     try { root.unmount() } catch { void 0 }
     restore()
+  }
+}
+
+export function testInlineSelectionToolbarHasOneSourceOwnerAndSharedSurfaces() {
+  const root = process.cwd()
+  const sourceRoot = path.resolve(root, 'src')
+  const canonicalPath = path.resolve(sourceRoot, 'lib/markdown-core/ui/MarkdownInlineSelectionToolbar.tsx')
+  const legacyPaths = [
+    path.resolve(sourceRoot, 'features/markdown/ui/MarkdownSelectionToolbar.tsx'),
+    path.resolve(sourceRoot, 'features/markdown/ui/markdownFloatingSelectionToolbar.ts'),
+    path.resolve(sourceRoot, 'lib/markdown-core/ui/markdownBlockContainerCore.bubbleToolbarOverlay.tsx'),
+  ]
+  if (!fs.existsSync(canonicalPath)) throw new Error('expected canonical MarkdownInlineSelectionToolbar source owner')
+  for (const legacyPath of legacyPaths) {
+    if (fs.existsSync(legacyPath)) throw new Error(`expected legacy selection-toolbar source to be removed: ${legacyPath}`)
+  }
+
+  const sourceFiles: string[] = []
+  const visit = (directory: string) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === '__tests__' || entry.name === 'tests') continue
+      const absolute = path.join(directory, entry.name)
+      if (entry.isDirectory()) {
+        visit(absolute)
+        continue
+      }
+      if (!/\.(?:ts|tsx)$/.test(entry.name) || /\.test\.(?:ts|tsx)$/.test(entry.name)) continue
+      sourceFiles.push(absolute)
+    }
+  }
+  visit(sourceRoot)
+  const toolbarOwners = sourceFiles.filter(file => fs.readFileSync(file, 'utf8').includes('aria-label="Inline selection toolbar"'))
+  if (toolbarOwners.length !== 1 || toolbarOwners[0] !== canonicalPath) {
+    throw new Error(`expected exactly one inline-selection toolbar source owner, got ${JSON.stringify(toolbarOwners)}`)
+  }
+  const staleSelectionActions = sourceFiles.filter(file => fs.readFileSync(file, 'utf8').includes('aria-label="Selection actions"'))
+  if (staleSelectionActions.length) {
+    throw new Error(`expected stale Selection actions variants to be removed, got ${JSON.stringify(staleSelectionActions)}`)
+  }
+
+  const editSurface = fs.readFileSync(path.resolve(sourceRoot, 'lib/markdown-core/ui/markdownBlockContainerCore.editSurfaceView.tsx'), 'utf8')
+  if (!editSurface.includes("import { MarkdownInlineSelectionToolbar } from './MarkdownInlineSelectionToolbar'")) {
+    throw new Error('expected the shared edit surface to render the canonical inline-selection toolbar')
+  }
+  const richMediaViewer = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanelWorkspaceViewerSurface.tsx'), 'utf8')
+  const markdownPreview = fs.readFileSync(path.resolve(sourceRoot, 'features/markdown/ui/MarkdownPreview.tsx'), 'utf8')
+  if (
+    !richMediaViewer.includes('<MarkdownPreview')
+    || !richMediaViewer.includes('onInlineDraftTextChange=')
+    || !richMediaViewer.includes('onReplaceLineRange=')
+    || !markdownPreview.includes('<MarkdownInlineSelectionActionsContext.Provider')
+  ) {
+    throw new Error('expected Editor Workspace Viewer and Rich Media Panel to reuse the canonical inline-edit selection toolbar path')
   }
 }

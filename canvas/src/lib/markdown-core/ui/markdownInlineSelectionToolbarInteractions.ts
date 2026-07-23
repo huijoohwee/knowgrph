@@ -15,7 +15,7 @@ export const toggleParentDetailsOpenFromSummaryClick = (event: {
   if (details) details.open = !details.open
 }
 
-export const captureSelectionForFloatingToolbar = (args: {
+export const captureInlineSelectionForToolbarAction = (args: {
   getSelectionOffsets: () => { startOffset: number; endOffset: number } | null
   lastSelectionOffsetsRef?: { current: { startOffset: number; endOffset: number } | null }
   lastNonCollapsedSelectionOffsetsRef: { current: { startOffset: number; endOffset: number } | null }

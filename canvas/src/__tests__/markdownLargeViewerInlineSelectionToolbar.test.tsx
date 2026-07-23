@@ -31,7 +31,7 @@ const buildLargeMarkdownText = () => {
   return ['# Large imported viewer', '', paragraph].join('\n')
 }
 
-export async function testLargeMarkdownViewerKeepsInlineFormattingToolbar() {
+export async function testLargeMarkdownViewerKeepsInlineSelectionToolbar() {
   const { dom, restore } = initJsdomHarness()
   ensureRangeRect(dom)
   const doc = dom.window.document

@@ -238,7 +238,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["markdownWorkspace.preview.splitFlushesOnDocKeyChange","@/__tests__/workspaceAutosave.test","testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange"],
   ["markdownWorkspace.editor.emptyBoot.keepsJsonPaneBlank","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkdown"],
   ["markdownWorkspace.viewer.inlineEdit.jsonBackedSync","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerInlineEditSyncsJsonBackedMarkdownEdits"],
-  ["markdownWorkspace.viewer.inlineEdit.splitToolbarLiveSync","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerFloatingToolbarSyncsSplitMarkdownAndJsonPanesLive"],
+  ["markdownWorkspace.viewer.inlineEdit.splitToolbarLiveSync","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerInlineSelectionToolbarSyncsSplitMarkdownAndJsonPanesLive"],
   ["markdownWorkspace.viewer.inlineEdit.underlineInputMouseupKeepsRendered","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerInlineEditDoubleClickUnderlineInputDoesNotLiteralizeOnMouseRelease"],
   ["markdownWorkspace.viewer.inlineEdit.underlineCommitKeepsRenderedPreview","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerUnderlineCommitKeepsRenderedPreview"],
   ["markdownWorkspace.viewer.inlineEdit.highlightCommitKeepsRenderedPreview","@/__tests__/markdownWorkspaceViewerInlineEditIntegration.test.tsx","testMarkdownWorkspaceViewerHighlightCommitKeepsRenderedPreview"],
