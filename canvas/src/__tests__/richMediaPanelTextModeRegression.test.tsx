@@ -7,6 +7,7 @@ import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildRichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
 
@@ -361,8 +362,21 @@ export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurf
     if (!workspaceViewer.querySelector('[data-testid="markdown-preview-root"]')) {
       throw new Error(`expected the shared Workspace Viewer to own Probe-Tree markdown rendering, html=${container.innerHTML}`)
     }
+    if (workspaceViewer.getAttribute('data-kg-view-edit-surface-area') !== UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES['data-kg-view-edit-surface-area']) {
+      throw new Error(`expected the Rich Media Workspace Viewer to expose the shared view/edit surface contract, html=${container.innerHTML}`)
+    }
     if (workspaceViewer.querySelector('[data-kg-card-inline-edit="1"], [data-kg-card-markdown-viewer="1"]')) {
       throw new Error('expected Probe-Tree output to avoid the compact Card markdown read/edit renderer')
+    }
+    const workspaceMainSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx'), 'utf8')
+    const richMediaViewerSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelWorkspaceViewerSurface.tsx'), 'utf8')
+    const sharedViewerImport = "from './viewer/MarkdownWorkspaceViewerSurface'"
+    const sharedRichMediaViewerImport = "import('@/features/markdown-workspace/main/viewer/MarkdownWorkspaceViewerSurface')"
+    if (!workspaceMainSource.includes(sharedViewerImport) || !richMediaViewerSource.includes(sharedRichMediaViewerImport)) {
+      throw new Error('expected Editor Workspace Viewer and Rich Media Panel to render through one shared Workspace Viewer surface owner')
+    }
+    if (workspaceMainSource.includes('<MarkdownPreview') || richMediaViewerSource.includes('<MarkdownPreview')) {
+      throw new Error('expected shared Workspace Viewer consumers not to retain parallel MarkdownPreview surface configurations')
     }
 
     await unmountReactRoot(root, { window: dom.window })
