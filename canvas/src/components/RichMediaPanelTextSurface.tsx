@@ -3,6 +3,7 @@ import { CardMediaEmptyPlaceholder, CardMediaLoadingSkeleton } from '@/lib/cards
 import { CardMediaDropZoneFrame } from '@/lib/cards/CardMediaDropZone'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CARD_TEXT_SURFACE_COLUMN_CLASS_NAME, CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_SCROLL_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME, CARD_TEXT_SURFACE_VIEW_CLASS_NAME } from '@/lib/cards/cardTextSurfaceFrame'
+import { commitRichMediaInlineEditVersion } from '@/features/history/richMediaInlineEditHistory'
 import { RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID } from '@/lib/render/richMediaOutputVersions'
 import { UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME, UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 import { cn } from '@/lib/utils'
@@ -89,14 +90,20 @@ export function RichMediaPanelTextSurface(args: {
               markdownCommandContextText={model.panelMarkdownCommandContextText}
               onCommit={model.panelTextEditable ? nextValue => {
                 const nextText = String(nextValue || '')
-                model.setPanelDraftText(nextText)
-                props.onPanelChange?.({
-                  activeTab: 'text',
-                  freezeConnectedOutput: true,
-                  text: nextText,
-                  ...((props.panel?.outputVersions?.length || 0) > 0
-                    ? { selectedOutputVersionId: RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID }
-                    : {}),
+                commitRichMediaInlineEditVersion({
+                  currentText: model.panelDisplayText,
+                  nextText,
+                  commit: () => {
+                    model.setPanelDraftText(nextText)
+                    props.onPanelChange?.({
+                      activeTab: 'text',
+                      freezeConnectedOutput: true,
+                      text: nextText,
+                      ...((props.panel?.outputVersions?.length || 0) > 0
+                        ? { selectedOutputVersionId: RICH_MEDIA_OUTPUT_DRAFT_VERSION_ID }
+                        : {}),
+                    })
+                  },
                 })
               } : undefined}
               displayClassName={cn(CARD_TEXT_SURFACE_VIEW_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}
