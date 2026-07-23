@@ -4,7 +4,7 @@ import path from 'node:path'
 import { chromium } from 'playwright'
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/
-const EVIDENCE_SCHEMA = 'knowgrph-production-service-worker-upgrade/v1'
+const EVIDENCE_SCHEMA = 'knowgrph-production-service-worker-upgrade/v2'
 const SENTINEL_KEY = 'kg:production-service-worker-upgrade-sentinel'
 const SENTINEL_DATABASE = 'kg-production-service-worker-upgrade-proof'
 const CHAT_RUNTIME_SCHEMA = 'knowgrph-chat-stream-worker/v2'
@@ -17,13 +17,17 @@ if (mode !== 'prewarm' && mode !== 'verify') {
 
 const normalizeOrigin = value => {
   const url = new URL(String(value || '').trim())
-  if (url.pathname !== '/' || url.search || url.hash) throw new Error('production public origin must be an origin')
+  if (url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('production service worker profile origin must be an origin')
+  }
   return url.origin
 }
 
-const publicOrigin = normalizeOrigin(process.env.PRODUCTION_PUBLIC_ORIGIN || 'https://airvio.co')
-const canonicalWorkerScriptUrl = `${publicOrigin}/knowgrph/sw.js`
-const canonicalWorkerScope = `${publicOrigin}/knowgrph/`
+const profileOriginInput = String(process.env.PRODUCTION_SW_PROFILE_ORIGIN || '').trim()
+if (!profileOriginInput) throw new Error('PRODUCTION_SW_PROFILE_ORIGIN is required')
+const profileOrigin = normalizeOrigin(profileOriginInput)
+const canonicalWorkerScriptUrl = `${profileOrigin}/knowgrph/sw.js`
+const canonicalWorkerScope = `${profileOrigin}/knowgrph/`
 const profileDirectory = path.resolve(String(process.env.PRODUCTION_SW_PROFILE_DIR || '').trim())
 const evidencePath = path.resolve(String(process.env.PRODUCTION_SW_EVIDENCE_PATH || '').trim())
 const runnerTemp = path.resolve(String(process.env.RUNNER_TEMP || '').trim())
@@ -39,7 +43,7 @@ for (const [label, target] of [['profile directory', profileDirectory], ['eviden
 }
 
 const readRuntimeRevision = async () => {
-  const response = await fetch(`${publicOrigin}/knowgrph/.well-known/runtime-readiness.json`, {
+  const response = await fetch(`${profileOrigin}/knowgrph/.well-known/runtime-readiness.json`, {
     cache: 'no-store',
   })
   assert.equal(response.status, 200, 'public runtime readiness marker must be available')
@@ -51,7 +55,7 @@ const readRuntimeRevision = async () => {
 
 const verifyPublishedWorkerSources = async expectedRevision => {
   const fetchMutableWorkerSource = async relativeUrl => {
-    const response = await fetch(`${publicOrigin}${relativeUrl}`, { cache: 'no-store' })
+    const response = await fetch(`${profileOrigin}${relativeUrl}`, { cache: 'no-store' })
     assert.equal(response.status, 200, `${relativeUrl} must be publicly readable`)
     assert.match(
       String(response.headers.get('cache-control') || ''),
@@ -410,7 +414,7 @@ const prewarm = async () => {
     if (!page) page = await context.newPage()
     const prewarmObservation = observePageFailures(page)
     const initialNavigationResponse = await page.goto(
-      `${publicOrigin}/knowgrph/?kgSwUpgradePrewarm=${previousRevision}`,
+      `${profileOrigin}/knowgrph/?kgSwUpgradePrewarm=${previousRevision}`,
       {
         waitUntil: 'domcontentloaded',
         timeout: WAIT_TIMEOUT_MS,
@@ -446,7 +450,7 @@ const prewarm = async () => {
     }
     await fs.writeFile(evidencePath, `${JSON.stringify({
       schema: EVIDENCE_SCHEMA,
-      publicOrigin,
+      profileOrigin,
       previousRevision,
       sentinel,
       scriptPaths,
@@ -456,7 +460,7 @@ const prewarm = async () => {
     }, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' })
     process.stdout.write(`${JSON.stringify({
       status: 'prewarmed',
-      publicOrigin,
+      profileOrigin,
       previousRevision,
       navigation,
       seededCachePaths,
@@ -472,7 +476,7 @@ const verify = async () => {
   assert.match(expectedRevision, SHA_PATTERN, 'RELEASE_SHA must be an exact source revision')
   const evidence = JSON.parse(await fs.readFile(evidencePath, 'utf8'))
   assert.equal(evidence.schema, EVIDENCE_SCHEMA)
-  assert.equal(evidence.publicOrigin, publicOrigin)
+  assert.equal(evidence.profileOrigin, profileOrigin)
   assert.match(evidence.previousRevision, SHA_PATTERN)
   assert.notEqual(evidence.previousRevision, expectedRevision, 'upgrade proof requires two distinct production revisions')
   assert.equal(typeof evidence.navigation?.initialFromServiceWorker, 'boolean')
@@ -481,7 +485,7 @@ const verify = async () => {
     evidence.seededCachePaths?.assetPath,
     `/knowgrph/assets/${evidence.previousRevision}/service-worker-upgrade-stale-runtime-proof.js`,
   )
-  assert.equal(
+  assert.deepEqual(
     evidence.seededCachePaths?.htmlPaths,
     [
       `/knowgrph?kgSwUpgradeStaleHtmlProof=${evidence.previousRevision}`,
@@ -498,7 +502,7 @@ const verify = async () => {
   try {
     const upgradePage = context.pages()[0] || await context.newPage()
     const upgradeObservation = observePageFailures(upgradePage)
-    await upgradePage.goto(`${publicOrigin}/knowgrph/?kgSwUpgradeVerify=${expectedRevision}`, {
+    await upgradePage.goto(`${profileOrigin}/knowgrph/?kgSwUpgradeVerify=${expectedRevision}`, {
       waitUntil: 'domcontentloaded',
       timeout: WAIT_TIMEOUT_MS,
     }).catch(error => {
@@ -530,7 +534,7 @@ const verify = async () => {
     const finalPage = await context.newPage()
     const finalObservation = observePageFailures(finalPage)
     const navigationResponse = await finalPage.goto(
-      `${publicOrigin}/knowgrph/?kgSwUpgradeFinal=${expectedRevision}`,
+      `${profileOrigin}/knowgrph/?kgSwUpgradeFinal=${expectedRevision}`,
       { waitUntil: 'domcontentloaded', timeout: WAIT_TIMEOUT_MS },
     )
     assert.ok(navigationResponse, 'returning-user verification requires an HTTP navigation response')
@@ -563,7 +567,7 @@ const verify = async () => {
     )
     process.stdout.write(`${JSON.stringify({
       status: 'passed',
-      publicOrigin,
+      profileOrigin,
       previousRevision: evidence.previousRevision,
       sourceRevision: expectedRevision,
       prewarmNavigation: evidence.navigation,
