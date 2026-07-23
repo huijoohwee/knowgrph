@@ -119,8 +119,8 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
             f"{invalid_selection}"
         )
     if (
-        before["selected"] != "fixed-follow"
-        or before["effectiveOwner"] != "fixed-follow"
+        before["source"]["selected"] != "fixed-follow"
+        or before["source"]["effectiveOwner"] != "fixed-follow"
         or free_orbit["source"]["available"]
         != initial["source"]["available"]
         or free_orbit_before_drag["pointerLocked"] is not False
@@ -412,7 +412,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
             "effectiveOwner": initial["source"]["effectiveOwner"],
             "pose": initial["pose"],
         },
-        "before": before["selected"],
+        "before": before["source"]["selected"],
         "during": free_orbit["source"]["selected"],
         "catalog": catalog,
         "selectionDurationsMs": {
@@ -425,6 +425,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
         "selectionDeadlineMs": 1_000,
         "invalidValueResult": invalid_selection,
         "pointerLocked": free_orbit_before_drag["pointerLocked"],
+        "pointerLockContract": pointer_transitions["pointerLockContract"],
         "freeOrbit": {
             "poseBefore": free_orbit_before_drag["pose"],
             "poseAfter": free_orbit["pose"],
