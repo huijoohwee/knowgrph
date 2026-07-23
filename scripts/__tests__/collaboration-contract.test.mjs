@@ -43,6 +43,10 @@ test('local collaboration browser identities remain stable across repeated gate 
   const config = resolveLocalCollaborationStackConfig({ repoRoot: '/tmp/knowgrph-test', env: {} })
   const browserEnv = buildLocalCollaborationBrowserEnv(config, {})
 
+  assert.equal(config.ownerAppUrl, 'http://127.0.0.1:5175/')
+  assert.equal(config.guestAppUrl, 'http://127.0.0.1:5174/')
+  assert.notEqual(config.ownerAppUrl, 'http://127.0.0.1:5173/')
+  assert.notEqual(config.ownerAppUrl, config.guestAppUrl)
   assert.equal(config.ownerClientDeviceId, 'dev:collaboration-owner-local')
   assert.equal(config.guestClientDeviceId, 'dev:collaboration-guest-local')
   assert.equal(browserEnv.KG_COLLABORATION_E2E_OWNER_DEVICE_ID, config.ownerClientDeviceId)
