@@ -282,10 +282,12 @@ export function resolveStoryboardWidgetProbeTreeOutputPanelPosition(args: {
   const rootNode = (args.graphData.nodes || []).find(node => readString(node.id) === threadRootId)
   if (!rootNode) return null
   const threadNodeIds = collectThreadNodeIds(args.graphData, threadRootId)
+  const visibleNodeIds = resolveProbeTreeLayoutObstacleNodeIds(args.graphData)
   const rootPosition = readNodePosition(rootNode)
   const rightmostThreadX = Math.max(rootPosition.x, ...(args.graphData.nodes || [])
     .filter(node => threadNodeIds.has(readString(node.id)))
     .filter(node => readString(node.type) !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+    .filter(node => !visibleNodeIds || visibleNodeIds.has(readString(node.id)))
     .map(node => readNodePosition(node).x))
   const panelPosition = snapPointToGrid({
     x: rightmostThreadX + OUTPUT_PANEL_COLUMN_OFFSET,
@@ -305,21 +307,26 @@ export function normalizeStoryboardWidgetProbeTreeThreadLayout(args: {
   const rootNode = (args.graphData.nodes || []).find(node => readString(node.id) === threadRootId)
   if (!rootNode) return args.graphData
   const threadNodeIds = collectThreadNodeIds(args.graphData, threadRootId)
+  const visibleNodeIds = resolveProbeTreeLayoutObstacleNodeIds(args.graphData)
   const graphOrderByNodeId = new Map((args.graphData.nodes || []).map((node, index) => [readString(node.id), index]))
   const branchNodes = (args.graphData.nodes || []).filter(node => (
     threadNodeIds.has(readString(node.id))
     && readString(node.id) !== threadRootId
     && readString(node.type) !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    && (!visibleNodeIds || visibleNodeIds.has(readString(node.id)))
     && isProbeTreeBranchNode(node)
   ))
   if (branchNodes.length === 0) return args.graphData
   const nodeById = new Map((args.graphData.nodes || []).map(node => [readString(node.id), node]))
   const gridSize = readProbeTreeLayoutGridSize(args.graphData)
-  const visibleNodeIds = resolveProbeTreeLayoutObstacleNodeIds(args.graphData)
   const occupiedOutsideThread = (args.graphData.nodes || []).filter(node => (
     !threadNodeIds.has(readString(node.id))
     && isProbeTreeLayoutObstacle(node, visibleNodeIds)
   ))
+  const maxParentLocalHorizontalSpan = BRANCH_COLUMN_OFFSET * Math.max(
+    2,
+    occupiedOutsideThread.length + branchNodes.length,
+  )
   const graphLayoutIsCurrent = hasCurrentProbeTreeThreadLayoutAuthority(args.graphData, threadRootId, gridSize)
   const positionsRemainGridSnapped = branchNodes.every(node => {
     if (!hasFiniteNodePosition(node)) return false
@@ -335,8 +342,17 @@ export function normalizeStoryboardWidgetProbeTreeThreadLayout(args: {
     if (!parentNode) return false
     return readNodePosition(node).x - readNodePosition(parentNode).x >= RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX
   })
+  const positionsRemainParentLocal = branchNodes.every(node => {
+    if (!hasFiniteNodePosition(node)) return false
+    const properties = readProperties(node.properties)
+    const parentNodeId = readString(properties.parentNodeId || properties.parentGraphNodeId)
+    const parentNode = nodeById.get(parentNodeId)
+    if (!parentNode) return false
+    return readNodePosition(node).x - readNodePosition(parentNode).x <= maxParentLocalHorizontalSpan
+  })
   const positionsRemainValid = positionsRemainGridSnapped
     && positionsRemainForward
+    && positionsRemainParentLocal
     && hasCollisionFreeProbeTreePositions(branchNodes)
     && branchNodes.every(node => occupiedOutsideThread.every(occupied => !probeTreePositionsOverlap(
       readNodePosition(node),
