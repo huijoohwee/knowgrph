@@ -329,12 +329,14 @@ export function testInlineSelectionToolbarHasOneSourceOwnerAndSharedSurfaces() {
     throw new Error('expected the shared edit surface to render the canonical inline-selection toolbar')
   }
   const richMediaViewer = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanelWorkspaceViewerSurface.tsx'), 'utf8')
+  const workspaceViewer = fs.readFileSync(path.resolve(sourceRoot, 'features/markdown-workspace/main/viewer/MarkdownWorkspaceViewerSurface.tsx'), 'utf8')
   const markdownPreview = fs.readFileSync(path.resolve(sourceRoot, 'features/markdown/ui/MarkdownPreview.tsx'), 'utf8')
   const flowCanvasMediaOverlays = fs.readFileSync(path.resolve(sourceRoot, 'components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
   const richMediaShell = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanelShell.tsx'), 'utf8')
   const richMediaTypes = fs.readFileSync(path.resolve(sourceRoot, 'components/RichMediaPanel.types.ts'), 'utf8')
   if (
-    !richMediaViewer.includes('<MarkdownPreview')
+    !richMediaViewer.includes('<MarkdownWorkspaceViewerSurface')
+    || !workspaceViewer.includes('<MarkdownPreview')
     || !richMediaViewer.includes('onInlineDraftTextChange=')
     || !richMediaViewer.includes('onReplaceLineRange=')
     || !markdownPreview.includes('<MarkdownInlineSelectionActionsContext.Provider')

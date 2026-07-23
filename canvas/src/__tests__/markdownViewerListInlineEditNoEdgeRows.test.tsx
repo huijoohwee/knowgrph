@@ -200,3 +200,116 @@ export async function testMarkdownViewerInlineEditListWithFenceUsesEditAsIs() {
     expectContains: ['Step one', 'const n = 1', 'Step two'],
   })
 }
+
+export async function testMarkdownViewerNestedListQuestionKeepsRenderedEditSurfaceParity() {
+  const fixturePath = resolveRepoTestDataPath('probe-tree-rich-media-edit-parity.md')
+  if (!fs.existsSync(fixturePath)) throw new Error(`missing Probe-Tree edit parity fixture: ${fixturePath}`)
+  const markdown = fs.readFileSync(fixturePath, { encoding: 'utf8' })
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const { tokens } = lexMarkdown(markdown)
+    const listToken = tokens.find(t => String((t as unknown as { type?: unknown }).type || '') === 'list')
+    if (!listToken) throw new Error('missing nested list token')
+    const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+    const root = reactDomClient.createRoot(container)
+    root.render(
+      <MarkdownListBlock
+        token={listToken}
+        highlightClass=""
+        baseTextClass="text-sm"
+        wrapClass=""
+        opts={{
+          activeDocumentPath: '/fixtures/probe-tree.md',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          markdownPresentationMode: false,
+          highlightedLineRange: null,
+          markdownWordWrap: true,
+          mermaidFrontmatterConfig: null,
+          rootThemeMode: 'light',
+          previewOverlayScope: 'container',
+          markdownSourceLines: markdown.split('\n'),
+          viewerBlockEditingEnabled: true,
+          markdownBlockGutterEnabled: false,
+          onReplaceLineRange: change => replaceCalls.push(change),
+          forbidCopy: true,
+        }}
+      />,
+    )
+    await tick()
+    await tick()
+
+    const outerRows = Array.from(
+      dom.window.document.querySelectorAll('section[data-start-line="14"] > ol > li[data-kg-list-item-index]'),
+    ) as HTMLElement[]
+    if (outerRows.length !== 2) {
+      throw new Error(`expected two outer probe-tree rows, html=${container.innerHTML}`)
+    }
+    const rowRanges = outerRows.map(row => ({
+      start: row.getAttribute('data-kg-list-item-start-line'),
+      end: row.getAttribute('data-kg-list-item-end-line'),
+    }))
+    if (
+      rowRanges[0]?.start !== '14'
+      || rowRanges[0]?.end !== '20'
+      || rowRanges[1]?.start !== '21'
+      || rowRanges[1]?.end !== '27'
+    ) {
+      throw new Error(`expected indentation-aware outer row ranges, got ${JSON.stringify(rowRanges)}`)
+    }
+
+    const question = outerRows[0]?.querySelector('p[data-start-line="14"]') as HTMLElement | null
+    if (!question || !question.querySelector('strong')) {
+      throw new Error(`expected rendered bold question, html=${outerRows[0]?.innerHTML}`)
+    }
+    question.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 400,
+      bottom: 42,
+      width: 400,
+      height: 42,
+      toJSON: () => ({}),
+    } as unknown as DOMRect)
+    question.dispatchEvent(new dom.window.MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 8,
+      clientY: 8,
+    }))
+    await tick()
+    await tick()
+
+    const editor = await waitForElement(() => (
+      outerRows[0]?.querySelector('p[data-start-line="14"] [contenteditable="true"]') as HTMLElement | null
+    ))
+    if (!editor) throw new Error(`expected nested question editor, html=${outerRows[0]?.innerHTML}`)
+    if (
+      !editor.querySelector('strong')
+      || editor.innerHTML.includes('**')
+      || /^\s*1[.)]\s/.test(String(editor.textContent || ''))
+    ) {
+      throw new Error(`expected rendered bold HTML edit surface without source list markers, html=${editor.innerHTML}`)
+    }
+    const rowText = String(outerRows[0]?.textContent || '')
+    if (
+      !rowText.includes('优先批发库存以实现规模效应')
+      || !rowText.includes('The active input asks about viable sourcing paths')
+      || !rowText.includes('Evidence regarding成本结构')
+    ) {
+      throw new Error(`expected nested branch content to remain rendered during question edit, text=${JSON.stringify(rowText)}`)
+    }
+    if (replaceCalls.length !== 0) {
+      throw new Error(`expected entering edit to avoid source mutation, got ${JSON.stringify(replaceCalls)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}

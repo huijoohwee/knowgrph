@@ -480,6 +480,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
     await mod.testMarkdownViewerInlineEditListWithFenceUsesEditAsIs()
   })
+  await execTest(results, 'markdown.viewer.inlineEdit.list.nestedQuestion.renderedParity', async () => {
+    const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
+    await mod.testMarkdownViewerNestedListQuestionKeepsRenderedEditSurfaceParity()
+  })
   await execTest(results, 'markdown.viewer.inlineEdit.table.noGenericTextSurface', async () => {
     const mod = await modMarkdownViewerInlineEditTableReadOnlySurface()
     await mod.testMarkdownViewerInlineEditTableDoesNotOpenGenericContentEditableSurface()
