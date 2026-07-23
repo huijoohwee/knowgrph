@@ -9,7 +9,7 @@ import {
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { readCachedWorkspaceDocsMirrorEntries, readFirstKnowgrphStorageDocText, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
-import { isWorkspaceDocsMirrorGitHubSourceUrl, readCanonicalPublishedWorkspaceDocsMirrorEntries, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { isWorkspaceDocsMirrorGitHubSourceUrl, readCanonicalPublishedNonAgenticDocsMirrorEntries } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 import { readWorkspaceMirrorRootEntries } from '@/features/workspace-fs/workspaceMirrorRootEntries'
 import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
@@ -105,11 +105,9 @@ const normalizeBasename = (value: string): string => {
   if (parts.length === 0) return ''
   return parts[parts.length - 1] || ''
 }
-
 const isWorkspaceBackedSourcePath = (value: unknown): boolean => {
   return String(value || '').trim().startsWith('workspace:')
 }
-
 const normalizeAbsRoot = (value: string): string => {
   return String(value || '')
     .trim()
@@ -122,7 +120,6 @@ const splitSafeMirrorSegments = (value: string): string[] => {
   if (parts.some(part => part === '.' || part === '..')) return []
   return parts
 }
-
 const readWorkspaceInitializationDocsAbsRoot = (): string => {
   return normalizeAbsRoot(readWorkspaceDocsMirrorRootPathSetting())
 }
@@ -1493,23 +1490,17 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   })
   // #endregion
   if (!repoLocalRunReady) {
-    const [canonicalEntries, localSeedEntries] = await Promise.all([
-      readCanonicalPublishedWorkspaceDocsMirrorEntries({
+    const [publishedEntries, publishedAgenticEntries, localSeedEntries] = await Promise.all([
+      readCanonicalPublishedNonAgenticDocsMirrorEntries({
         maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES,
         maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES,
       }),
+      import('@/features/workspace-fs/workspacePublishedAgenticDocsSource').then(module => module.readPublishedAgenticDocsMirrorEntries()),
       readCanonicalLocalWorkspaceSeedMirrorEntries(),
     ])
+    const canonicalEntries = [...publishedEntries, ...publishedAgenticEntries]
     if (canonicalEntries.length > 0) {
       return overlayCanonicalLocalWorkspaceSeedEntries(canonicalEntries, localSeedEntries)
-    }
-    if (defaultSourceUrlIsGitHub) {
-      const viaGitHubDefaultSource = await readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
-        url: defaultSourceUrl,
-        maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES,
-        maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES,
-      })
-      if (viaGitHubDefaultSource.length > 0) return viaGitHubDefaultSource
     }
   }
   const sourceFilesSelection = await resolveWorkspaceDocsRootFromSourceFilesSelection()

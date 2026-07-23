@@ -1,5 +1,5 @@
 export type WorkspaceDocsMirrorAuthority =
-  | 'agentic-canvas-os-github'
+  | 'agentic-canvas-os-storage'
   | 'huijoohwee-demo-docs-github'
   | 'huijoohwee-output-docs-github'
   | 'knowgrph-workspace-seeds-github'

@@ -67,6 +67,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.videoPreset.repairsDriftedRuntimeMirror","@/__tests__/videoAgentDemoPresetSourceReconciliation.test","testFloatingPanelChatVideoPresetRepairsDriftedRuntimeMirrorFromCanonicalSource"],
   ["ui.floatingPanelChat.videoPreset.failsClosedWithoutSource","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetFailsClosedWithoutSource"],
   ["ui.floatingPanelChat.promptPreset.chatAndMcpCatalog","@/__tests__/floatingPanelPromptPresetCatalog.test","testFloatingPanelChatPromptPresetCatalogLoadsChatAndMcpPresets"],
+  ["ui.home.promptPreset.canonicalPublishedStorage","@/__tests__/floatingPanelPromptPresetCatalog.test","testHomePromptPresetCatalogUsesCanonicalPublishedStorage"],
   ["ui.floatingPanelChat.promptPreset.invocationRouteDriftFailsClosed","@/__tests__/floatingPanelPromptPresetCatalog.test","testFloatingPanelChatPromptPresetCatalogRejectsInvocationRouteDrift"],
   ["ui.floatingPanelChat.promptPreset.invalidCatalogFailsClosed","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatPromptPresetCatalogFailsClosedOnMissingEntry"],
   ["ui.floatingPanelChat.videoPreset.rendersAfterNewChat","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetRendersAfterNewChat"],
