@@ -253,6 +253,15 @@ jobs:
         working-directory: knowgrph
         run: npm run --silent runtime:pages:capture-current
 
+      - name: Prewarm returning-user service worker profile
+        working-directory: knowgrph
+        env:
+          PRODUCTION_PUBLIC_ORIGIN: https://airvio.co
+          PRODUCTION_SW_PROFILE_DIR: ${{ runner.temp }}/knowgrph-production-sw-profile
+          PRODUCTION_SW_EVIDENCE_PATH: ${{ runner.temp }}/knowgrph-production-sw-evidence.json
+          PRODUCTION_BROWSER_HEADLESS: 'false'
+        run: xvfb-run --auto-servernum npm run production:sw-upgrade:prewarm
+
       - name: Deploy verified artifact
         id: deploy_pages
         working-directory: knowgrph
@@ -290,6 +299,16 @@ jobs:
             fi
             sleep 15
           done
+
+      - name: Verify returning-user service worker revision convergence
+        working-directory: knowgrph
+        env:
+          PRODUCTION_PUBLIC_ORIGIN: https://airvio.co
+          PRODUCTION_SW_PROFILE_DIR: ${{ runner.temp }}/knowgrph-production-sw-profile
+          PRODUCTION_SW_EVIDENCE_PATH: ${{ runner.temp }}/knowgrph-production-sw-evidence.json
+          PRODUCTION_BROWSER_HEADLESS: 'false'
+          RELEASE_SHA: ${{ github.sha }}
+        run: xvfb-run --auto-servernum npm run production:sw-upgrade:verify
 
       - name: Publish verified production mirror
         working-directory: huijoohwee

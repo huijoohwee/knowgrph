@@ -170,7 +170,7 @@ const sharedD1Source = path.resolve(knowgrphRoot, 'cloudflare', 'workers', 'shar
 const sharedD1Target = path.resolve(mirrorRoot, 'cloudflare', 'workers', 'shared', 'd1.ts')
 const sharedPublishedDocSource = path.resolve(knowgrphRoot, 'cloudflare', 'workers', 'shared', 'publishedDoc.ts')
 const sharedPublishedDocTarget = path.resolve(mirrorRoot, 'cloudflare', 'workers', 'shared', 'publishedDoc.ts')
-const publicManagedRootFiles = new Set([
+const importedServiceWorkerRootFiles = new Set(['knowgrph-chat-stream-sw.js', 'knowgrph-service-worker-revision.js']); const publicManagedRootFiles = new Set([
   'favicon.svg',
   'index.html',
   'knowgrph-live-canvas-hero.md',
@@ -178,6 +178,7 @@ const publicManagedRootFiles = new Set([
   'manifest.webmanifest',
   'settings-flow.json',
   'sw.js',
+  ...importedServiceWorkerRootFiles,
 ])
 const obsoleteLegacyMirrorDir = path.resolve(mirrorRoot, '__' + 'repo_file')
 const joinRel = (...parts) => parts.join('/')
@@ -286,10 +287,8 @@ const isPreservedRelativePath = (rel) => {
   return false
 }
 
-const isPublicManagedRelativePath = (rel) => {
-  if (!rel) return false
-  return rel.startsWith('assets/') || publicManagedRootFiles.has(rel)
-}
+const isPublicManagedRelativePath = rel => Boolean(rel) && (rel.startsWith('assets/') || publicManagedRootFiles.has(rel))
+const isBrowserRuntimeArtifactRelativePath = rel => isPublicManagedRelativePath(rel) || importedServiceWorkerRootFiles.has(rel) || /^workbox-[A-Za-z0-9_-]+\.js$/.test(rel)
 
 const listFiles = async (rootDir) => {
   const out = []
@@ -476,6 +475,7 @@ const buildAgentReadyHeaders = (existing, artifacts) => {
     '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0',
     '/content/knowgrph/sw.js',
     '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0',
+    ...['/content/knowgrph/knowgrph-chat-stream-sw.js', '/knowgrph/knowgrph-chat-stream-sw.js', '/content/knowgrph/knowgrph-service-worker-revision.js', '/knowgrph/knowgrph-service-worker-revision.js'].flatMap(route => [route, '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0']),
     '/knowgrph',
     '  Cache-Control: no-store, no-cache, no-transform, must-revalidate, max-age=0',
     '/knowgrph/',
@@ -540,7 +540,7 @@ const runtimeReadiness = await buildProductionRuntimeReadiness({
   sourceRevision, knowgrphRoot, mirrorRoot, contentRoot: targetDir,
   artifactEntries: [
   ...sourceFiles
-    .filter(isPublicManagedRelativePath)
+    .filter(isBrowserRuntimeArtifactRelativePath)
     .map(relativePath => ({ relativePath, absolutePath: path.resolve(distDir, relativePath) })),
   ...rootManagedSourceFiles.map(entry => ({ relativePath: entry.rel, absolutePath: entry.src })),
   ],
