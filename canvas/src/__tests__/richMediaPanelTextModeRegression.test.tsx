@@ -304,6 +304,73 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
   }
 }
 
+export async function testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurface() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    await import('@/features/markdown/ui/MarkdownPreview')
+    resetRichMediaPanelTestStoreState()
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const panelState = buildRichMediaPanelOverlayState({
+      node: {
+        id: 'probe-tree-ledger',
+        type: 'RichMediaPanel',
+        label: 'Probe-Tree Branches',
+        properties: {
+          probeTreeThreadLedger: true,
+          output: [
+            '---',
+            'schema: "knowgrph-rich-media-text/v1"',
+            'title: "Probe-Tree Branches"',
+            'media_kind: "text"',
+            'content_type: "text/markdown"',
+            'source_contract: "knowgrph-probe-tree/v0.1"',
+            '---',
+            '',
+            '# Probe-Tree Branches',
+            '',
+            '1. **Which variable changes the decision?**',
+          ].join('\n'),
+        },
+      },
+    })
+    if (panelState?.markdownWorkspaceViewerSurface !== true) {
+      throw new Error(`expected existing Probe-Tree ledgers to resolve the Workspace Viewer surface, got ${JSON.stringify(panelState)}`)
+    }
+
+    await mountReactRoot(root,
+      React.createElement(RichMediaPanel, {
+        title: 'Probe-Tree Branches',
+        url: '',
+        kind: 'iframe',
+        interactive: false,
+        panel: panelState,
+        onPanelChange: () => void 0,
+      }),
+      { window: dom.window, frames: 28 },
+    )
+
+    const workspaceViewer = container.querySelector('[data-kg-rich-media-workspace-viewer="1"][aria-label="Editor Workspace Viewer"]')
+    if (!workspaceViewer) {
+      throw new Error(`expected Probe-Tree Rich Media output to mount the Editor Workspace Viewer surface, html=${container.innerHTML}`)
+    }
+    if (!workspaceViewer.querySelector('[data-testid="markdown-preview-root"]')) {
+      throw new Error(`expected the shared Workspace Viewer to own Probe-Tree markdown rendering, html=${container.innerHTML}`)
+    }
+    if (workspaceViewer.querySelector('[data-kg-card-inline-edit="1"], [data-kg-card-markdown-viewer="1"]')) {
+      throw new Error('expected Probe-Tree output to avoid the compact Card markdown read/edit renderer')
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restoreDom()
+  }
+}
+
 export async function testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {

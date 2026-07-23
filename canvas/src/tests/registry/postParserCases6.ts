@@ -180,6 +180,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["richMedia.workbookArtifact.strictXlsxPayload","@/__tests__/workspaceArtifactBridge.test","testWorkspaceArtifactBridgeAcceptsOnlyVerifiedXlsxPayloads"],
   ["richMedia.workbookArtifact.pathConfinement","@/__tests__/workspaceArtifactBridge.test","testWorkspaceArtifactBridgeConfinesDownloadPathsToWorkspaceRoots"],
   ["richMedia.deliverables.nativeMarkdownPresentationSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface"],
+  ["richMedia.probeTree.editorWorkspaceViewerSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurface"],
   ["richMedia.textOutput.versionSelectorPublishesSelection","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorPublishesSelection"],
   ["richMedia.textOutput.versionSelectorUsesStoryboardChrome","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorUsesStoryboardChrome"],
   ["richMedia.textOutput.versionSelectorUsesBubbleToolbar","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorUsesBubbleToolbar"],

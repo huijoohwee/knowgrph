@@ -65,6 +65,7 @@ export type RichMediaPanelProps = {
     activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean
     markdownPresentationMode?: boolean
+    markdownWorkspaceViewerSurface?: boolean
     hasText: boolean
     hasImage: boolean
     hasVideo: boolean
