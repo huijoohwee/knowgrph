@@ -24,6 +24,7 @@ import {
   subscribeFlightSimDecisionStore,
 } from './flightSimDecisionStore'
 import { projectFlightSimHud } from './flightSimHudProjection'
+import { completeFlightSimHudUpdate } from './flightSimDeadlineRuntime'
 
 const buttonClass = 'min-h-11 rounded-xl border border-white/25 bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-sm disabled:opacity-50'
 
@@ -92,6 +93,9 @@ export function FlightSimHud() {
     savePath: FLIGHT_SIM_SAVE_PATH,
     hydrationPending,
   })
+  React.useLayoutEffect(() => {
+    completeFlightSimHudUpdate(flight.revision)
+  }, [flight.revision])
 
   return (
     <section
@@ -100,6 +104,7 @@ export function FlightSimHud() {
       data-kg-flight-sim-hud="1"
       data-kg-flight-sim-phase={flight.phase}
       data-kg-flight-sim-tick={String(flight.tick)}
+      data-kg-flight-sim-revision={String(flight.revision)}
       data-kg-flight-sim-airspeed={projection.airspeed.toFixed(4)}
       data-kg-flight-sim-altitude={projection.altitude.toFixed(4)}
       data-kg-flight-sim-heading={projection.headingDegrees.toFixed(4)}

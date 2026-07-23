@@ -34,6 +34,10 @@ export type FlightSimRuntime = Readonly<{
   acknowledgeDecisions: (ids: readonly string[]) => FlightSimSnapshot
   hydrate: (decisions: readonly unknown[]) => FlightSimSnapshot
   resetPersistence: () => FlightSimSnapshot
+  rejectGameplayNetworkAttempt: (
+    operation: string,
+    executor: () => unknown,
+  ) => FlightSimSnapshot
   fail: (error: unknown) => FlightSimSnapshot
 }>
 

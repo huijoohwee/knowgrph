@@ -86,10 +86,38 @@ test('Flight browser proof activates only after applying the authored source', (
     ),
     'utf8',
   )
+  const runtimePhases = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_runtime_phases.py',
+    ),
+    'utf8',
+  )
   const serverOwner = readFileSync(
     resolve(
       repoRoot,
       'canvas/scripts/lib/run-local-vite-browser-smoke.mjs',
+    ),
+    'utf8',
+  )
+  const touchVerifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_mobile.py',
+    ),
+    'utf8',
+  )
+  const missionVerifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_mission.py',
+    ),
+    'utf8',
+  )
+  const sceneVerifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_scene.py',
     ),
     'utf8',
   )
@@ -111,31 +139,82 @@ test('Flight browser proof activates only after applying the authored source', (
   assert.match(runner, /KG_GAME_FLIGHT_SIM_EXPECTED_SOURCE_SHA256/)
   assert.match(runner, /freshServerPerRun: true/)
   assert.match(
+    runner,
+    /candidate\?\.runtimeRevision !== candidateHead/,
+  )
+  assert.match(
+    runner,
+    /candidate\?\.runtimeBranch !== candidateBranch/,
+  )
+  assert.match(
+    runner,
+    /source\?\.authoredSeedSha256 !== sourceSha256/,
+  )
+  assert.match(
+    runner,
+    /source\?\.workspaceSourceSha256 !== sourceSha256/,
+  )
+  assert.match(
+    runner,
+    /inputProof\?\.touchInteraction\?\.runId[\s\S]*missionProof\?\.runId/,
+  )
+  assert.match(runner, /missionProof\?\.phase !== 'completed'/)
+  assert.match(runner, /missionProof\?\.transitions\?\.length !== 3/)
+  assert.match(
+    runner,
+    /gameplayNetworkBlock:\s*\{[\s\S]*?source: 'flight-runtime-network-guard'/,
+  )
+  assert.match(runner, /verificationLedger\.every/)
+  assert.match(touchVerifier, /chromium-cdp-emulated-touch/)
+  assert.match(touchVerifier, /pointer_down\.get\("isTrusted"\) is not True/)
+  assert.match(missionVerifier, /accelerated-public-production-runtime/)
+  assert.match(missionVerifier, /snapshot\.tick !== prior\.tick \+ 1/)
+  assert.match(sceneVerifier, /expected_landing_pad_count = 1/)
+  assert.match(
     serverOwner,
     /refusing responsive pre-existing server/,
   )
   for (const proofField of [
     'runtimeRevision',
-    'authoredSeedSha256',
-    'workspaceSourceSha256',
     'FIRST_PLAYABLE_FRAME_LIMIT_MS',
-    'durationMs',
+    'touchInteraction',
+    'missionProof',
+    'verificationLedger',
   ]) {
     assert.match(verifier, new RegExp(proofField))
   }
+  for (const proofField of [
+    'authoredSeedSha256',
+    'workspaceSourceSha256',
+    'durationMs',
+    'verify_flight_deadline_contracts',
+    'verify_mobile_touch_interaction',
+    'complete_authored_flight_mission',
+  ]) {
+    assert.match(runtimePhases, new RegExp(proofField))
+  }
   assert.ok(
-    verifier.indexOf(
+    runtimePhases.indexOf(
       'source_application, source = apply_and_verify_exact_authored_source',
     )
-      < verifier.indexOf("page.locator('[data-kg-flight-sim-hud=\"1\"]')"),
+      < runtimePhases.indexOf("page.locator('[data-kg-flight-sim-hud=\"1\"]')"),
+  )
+  assert.ok(
+    runtimePhases.indexOf('"runtime deadline contracts"')
+      < runtimePhases.indexOf('"first playable frame"'),
+  )
+  assert.match(
+    runtimePhases,
+    /"first playable frame"[\s\S]*depends_on=\("runtime deadline contracts",\)/,
   )
 })
 
 test('Flight Sim source declares an overlay on the canonical XR world', () => {
   const meta = frontmatter(seedSource)
-  assert.equal(meta.status, 'runtime-ready')
-  assert.equal(meta.runtime_status, 'runtime-ready')
-  assert.equal(meta.runtime_claim, 'local-runtime-ready')
+  assert.equal(meta.status, 'implementation-ready')
+  assert.equal(meta.runtime_status, 'evidence-pending')
+  assert.equal(meta.runtime_claim, 'local-runtime-candidate')
+  assert.equal(meta.evidence_status, 'pending exact-head handoff proof')
   assert.equal(meta.publish_scope, 'local-only')
   assert.equal(meta.kgCanvasSurfaceMode, 'xr')
   assert.equal(meta.kgCanvasRenderMode, '3d')

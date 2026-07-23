@@ -172,9 +172,14 @@ const requireFlightRuntimeIdentity = (source, physicsSource) => {
     if (actual !== expected) missing.push(`${label}=${JSON.stringify(expected)}`)
   }
 
-  requireValue('status', frontmatter.status, 'runtime-ready')
-  requireValue('runtime_status', frontmatter.runtime_status, 'runtime-ready')
-  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-ready')
+  requireValue('status', frontmatter.status, 'implementation-ready')
+  requireValue('runtime_status', frontmatter.runtime_status, 'evidence-pending')
+  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-candidate')
+  requireValue(
+    'evidence_status',
+    frontmatter.evidence_status,
+    'pending exact-head handoff proof',
+  )
   requireValue('publish_scope', frontmatter.publish_scope, 'local-only')
   requireValue('kgCanvasSurfaceMode', readCanvasSurfaceMode(frontmatter.kgCanvasSurfaceMode), 'xr')
   requireValue('kgCanvasRenderMode', readCanvasRenderMode(frontmatter.kgCanvasRenderMode), '3d')
@@ -249,7 +254,7 @@ const requireFlightRuntimeIdentity = (source, physicsSource) => {
   const forbidden = Object.keys(frontmatter).filter(key => key.startsWith('planned_'))
   if (missing.length > 0 || forbidden.length > 0) {
     throw new Error(
-      `runtime-ready workspace document ${FLIGHT_SEED_BASENAME} has invalid authority; `
+      `implementation-ready workspace document ${FLIGHT_SEED_BASENAME} has invalid authority; `
       + `missing=${JSON.stringify(missing)} forbidden=${JSON.stringify(forbidden)}`,
     )
   }

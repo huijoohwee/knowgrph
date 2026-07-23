@@ -1,10 +1,14 @@
 ---
 title: "Knowgrph Native Flight Sim"
 doc_type: "Workspace Demo"
-status: "runtime-ready"
-runtime_status: "runtime-ready"
-runtime_claim: "local-runtime-ready"
+status: "implementation-ready"
+runtime_status: "evidence-pending"
+runtime_claim: "local-runtime-candidate"
+evidence_status: "pending exact-head handoff proof"
 publish_scope: "local-only"
+authority_role: "derived runtime activation/proof projection"
+normative_kiro_authority: "/.kiro/specs/knowgrph-game-flight-sim/"
+workspace_root_kiro_projection: "byte-identical local projection only; never a second authority"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
 kgCanvas3dMode: "xr"
@@ -48,7 +52,7 @@ native_flight_demo:
   runtime_owner: "Flight Sim surface on the shared XR Canvas"
   default_aircraft: "vehicle-airplane"
   deterministic_step: true
-  fixed_step: "exactly 1/60 second (approximately 16.667 ms); the Kiro 16 ms / 60 Hz wording is resolved in favor of mathematically exact 60 Hz"
+  fixed_step: "exactly 1/60 second (approximately 16.667 ms, 60 Hz)"
   max_catch_up_ticks_per_advance: 5
   mission_meter_transform: "20 meters per authored Singapore scene unit"
   spatial_profile_scale_id: "flight-meters-20"
@@ -110,7 +114,9 @@ asset_pipeline:
   native_in_repo: true
   forbid_external_copy_or_dependency: true
   inspiration_reference_only: ["FlightGear", "Arnie016/flight-simulator-fable5"]
-  no_copy_scan_scope: "all tracked repository files; concepts and architecture only, with zero copied source, binary, asset, or dependency"
+  no_copy_scan_scope: "all tracked repository files for named identity, path, content-marker, binary/asset, and declared-dependency contamination from FlightGear or Arnie016/flight-simulator-fable5"
+  provenance_attestation: "Knowgrph contributors attest that the Flight Sim implementation and assets are source-authored; external projects inform concepts and architecture only"
+  no_copy_gate_limitation: "the deterministic scanner detects named contamination patterns and declared dependencies; it cannot prove the absence of arbitrary derived code"
 motion_control:
   runtime: "browser-local LiteRT.js"
   model: "Google BlazePose GHUM Full"
@@ -152,8 +158,8 @@ flight_sim:
   cost_log_owner: "AgenticECS.worldTick:post-systems"
   projection_owner: "captureFlightSimMission:post-commit"
   system_contract_reconciliation: "four meaningful journaled systems; Cost_Log is harness-owned after systems and render/HUD projection is captured only after commit"
-  normal_cost_log: {model: "none", tokens: 0, estimated_cost_usd: 0, incomplete: false}
-  blocked_inference_cost_log: {model: "none", prompt_tokens: "unknown", completion_tokens: "unknown", estimated_cost_usd: 0, incomplete: true, error: "blocked_inference"}
+  normal_cost_log: {model: "none", prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0, incomplete: false}
+  blocked_inference_cost_log: {model: "none", prompt_tokens: "unknown", completion_tokens: "unknown", cache_hits: 0, estimated_cost_usd: 0, incomplete: true, error: "blocked_inference"}
   webgl_gate: "synchronous probe; fail closed on the local fallback surface"
   stop_start: "resume the exact in-memory mission tick and state"
   decision_persistence: "browser-local WorkspaceFs; terminal Decisions remain pending until explicit Save and are never auto-saved"
@@ -175,11 +181,11 @@ runtime_validation:
   glb_fallback_runtime: "one committed-local, CC0-1.0, SHA-pinned optional beacon; remote or unavailable fallbacks fail closed"
   first_playable_frame_limit_ms: 3000
   property_proof: "45 named fast-check properties at 100 runs each (4,500 generated cases)"
-  focused_source_tests: 122
+  focused_source_tests_minimum: 126
   browser_proof: "two fresh serial runs; each evidence record binds clean branch, HEAD, tree, authored seed SHA-256, and source path before launch"
   browser_evidence: ["data/outputs/game-flight-sim-browser-smoke-run-1.json", "data/outputs/game-flight-sim-browser-smoke-run-2.json"]
   editor_chrome: true
-  status: "repository-owned source/runtime proof passed; protected integration pending"
+  status: "runtime-readiness gates registered; exact-head source/browser evidence required at handoff; protected integration pending"
 mcp_control:
   inspect_tool: "knowgrph.inspect_local_flight_sim"
   control_tool: "knowgrph.control_local_flight_sim"
@@ -254,13 +260,13 @@ Camera source is independent of aircraft selection. In **FloatingPanel Camera �
 
 Terminal results remain pending and never auto-save. **Save** is the only operation that persists validated Decisions through browser-local WorkspaceFs at `/game-flight-sim/mission-1-decisions.md`. Malformed bytes remain intact and block Start and Restart until **Reset local save** succeeds.
 
-The mission uses the fixed `flight-meters-20` transform: one authored Singapore scene unit equals 20 mission meters, while Flight rendering and camera framing apply the inverse scale on the retained authored XR world. The simulation advances at exactly `1/60` second (approximately 16.667 ms), never the mathematically inconsistent literal pairing of 16 ms with 60 Hz, and executes at most five catch-up ticks per advance. Capture exactly three waypoints in authored order and then the marked landing pad; all four objective radii are 50 m, and an out-of-order waypoint cannot advance progress.
+The mission uses the fixed `flight-meters-20` transform: one authored Singapore scene unit equals 20 mission meters, while Flight rendering and camera framing apply the inverse scale on the retained authored XR world. The simulation advances at exactly `1/60` second (approximately 16.667 ms, 60 Hz) and executes at most five catch-up ticks per advance. Capture exactly three waypoints in authored order and then the marked landing pad; all four objective radii are 50 m, and an out-of-order waypoint cannot advance progress.
 
 Four meaningful systems run in stable transactional order: `InputIntegrationSystem`, `FlightModelSystem`, `CollisionResolverSystem`, and `ObjectiveSystem`. The Agentic ECS harness emits the one post-systems Cost_Log, and immutable render/HUD projection is captured only after the World commits. A failing system rolls back itself while retaining prior same-tick commits. Replay validates source, mission seed, input count/order/bytes, halts on the first divergence, and retains the last byte-equivalent committed World. Exit disposes the ECS World and unsaved in-memory mission state.
 
 ## Asset pipeline
 
-The required aircraft loads from committed img2threejs-style TypeScript plus `vehicle-airplane.scene.json`: small, diffable, human-auditable, strict UTF-8, at most 1 MB, and offline. Its GLB fallback count is exactly zero. One optional beacon without an Asset_Spec uses the committed-local opaque `optional-beacon.glb`, licensed CC0-1.0 and pinned to SHA-256 `be41f87bb745ba35c439336d932dd69c34223d26e117443a3c8556e44fce70cd`, so the complete default load has one fallback. Remote, absolute, traversal, missing, unreadable, invalid, or unlicensed fallback references fail closed without fetching. Runtime code performs no image-to-3D model call, asset fetch, automatic grammar hydration, or Cloudflare request during Flight/Physics core play. The fixed 21-package Flight runtime closure is license-gated. FlightGear and `Arnie016/flight-simulator-fable5` are concepts-and-architecture inspiration only: for each reference, this scope copies none of its source and takes no dependency on it; the all-tracked-file build scan also forbids their binaries and assets.
+The required aircraft loads from committed img2threejs-style TypeScript plus `vehicle-airplane.scene.json`: small, diffable, human-auditable, strict UTF-8, at most 1 MB, and offline. Its GLB fallback count is exactly zero. One optional beacon without an Asset_Spec uses the committed-local opaque `optional-beacon.glb`, licensed CC0-1.0 and pinned to SHA-256 `be41f87bb745ba35c439336d932dd69c34223d26e117443a3c8556e44fce70cd`, so the complete default load has one fallback. Remote, absolute, traversal, missing, unreadable, invalid, or unlicensed fallback references fail closed without fetching. Runtime code performs no image-to-3D model call, asset fetch, automatic grammar hydration, or Cloudflare request during Flight/Physics core play. The fixed 21-package Flight runtime closure is license-gated. Knowgrph contributors attest that this implementation and its assets are source-authored, with FlightGear and `Arnie016/flight-simulator-fable5` used only for concepts and architecture and no dependency taken on either project. The all-tracked-file scanner detects named identity, path, content-marker, binary/asset, and declared-dependency contamination; it does not prove the absence of arbitrary derived code.
 
 ## Runtime-readiness gates
 
@@ -268,10 +274,10 @@ The required aircraft loads from committed img2threejs-style TypeScript plus `ve
 - [x] Flight is an XR Mode overlay on the Physics source-authored world; it owns no second rendered XR world, scene owner, or Canvas.
 - [x] Fixed Follow and Free Orbit come from the shared Camera catalog, and the Physics controller hook is the sole camera/OrbitControls mutator for the pure Flight framing descriptor.
 - [x] The default load is spec-primary for the required aircraft and contains exactly one committed-local optional opaque GLB; remote and unavailable fallbacks fail closed.
-- [x] Exactly 45 named fast-check properties run at least 100 cases each (4,500 generated cases), alongside 122 focused source checks.
+- [x] Exactly 45 named fast-check properties are registered for at least 100 cases each (4,500 generated cases), alongside at least 126 focused source checks.
 - [x] Browser proof enforces a clean exact branch/HEAD/tree and authored-seed SHA-256 before each of two fresh serial runs, including the ≤3 s first-frame, 375×812 HUD, lifecycle, camera, persistence-failure, pointer-lock contract, and zero-network fences.
-- [x] `npm run game-flight-sim:runtime-ready` passes on the final candidate.
-- [x] `npm run game-flight-sim:browser-smoke` passes serially on the same exact candidate revision.
+- [x] `npm run game-flight-sim:runtime-ready` is the mandatory aggregate gate for the clean final candidate.
+- [x] `npm run game-flight-sim:browser-smoke` requires two serial runs on that same exact candidate revision.
 - [ ] The protected PR integrates the verified candidate.
 
 The unchecked gates are proof/release state, not missing runtime behavior. This scope authorizes no Agentic workspace-seed projection, Prod/Cloudflare deployment, or public release.

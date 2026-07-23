@@ -100,10 +100,12 @@ def _read_source_identity(
             ? state.graphData.nodes.map(node => String(node?.id || '')).sort()
             : []
           const sourceContract = {
-            statusRuntimeReady:
-              /^status:\\s*["']runtime-ready["']\\s*$/m.test(sourceText),
-            runtimeStatusReady:
-              /^runtime_status:\\s*["']runtime-ready["']\\s*$/m.test(sourceText),
+            statusImplementationReady:
+              /^status:\\s*["']implementation-ready["']\\s*$/m.test(sourceText),
+            runtimeStatusEvidencePending:
+              /^runtime_status:\\s*["']evidence-pending["']\\s*$/m.test(sourceText),
+            exactHeadEvidenceRequired:
+              /^evidence_status:\\s*["']pending exact-head handoff proof["']\\s*$/m.test(sourceText),
             surfaceXr:
               /^kgCanvasSurfaceMode:\\s*["']xr["']\\s*$/m.test(sourceText),
             render3d:

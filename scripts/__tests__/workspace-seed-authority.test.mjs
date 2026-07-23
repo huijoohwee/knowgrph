@@ -29,9 +29,10 @@ native_controller_demo:
 ---
 `
 const flightRuntimeSeed = `---
-status: "runtime-ready"
-runtime_status: "runtime-ready"
-runtime_claim: "local-runtime-ready"
+status: "implementation-ready"
+runtime_status: "evidence-pending"
+runtime_claim: "local-runtime-candidate"
+evidence_status: "pending exact-head handoff proof"
 publish_scope: "local-only"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
@@ -169,7 +170,7 @@ test('rejects a flight runtime source without canonical shared-XR overlay author
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+    /implementation-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
   )
 })
 
@@ -185,7 +186,7 @@ test('rejects a flight runtime source with a private camera catalog', async t =>
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+    /implementation-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
   )
 })
 
@@ -218,7 +219,7 @@ test('rejects drift from the shared Physics camera contract', async t => {
       )
       await assert.rejects(
         () => verifyWorkspaceSeedAuthority(roots),
-        /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+        /implementation-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
       )
     })
   }

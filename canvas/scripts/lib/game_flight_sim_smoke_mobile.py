@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from playwright.sync_api import Page
@@ -279,4 +280,141 @@ def verify_mobile_flight_hud(page: Page) -> dict[str, Any]:
             f"invalid={invalid_targets}, overflow={overflow_targets}, "
             f"layout={layout}"
         )
+    layout["proofScope"] = "layout-and-control-presence"
     return layout
+
+
+def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
+    before = page.evaluate(
+        """
+        async () => {
+          const runtime = await import(
+            '/src/features/game-flight-sim/flightSimRuntime.ts'
+          )
+          return runtime.restartFlightSim()
+        }
+        """
+    )
+    if (
+        before.get("phase") != "ready"
+        or before.get("tick") != 0
+        or before.get("waypointIndex") != 0
+    ):
+        raise AssertionError(f"fresh touch mission was not ready: {before}")
+    control = page.get_by_role("button", name="Pitch ▲", exact=True).first
+    box = control.bounding_box()
+    if not box or not control.is_enabled():
+        raise AssertionError("mobile Pitch Up touch target was unavailable")
+    control.evaluate(
+        """
+        element => {
+          window.__kgFlightSimTouchEventProof = {}
+          for (const type of ['pointerdown', 'pointerup', 'pointercancel']) {
+            element.addEventListener(type, event => {
+              window.__kgFlightSimTouchEventProof[type] = {
+                pointerType: event.pointerType,
+                isTrusted: event.isTrusted,
+                pointerId: event.pointerId,
+              }
+            }, { once: true })
+          }
+        }
+        """
+    )
+    session = page.context.new_cdp_session(page)
+    point = {
+        "x": box["x"] + box["width"] / 2,
+        "y": box["y"] + box["height"] / 2,
+        "radiusX": 4,
+        "radiusY": 4,
+        "force": 1,
+        "id": 41,
+    }
+    after: dict[str, Any] | None = None
+    try:
+        session.send(
+            "Emulation.setTouchEmulationEnabled",
+            {"enabled": True, "maxTouchPoints": 1},
+        )
+        session.send(
+            "Input.dispatchTouchEvent",
+            {"type": "touchStart", "touchPoints": [point]},
+        )
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            after = page.evaluate(
+                """
+                async () => {
+                  const runtime = await import(
+                    '/src/features/game-flight-sim/flightSimRuntime.ts'
+                  )
+                  return runtime.readFlightSimSnapshot()
+                }
+                """
+            )
+            if (
+                after.get("phase") == "flying"
+                and after.get("tick", 0) > before.get("tick", 0)
+                and after["aircraft"]["pitch"]
+                > before["aircraft"]["pitch"] + 0.001
+            ):
+                break
+            page.wait_for_timeout(50)
+        else:
+            raise AssertionError(
+                "Flight mobile Pitch Up touch did not advance production input: "
+                f"before={before}, after={after}"
+            )
+    finally:
+        session.send(
+            "Input.dispatchTouchEvent",
+            {"type": "touchEnd", "touchPoints": []},
+        )
+        session.send(
+            "Emulation.setTouchEmulationEnabled",
+            {"enabled": False},
+        )
+        session.detach()
+    released: dict[str, Any] = {}
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        released = page.evaluate(
+            """
+            async () => {
+              const input = await import(
+                '/src/features/game-flight-sim/flightSimInput.ts'
+              )
+              return input.readFlightSimTouchInput()
+            }
+            """
+        )
+        if not any(abs(float(value)) > 1e-9 for value in released.values()):
+            break
+        page.wait_for_timeout(25)
+    events = page.evaluate("window.__kgFlightSimTouchEventProof")
+    if any(abs(float(value)) > 1e-9 for value in released.values()):
+        raise AssertionError(
+            f"Flight mobile touch input was not released: {released}"
+        )
+    pointer_down = (events or {}).get("pointerdown") or {}
+    if (
+        pointer_down.get("pointerType") != "touch"
+        or pointer_down.get("isTrusted") is not True
+    ):
+        raise AssertionError(
+            f"Flight mobile touch event provenance was invalid: {events}"
+        )
+    return {
+        "exercised": True,
+        "source": "chromium-cdp-emulated-touch",
+        "control": "Pitch ▲",
+        "runId": after["runId"],
+        "tickBefore": before["tick"],
+        "tickAfter": after["tick"],
+        "pitchBefore": before["aircraft"]["pitch"],
+        "pitchAfter": after["aircraft"]["pitch"],
+        "positionBefore": before["aircraft"]["position"],
+        "positionAfter": after["aircraft"]["position"],
+        "events": events,
+        "releasedInput": released,
+    }

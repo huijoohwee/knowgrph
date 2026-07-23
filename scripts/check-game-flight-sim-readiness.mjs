@@ -4,8 +4,10 @@ import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import { assertFlightSimCameraReadiness } from './game-flight-sim-camera-readiness.mjs'
 import { assertFlightSimAssetReadiness } from './lib/game-flight-sim-asset-readiness.mjs'
+import { assertFlightSimKiroReadiness } from './lib/game-flight-sim-kiro-readiness.mjs'
 import { assertFlightSimPropertyReadiness } from './lib/game-flight-sim-property-readiness.mjs'
 import { assertFlightSimSeedReadiness } from './lib/game-flight-sim-seed-readiness.mjs'
+import { assertFlightSimVerificationReadiness } from './lib/game-flight-sim-verification-readiness.mjs'
 import {
   parseYamlFrontmatter as parseFrontmatter,
   requireOrderedSourceMarkers as requireOrderedMarkers,
@@ -13,9 +15,15 @@ import {
 } from './lib/source-readiness-assertions.mjs'
 const repositoryRoot = process.cwd()
 const flightFeatureRoot = 'canvas/src/features/game-flight-sim'
+const flightPrdPath = 'docs/documents/knowgrph-game-flight-sim-prd-tad.md'
 const flightSeedPath = 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'
 const physicsSeedPath = 'docs/workspace-seeds/knowgrph-physics-playground-demo.md'
+const kiroSpecRoot = '.kiro/specs/knowgrph-game-flight-sim'
 const requiredPaths = [
+  `${kiroSpecRoot}/.config.kiro`,
+  `${kiroSpecRoot}/requirements.md`,
+  `${kiroSpecRoot}/design.md`,
+  `${kiroSpecRoot}/tasks.md`,
   `${flightFeatureRoot}/FlightSimFloatingPanelView.tsx`,
   `${flightFeatureRoot}/FlightSimHud.tsx`,
   `${flightFeatureRoot}/FlightSimMissionStage.tsx`,
@@ -61,9 +69,11 @@ const requiredPaths = [
   'canvas/src/__tests__/flightSimMcpRuntime.test.ts',
   'canvas/src/__tests__/flightSimRuntime.test.ts',
   'canvas/src/__tests__/flightSimSourceAuthority.test.ts',
+  'canvas/src/__tests__/flightSimXrAgenticEcsComposition.test.ts',
   'canvas/src/__tests__/xrAgenticEcsComposition.test.ts',
   'ecs/index.js',
   'ecs/worldTick.js',
+  flightPrdPath,
   flightSeedPath,
   physicsSeedPath,
   'scripts/game-flight-sim-camera-readiness.mjs',
@@ -71,8 +81,11 @@ const requiredPaths = [
   'scripts/generate-game-flight-sim-optional-prop-glb.mjs',
   'scripts/lib/game-flight-sim-asset-readiness.mjs',
   'scripts/lib/game-flight-sim-boundary.mjs',
+  'scripts/lib/game-flight-sim-kiro-readiness.mjs',
   'scripts/lib/game-flight-sim-seed-readiness.mjs',
+  'scripts/lib/game-flight-sim-verification-readiness.mjs',
   'scripts/__tests__/game-flight-sim-boundary.test.mjs',
+  'scripts/__tests__/game-flight-sim-readiness-contract.test.mjs',
   'scripts/workspace-seed-authority.mjs',
   'package.json',
   'canvas/package.json',
@@ -242,7 +255,21 @@ requireMarkers(controlsSource, [
 ], 'shared camera arbitration')
 const seedSource = await readText(flightSeedPath)
 const seed = parseFrontmatter(seedSource, flightSeedPath)
+const prdSource = await readText(flightPrdPath)
+const prd = parseFrontmatter(prdSource, flightPrdPath)
+if (
+  prd.authority_role !== 'derived implementation/proof projection'
+  || prd.normative_kiro_authority !== '.kiro/specs/knowgrph-game-flight-sim/'
+) {
+  throw new Error('Flight Sim PRD/TAD must remain a derived projection of tracked Kiro authority')
+}
+requireMarkers(prdSource, [
+  'derived implementation/proof projection of the normative repository-tracked Kiro source of truth',
+  'root-workspace Kiro copy must remain byte-identical and is not an independent authority',
+  'scanner does not claim to prove the absence of arbitrary derived code',
+], 'Flight Sim PRD/TAD authority and named-contamination boundary')
 const physicsSeed = parseFrontmatter(await readText(physicsSeedPath), physicsSeedPath)
+const kiroReadiness = await assertFlightSimKiroReadiness({ repositoryRoot })
 await assertFlightSimCameraReadiness({ flightSeed: seed, physicsSeed, readText })
 
 const missionSource = await readText(`${flightFeatureRoot}/flightSimMission.ts`)
@@ -393,6 +420,18 @@ if (
 }
 
 const assetReadiness = await assertFlightSimAssetReadiness({ repositoryRoot })
+const assetReadinessSource = await readText('scripts/lib/game-flight-sim-asset-readiness.mjs')
+requireMarkers(assetReadinessSource, [
+  'export async function assertTrackedFlightSimAsset(repositoryRoot, relativePath)',
+  'throw new Error(`${relativePath} must be git-tracked`)',
+  'export async function assertFlightSimAssetReadiness({ repositoryRoot })',
+], 'Flight Sim committed-local asset tracking gate')
+if (
+  assetReadinessSource.includes('KG_FLIGHT_SIM_ALLOW_UNTRACKED_ASSET_CANDIDATE')
+  || assetReadinessSource.includes('allowUntracked')
+) {
+  throw new Error('Flight Sim runtime readiness must not permit an untracked asset bypass')
+}
 
 const decisionStoreSource = await readText(`${flightFeatureRoot}/flightSimDecisionStore.ts`)
 requireMarkers(decisionStoreSource, [
@@ -494,7 +533,7 @@ const boundaryCommand = rootPackage.scripts?.['game-flight-sim:boundary'] || ''
 requireOrderedMarkers(boundaryCommand, [
   'node --test ./scripts/__tests__/game-flight-sim-boundary.test.mjs',
   'node ./scripts/check-game-flight-sim-boundary.mjs',
-], 'Flight Sim tracked no-copy boundary command')
+], 'Flight Sim tracked named-contamination boundary command')
 const prebuildCommand = canvasPackage.scripts?.prebuild || ''
 if (!prebuildCommand.startsWith('npm --prefix .. run game-flight-sim:boundary && ')) {
   throw new Error('Canvas builds must begin with the tracked Flight Sim no-copy boundary')
@@ -515,24 +554,20 @@ const sourceTestCommand = canvasPackage.scripts?.['test:smoke:game-flight-sim:so
 requireMarkers(sourceTestCommand, [
   '--test-concurrency=1',
   'src/__tests__/flightSim*.test.ts',
-  'src/__tests__/xrAgenticEcsComposition.test.ts',
 ], 'Flight Sim focused source-test command')
 if (/--test-concurrency=(?!1\b)/.test(sourceTestCommand)) {
   throw new Error('Flight Sim focused source tests must run serially')
 }
+const xrCompositionTestSource = await readText(
+  'canvas/src/__tests__/flightSimXrAgenticEcsComposition.test.ts',
+)
+requireMarkers(xrCompositionTestSource, [
+  "from './xrAgenticEcsComposition.test'",
+  'testXrAgenticEcsCompositionBoundaryRemainsExplicit',
+  "test(\n  'Flight Sim retains the explicit XR and Agentic ECS composition boundary'",
+], 'Flight Sim XR/Agentic ECS focused wrapper')
 
-const runtimeReadyCommand = rootPackage.scripts?.['game-flight-sim:runtime-ready'] || ''
-requireOrderedMarkers(runtimeReadyCommand, [
-  'npm run smoke:prepare',
-  'node ./scripts/check-game-flight-sim-readiness.mjs',
-  'npm run ecs:test',
-  'npm -C canvas run test:smoke:game-flight-sim:source',
-  'npm -C canvas run check',
-  'KG_SKIP_DOCS_UPDATE=1 npm -C canvas run build',
-], 'Flight Sim runtime-ready command')
-if (/(?:browser-smoke|wrangler|deploy|cloudflare)/i.test(runtimeReadyCommand)) {
-  throw new Error('Flight Sim source readiness must remain Dev-only and deployment-free')
-}
+await assertFlightSimVerificationReadiness({ readText })
 
 const sourceTestPaths = (await listFiles('canvas/src/__tests__'))
   .filter(relativePath => /\/flightSim.*\.test\.ts$/.test(relativePath))
@@ -542,5 +577,5 @@ if (sourceTestPaths.length < 3) {
 const propertyReadiness = await assertFlightSimPropertyReadiness({ readText, listFiles })
 
 console.log(
-  `OK flight-sim source readiness (${featurePaths.length} feature files, ${sourceTestPaths.length} focused test files, ${propertyReadiness.propertyCount} properties/${propertyReadiness.generatedCaseCount} generated cases, ${assetReadiness.dependencies.externalClosureCount} licensed Flight dependencies, 1 optional local GLB, browser-only MCP pair)`,
+  `OK flight-sim source readiness (${featurePaths.length} feature files, ${sourceTestPaths.length} focused test files, ${propertyReadiness.propertyCount} properties/${propertyReadiness.generatedCaseCount} generated cases, ${assetReadiness.dependencies.externalClosureCount} licensed Flight dependencies, Kiro ${kiroReadiness.files.length}-file SHA-256 ${kiroReadiness.sha256} with workspace projection ${kiroReadiness.projection.checked ? 'byte-matched' : 'absent (portable)'}, 1 optional local GLB, browser-only MCP pair)`,
 )

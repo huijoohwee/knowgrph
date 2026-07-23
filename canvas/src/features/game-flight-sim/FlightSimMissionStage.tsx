@@ -33,6 +33,7 @@ import {
 } from './flightSimRuntime'
 import { FLIGHT_SIM_FIXED_STEP_SECONDS, FLIGHT_SIM_NEUTRAL_INPUT } from './flightSimModel'
 import { createFlightSimSimulationClock } from './flightSimSimulationClock'
+import { completeFlightSimReadyFrame } from './flightSimDeadlineRuntime'
 
 const INPUT_OWNER_ID = 'flight-sim:aircraft'
 const CLOCK_INTERVAL_MS = FLIGHT_SIM_FIXED_STEP_SECONDS * 1000
@@ -143,6 +144,9 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
       && !isFlightSimHydrationPending()
     if (snapshot.active && playable && inputClaimedRef.current && !snapshot.runtimeError) {
       gl.domElement.dataset.kgFlightSimFirstFrame = '1'
+      if (snapshot.phase === 'ready' && snapshot.tick === 0) {
+        completeFlightSimReadyFrame(snapshot.runId, snapshot.tick)
+      }
     } else {
       delete gl.domElement.dataset.kgFlightSimFirstFrame
     }

@@ -1,74 +1,51 @@
-import { readWebglSupport } from '@/lib/three/webglSupport'
-import {
-  activateXrSceneSurface,
-  registerXrSceneGameplayExitHandler,
-} from '@/features/three/xrSceneSurfaceRuntime'
+import { activateXrSceneSurface, registerXrSceneGameplayExitHandler } from '@/features/three/xrSceneSurfaceRuntime'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
-  captureFlightSimMission,
-  cloneFlightSimMission,
-  createFlightSimMission,
-  disposeFlightSimMission,
-  tickFlightSimMission,
-  type FlightSimMission,
-  type FlightSimMissionCapture,
+  captureFlightSimMission, cloneFlightSimMission, createFlightSimMission,
+  disposeFlightSimMission, tickFlightSimMission,
+  type FlightSimMission, type FlightSimMissionCapture,
 } from './flightSimMission'
 import { validateFlightSimMissionDecisions } from './flightSimDecisionAdmission'
 import {
-  FLIGHT_SIM_FIXED_STEP_SECONDS,
-  FLIGHT_SIM_MAX_CATCH_UP_TICKS,
-  FLIGHT_SIM_MAX_RUN_ID,
-  FLIGHT_SIM_NEUTRAL_INPUT,
-  FLIGHT_SIM_ZERO_COST_LOG,
-  isFlightSimInputNeutral,
-  normalizeFlightSimInput,
-  type FlightSimCostLog,
-  type FlightSimDecisionRecord,
-  type FlightSimInputPatch,
-  type FlightSimPhase,
-  type FlightSimSnapshot,
-  type FlightSimSpatialProfile,
+  FLIGHT_SIM_FIXED_STEP_SECONDS, FLIGHT_SIM_MAX_CATCH_UP_TICKS,
+  FLIGHT_SIM_MAX_RUN_ID, FLIGHT_SIM_NEUTRAL_INPUT, FLIGHT_SIM_ZERO_COST_LOG,
+  isFlightSimInputNeutral, normalizeFlightSimInput,
+  type FlightSimCostLog, type FlightSimDecisionRecord, type FlightSimInputPatch,
+  type FlightSimPhase, type FlightSimSnapshot, type FlightSimSpatialProfile,
   type FlightSimTickInput,
 } from './flightSimModel'
 import { mergeFlightSimInputs } from './flightSimInput'
 import { readFlightSimXrSpatialProfile } from './flightSimSpatialProfile'
 import {
-  loadFlightSimSavedDecisions,
-  persistPendingFlightSimDecisions,
-  queueFlightSimDecisions,
-  readFlightSimDecisionStore,
-  reportFlightSimDecisionLoadFailure,
-  resetFlightSimLocalSave,
+  loadFlightSimSavedDecisions, persistPendingFlightSimDecisions,
+  queueFlightSimDecisions, readFlightSimDecisionStore,
+  reportFlightSimDecisionLoadFailure, resetFlightSimLocalSave,
   type FlightSimDecisionStoreSnapshot,
 } from './flightSimDecisionStore'
 import {
-  beginFlightSimHydration,
-  cancelFlightSimHydration,
-  finishFlightSimHydration,
-  readFlightSimHydrationPending,
+  beginFlightSimHydration, cancelFlightSimHydration,
+  finishFlightSimHydration, readFlightSimHydrationPending,
 } from './flightSimHydrationGate'
 import { createFlightSimPendingDecisionIndex } from './flightSimPendingDecisions'
 import {
-  boundedFlightSimDeltaSeconds,
-  createIdleFlightSimSnapshot,
-  flightSimRuntimeErrorMessage,
-  freezeFlightSimDecision,
+  boundedFlightSimDeltaSeconds, createIdleFlightSimSnapshot,
+  flightSimRuntimeErrorMessage, freezeFlightSimDecision,
   maximumFlightSimDecisionRunId,
-  type FlightSimAdvanceRequest,
-  type FlightSimRuntime,
+  type FlightSimAdvanceRequest, type FlightSimRuntime,
 } from './flightSimRuntimeState'
+import { beginFlightSimHudUpdate, resetFlightSimDeadlineRuntimeForTests } from './flightSimDeadlineRuntime'
 import {
-  captureFlightSimAuthoredRuntimeOwnership,
-  captureFlightSimPreviousCanvasSurface,
-  restoreFlightSimAuthoredRuntime,
-  restoreFlightSimPreviousCanvasSurface,
-  suspendFlightSimAuthoredRuntime,
-  type FlightSimAuthoredRuntimeOwnership,
+  readFlightSimWebglAdmission, startFlightSimWithReadyFrame,
+  rejectFlightSimGameplayNetworkAttemptWithinDeadline,
+} from './flightSimDeadlineIntegration'
+import {
+  captureFlightSimAuthoredRuntimeOwnership, captureFlightSimPreviousCanvasSurface,
+  restoreFlightSimAuthoredRuntime, restoreFlightSimPreviousCanvasSurface,
+  suspendFlightSimAuthoredRuntime, type FlightSimAuthoredRuntimeOwnership,
   type FlightSimPreviousCanvasSurface,
 } from './flightSimSurfaceOwnershipRuntime'
 import {
-  clearFlightSimSurfaceOwnershipFailure,
-  reportFlightSimSurfaceEntryFailure,
+  clearFlightSimSurfaceOwnershipFailure, reportFlightSimSurfaceEntryFailure,
   reportFlightSimSurfaceRestorationFailure,
   resetFlightSimSurfaceOwnershipStatusForTests,
 } from './flightSimSurfaceOwnershipStatus'
@@ -109,6 +86,7 @@ export function createFlightSimRuntime(options: Readonly<{
   const publish = (
     update: Partial<Omit<FlightSimSnapshot, 'revision'>>,
   ): FlightSimSnapshot => {
+    beginFlightSimHudUpdate(snapshot.revision + 1)
     snapshot = Object.freeze({ ...snapshot, ...update, revision: snapshot.revision + 1 })
     notify()
     return snapshot
@@ -345,6 +323,11 @@ export function createFlightSimRuntime(options: Readonly<{
       }
     },
     resetPersistence: resetMission,
+    rejectGameplayNetworkAttempt(operation, executor) {
+      return rejectFlightSimGameplayNetworkAttemptWithinDeadline(
+        mission, operation, executor, runtimeError => publish({ runtimeError }),
+      )
+    },
     fail(error) {
       return publish({ phase: 'stopped', runtimeError: flightSimRuntimeErrorMessage(error) })
     },
@@ -432,10 +415,15 @@ async function performFlightSimSurfaceOpen(
   let hydrationFinished = false
   let surfaceActivated = false
   try {
-    if (!(options.webglSupported ?? readWebglSupport())) {
+    const webglAdmission = readFlightSimWebglAdmission(options.webglSupported)
+    if (!webglAdmission.available) {
       hydrationFinished = true
       finishFlightSimHydration(hydrationToken)
-      return failFlightSimSurfaceEntry('WebGL is unavailable.', entering, false)
+      return failFlightSimSurfaceEntry(
+        webglAdmission.failureReason || 'WebGL is unavailable.',
+        entering,
+        false,
+      )
     }
     defaultRuntime.setProfile(readFlightSimXrSpatialProfile())
     const decisions = await loadFlightSimSavedDecisions(
@@ -507,7 +495,7 @@ export function startFlightSim(
       || 'Flight Sim Decisions are unreadable; reset the local save before starting.',
     )
   }
-  return defaultRuntime.start()
+  return startFlightSimWithReadyFrame(() => defaultRuntime.start())
 }
 export function stopFlightSim(): FlightSimSnapshot {
   return defaultRuntime.stop()
@@ -538,6 +526,12 @@ export function advanceFlightSimBy(deltaSeconds: number): Promise<FlightSimSnaps
 }
 export function advanceFlightSimByFixedStep(): Promise<FlightSimSnapshot> {
   return advanceFlightSimBy(FLIGHT_SIM_FIXED_STEP_SECONDS)
+}
+export function rejectFlightSimGameplayNetworkAttempt(
+  operation: string,
+  executor: () => unknown,
+): FlightSimSnapshot {
+  return defaultRuntime.rejectGameplayNetworkAttempt(operation, executor)
 }
 export function acknowledgeFlightSimDecisions(ids: readonly string[]): FlightSimSnapshot {
   return defaultRuntime.acknowledgeDecisions(ids)
@@ -593,6 +587,7 @@ export function resetFlightSimRuntimeForTests(
   previousCanvasSurface = null
   restoreAuthoredRuntime()
   resetFlightSimSurfaceOwnershipStatusForTests()
+  resetFlightSimDeadlineRuntimeForTests()
   defaultRuntime = createFlightSimRuntime({ profile, active: false, webglSupported: false })
   return defaultRuntime.read()
 }

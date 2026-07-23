@@ -90,7 +90,7 @@ function decodeStrictUtf8(bytes, relativePath) {
   return source
 }
 
-async function assertTracked(repositoryRoot, relativePath, allowUntracked) {
+export async function assertTrackedFlightSimAsset(repositoryRoot, relativePath) {
   try {
     await execFileAsync(
       'git',
@@ -98,7 +98,6 @@ async function assertTracked(repositoryRoot, relativePath, allowUntracked) {
       { cwd: repositoryRoot },
     )
   } catch {
-    if (allowUntracked) return
     throw new Error(`${relativePath} must be git-tracked`)
   }
 }
@@ -277,7 +276,7 @@ async function assertAssetSourceContract(repositoryRoot) {
   }
 }
 
-async function assertAssetSources(repositoryRoot, allowUntracked) {
+async function assertAssetSources(repositoryRoot) {
   const sources = []
   let combinedByteLength = 0
   for (const relativePath of FLIGHT_SIM_ASSET_SPEC_PATHS) {
@@ -287,7 +286,7 @@ async function assertAssetSources(repositoryRoot, allowUntracked) {
       throw new Error(`${relativePath} exceeds the ${FLIGHT_SIM_ASSET_TEXT_BYTE_LIMIT}-byte limit`)
     }
     sources.push(decodeStrictUtf8(bytes, relativePath))
-    await assertTracked(repositoryRoot, relativePath, allowUntracked)
+    await assertTrackedFlightSimAsset(repositoryRoot, relativePath)
   }
   if (combinedByteLength > FLIGHT_SIM_ASSET_TEXT_BYTE_LIMIT) {
     throw new Error(
@@ -297,7 +296,7 @@ async function assertAssetSources(repositoryRoot, allowUntracked) {
   return sources
 }
 
-async function assertGeneratedFallback(repositoryRoot, allowUntracked) {
+async function assertGeneratedFallback(repositoryRoot) {
   const trackedPaths = [
     FLIGHT_SIM_OPTIONAL_GLB_PATH,
     FLIGHT_SIM_OPTIONAL_GLB_SOURCE_PATH,
@@ -335,7 +334,7 @@ async function assertGeneratedFallback(repositoryRoot, allowUntracked) {
     throw new Error('Flight Sim optional GLB and generated source must match exactly')
   }
   await Promise.all(
-    trackedPaths.map(relativePath => assertTracked(repositoryRoot, relativePath, allowUntracked)),
+    trackedPaths.map(relativePath => assertTrackedFlightSimAsset(repositoryRoot, relativePath)),
   )
   await execFileAsync(
     process.execPath,
@@ -363,7 +362,7 @@ async function readFlightFeatureSources(repositoryRoot) {
   return walk(featureRoot)
 }
 
-async function assertDependencyClosure(repositoryRoot) {
+export async function assertDependencyClosure(repositoryRoot) {
   const [rootPackage, packageLock, sources] = await Promise.all([
     readFile(path.join(repositoryRoot, 'package.json'), 'utf8').then(JSON.parse),
     readFile(path.join(repositoryRoot, 'package-lock.json'), 'utf8').then(JSON.parse),
@@ -420,16 +419,13 @@ async function assertDependencyClosure(repositoryRoot) {
   }
 }
 
-export async function assertFlightSimAssetReadiness({
-  repositoryRoot,
-  allowUntracked = process.env.KG_FLIGHT_SIM_ALLOW_UNTRACKED_ASSET_CANDIDATE === '1',
-}) {
+export async function assertFlightSimAssetReadiness({ repositoryRoot }) {
   await Promise.all([
     assertAssetSourceContract(repositoryRoot),
-    assertAssetSources(repositoryRoot, allowUntracked),
+    assertAssetSources(repositoryRoot),
   ])
   const [fallback, dependencies] = await Promise.all([
-    assertGeneratedFallback(repositoryRoot, allowUntracked),
+    assertGeneratedFallback(repositoryRoot),
     assertDependencyClosure(repositoryRoot),
   ])
   return Object.freeze({ fallback, dependencies })

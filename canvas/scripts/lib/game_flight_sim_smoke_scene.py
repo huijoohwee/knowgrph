@@ -439,6 +439,14 @@ def assert_active_flight_scene(
     waypoint_names = [
         name for name in counts if name.startswith("kg_flight-sim_waypoint_")
     ]
+    landing_pad_name = "kg_flight_sim_landing_pad"
+    expected_landing_pad_count = 1 if completed_waypoint_count >= waypoint_count else 0
+    if counts.get(landing_pad_name, 0) != expected_landing_pad_count:
+        raise AssertionError(
+            "Flight landing-pad visibility did not match route progress: "
+            f"count={counts.get(landing_pad_name, 0)}, "
+            f"completed={completed_waypoint_count}/{waypoint_count}"
+        )
     expected_visible_waypoints = max(
         0,
         waypoint_count - completed_waypoint_count,
@@ -466,6 +474,7 @@ def assert_active_flight_scene(
         if name not in {FLIGHT_AIRCRAFT_NODE, FLIGHT_ASSET_NODE}
         and not name.startswith("kg_xr_airplane_")
         and not name.startswith("kg_flight-sim_waypoint_")
+        and name != landing_pad_name
     )
     if unexpected:
         raise AssertionError(

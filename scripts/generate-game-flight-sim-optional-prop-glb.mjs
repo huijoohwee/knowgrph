@@ -3,6 +3,9 @@ import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import {
+  runFlightSimOfflineAuthoringTransaction,
+} from './lib/game-flight-sim-offline-authoring.mjs'
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const fallbackDirectory = path.join(
@@ -12,6 +15,9 @@ const fallbackDirectory = path.join(
 const binaryPath = path.join(fallbackDirectory, 'optional-beacon.glb')
 const generatedSourcePath = path.join(fallbackDirectory, 'optionalBeaconGlb.generated.ts')
 const checkOnly = process.argv.includes('--check')
+const attemptedOperations = process.argv
+  .filter(argument => argument.startsWith('--attempt-operation='))
+  .map(argument => argument.slice('--attempt-operation='.length))
 
 function padBytes(bytes, alignment, fill) {
   const remainder = bytes.byteLength % alignment
@@ -128,14 +134,26 @@ async function requireExact(filePath, expected) {
   }
 }
 
-const glb = createGlb()
-const source = Buffer.from(generatedSource(glb), 'utf8')
 if (checkOnly) {
+  const glb = createGlb()
+  const source = Buffer.from(generatedSource(glb), 'utf8')
   await requireExact(binaryPath, glb)
   await requireExact(generatedSourcePath, source)
   console.log(`OK deterministic Flight Sim optional prop GLB (${glb.byteLength} bytes)`)
 } else {
-  await writeFile(binaryPath, glb)
-  await writeFile(generatedSourcePath, source)
-  console.log(`Wrote deterministic Flight Sim optional prop GLB (${glb.byteLength} bytes)`)
+  const output = await runFlightSimOfflineAuthoringTransaction({
+    attemptedOperations: attemptedOperations,
+    author: async () => {
+      const glb = createGlb()
+      return Object.freeze({
+        glb,
+        source: Buffer.from(generatedSource(glb), 'utf8'),
+      })
+    },
+    commit: async value => {
+      await writeFile(binaryPath, value.glb)
+      await writeFile(generatedSourcePath, value.source)
+    },
+  })
+  console.log(`Wrote deterministic Flight Sim optional prop GLB (${output.glb.byteLength} bytes)`)
 }

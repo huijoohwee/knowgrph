@@ -4,21 +4,24 @@ id: "md:knowgrph-game-flight-sim-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-22"
 updated: "2026-07-24"
-version: "1.1.0"
-status: "runtime-ready"
-runtime_claim: "local-runtime-ready"
+version: "1.2.0"
+status: "implementation-ready"
+runtime_claim: "local-runtime-candidate"
+evidence_status: "pending exact-head handoff proof"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
 domain: "knowgrph"
 execution_boundary: "dev-only"
 publish_scope: "local-only"
+authority_role: "derived implementation/proof projection"
+normative_kiro_authority: ".kiro/specs/knowgrph-game-flight-sim/"
 readiness:
-  source_contract: "passed"
-  focused_runtime: "passed"
-  core_browser_smoke: "passed"
-  proof_identity: "provisional-8d8461cca942460c5f13d09ca3a291a18d594ada"
-  final_exact_head_rerun: "required-before-handoff"
+  source_contract: "enforced-by-runtime-ready-gate"
+  focused_runtime: "enforced-by-runtime-ready-gate"
+  core_browser_smoke: "bound-by-two-serial-exact-head-evidence-records"
+  proof_identity: "candidate branch/head/tree/runtimeRevision plus authored-seed SHA-256 in local evidence"
+  final_exact_head_rerun: "mandatory-before-handoff"
   protected_integration: "pending"
   production: "not authorized"
 constraints:
@@ -45,6 +48,7 @@ source_references:
   flight_runtime: "canvas/src/features/game-flight-sim/"
   asset_spec_pipeline: "canvas/src/features/game-flight-sim/assetSpec/"
   optional_glb_generator: "scripts/generate-game-flight-sim-optional-prop-glb.mjs"
+  kiro_authority: ".kiro/specs/knowgrph-game-flight-sim/"
   validation_seed: "docs/workspace-seeds/knowgrph-game-flight-sim-demo.md"
   authored_world_source: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   asset_inspiration_reference_only: "github.com/Arnie016/flight-simulator-fable5 (inspiration only; no source copy, no dependency)"
@@ -52,17 +56,17 @@ source_references:
 
 # Knowgrph Game Flight Sim PRD/TAD
 
-Governed by the same solo-dev AI-native orientation as the sibling `knowgrph-game-fps-prd-tad.md`: every decision is evaluated through the four compounding lenses (min-viable-max-value, TCO-zero, token economics, harness-first). The local runtime-ready candidate has repository-owned focused and browser proof. Protected integration, production, and Cloudflare deployment remain separate and unauthorized here.
+Governed by the same solo-dev AI-native orientation as the sibling `knowgrph-game-fps-prd-tad.md`: every decision is evaluated through the four compounding lenses (min-viable-max-value, TCO-zero, token economics, harness-first). Repository-owned focused and browser proof gates are registered and must bind the unchanged exact candidate at handoff. Protected integration, production, and Cloudflare deployment remain separate and unauthorized here.
 
 ## Status boundary
 
-This extensioned `.md` PRD/TAD is the normative contract and implementation map for the local runtime-ready Flight Sim candidate, reconciled with the Kiro requirements/design authority at `.kiro/specs/knowgrph-game-flight-sim`. `canvas/src/features/game-flight-sim/`, its Flight Sim panel, strict invocation, two browser WebMCP tools, asset admission, and Decisions-only WorkspaceFs adapter are source-owned in Knowgrph. Local proof is not protected integration, production, or deployment proof; those states remain explicit below.
+This extensioned `.md` PRD/TAD is a derived implementation/proof projection of the normative repository-tracked Kiro source of truth at `.kiro/specs/knowgrph-game-flight-sim`. The tracked package inventory and hashes are readiness-gated; any optional root-workspace Kiro copy must remain byte-identical and is not an independent authority. `canvas/src/features/game-flight-sim/`, its Flight Sim panel, strict invocation, two browser WebMCP tools, asset admission, and Decisions-only WorkspaceFs adapter are source-owned in Knowgrph. Local proof is not protected integration, production, or deployment proof; those states remain explicit below.
 
 ## Outcome
 
 Knowgrph gains one browser-local FloatingPanel **Flight Sim** mode that runs a bounded single-player flight mission inside the existing React Three Fiber Canvas, over the same authored XR terrain catalog the physics playground already ships (procedural Singapore waterfront, airplane/helicopter subjects). It opens from a source-backed run-ready document, the shared XR surface catalog, browser WebMCP, or the strict `/flight.sim @canvas #flight` invocation. Desktop keyboard/pointer, mobile touch, standard gamepad, and optional Motion Control input arm one deterministic native Agentic ECS flight mission with in-repo flight dynamics, AABB terrain collision, a visible HUD, selectable camera source, and Decisions-only WorkspaceFs persistence.
 
-Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. The required aircraft is admitted through an **img2threejs-style TypeScript module plus a small JSON scene spec** containing identity, procedural renderer shape, dimensions, collision size, color, and zero-call metadata. It is git-diffable, human-auditable, offline-loadable, rejects non-null `opaqueBinaryFallback`, and records a required-aircraft GLB fallback count of zero. The distinct optional beacon proves the Kiro opaque-fallback boundary with one self-contained, committed-local, CC0-1.0 GLB; remote references and missing/unreadable local bytes fail closed without a fetch. FlightGear and `Arnie016/flight-simulator-fable5` inform concepts only: the repository-wide build fence admits no copied source, asset, binary, or dependency from either project.
+Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. The required aircraft is admitted through an **img2threejs-style TypeScript module plus a small JSON scene spec** containing identity, procedural renderer shape, dimensions, collision size, color, and zero-call metadata. It is git-diffable, human-auditable, offline-loadable, rejects non-null `opaqueBinaryFallback`, and records a required-aircraft GLB fallback count of zero. The distinct optional beacon proves the Kiro opaque-fallback boundary with one self-contained, committed-local, CC0-1.0 GLB; remote references and missing/unreadable local bytes fail closed without a fetch. FlightGear and `Arnie016/flight-simulator-fable5` inform concepts only. The build fence detects named identity, path, content, binary/asset, and dependency contamination; a separate repository-authorship provenance attestation states that this implementation copies or derives no source from either reference. The scanner is not represented as a universal code-similarity proof.
 
 ## Product Requirements
 
@@ -253,7 +257,7 @@ The implemented ECS transaction contains four meaningful construction-time-order
 | 3 | `CollisionResolverSystem` | Resolve swept/de-penetrating AABB contact against the authored profile |
 | 4 | `ObjectiveSystem` | Advance only the next ordered objective and emit pending mission Decisions |
 
-The native ECS journal commits systems in order; if system *k* fails, prior systems remain committed, the failing system is rolled back and identified by name/cause, and later systems do not execute. The Kiro six-row conceptual diagram is reconciled without fake no-op systems: Cost_Log creation is owned by the Agentic ECS `worldTick` post-systems harness, and `captureFlightSimMission` produces the immutable renderer/HUD projection only after a committed tick. Neither post-step owner is represented as a transactional flight system.
+The native ECS journal commits systems in order; if system *k* fails, prior systems remain committed, the failing system is rolled back and identified by name/cause, and later systems do not execute. The tracked Kiro topology names the same four meaningful journaled systems: Cost_Log creation is owned by the Agentic ECS `worldTick` post-systems harness, and `captureFlightSimMission` produces the immutable renderer/HUD projection only after a committed tick. Neither post-step owner is represented as a transactional flight system.
 
 ### Collision
 
@@ -272,7 +276,7 @@ The asset contract has two deliberately separate implemented paths:
 
 The required aircraft therefore retains fallback count zero, while the admitted mixed required-aircraft + optional-beacon load reports one fallback. Readiness gates require all text asset sources to be tracked regular non-symlink UTF-8 files no larger than 1 MB, require exact generated GLB bytes/path/hash/license, and lock the four direct external imports to an audited 21-package runtime dependency closure with the declared MIT/ISC/BSD licenses. The feature adds no new runtime package. The implemented paths invoke no image-to-3D model, network fetch, or Cloudflare resource.
 
-The build begins with a scan over every tracked repository file and fails on FlightGear or `Arnie016/flight-simulator-fable5`/Fable source, binary/asset, path, or declared-dependency contamination. Those projects remain inspiration only; this implementation copies none of their source and takes no dependency on either.
+The build begins with a bounded scan over every tracked repository file and fails on named FlightGear or `Arnie016/flight-simulator-fable5`/Fable identity, content marker, binary/asset, path, or declared-dependency contamination. A repository-authorship provenance attestation separately declares that those projects remain inspiration only and that this implementation copies or derives none of their source and takes no dependency on either. The scanner does not claim to prove the absence of arbitrary derived code.
 
 ### Persistence and resume
 
@@ -341,7 +345,7 @@ The runtime writes canonical KGC Decisions through the existing browser-local fi
 
 ## Runtime Readiness Gate
 
-The repository registers finite local proof commands. Source proof and two serial browser runs passed for the provisional runtime commit below; because this PRD/TAD edit changes the tree, the final candidate must rerun both commands at its new exact HEAD before claiming final handoff:
+The repository registers finite local proof commands. Final handoff requires both commands on one clean exact HEAD; the browser wrapper rejects a responsive pre-existing server, starts two fresh serial servers, and binds each evidence record to the candidate branch, HEAD, tree, runtime revision, authored source path, and seed SHA-256:
 
 ```bash
 npm run game-flight-sim:runtime-ready
@@ -350,17 +354,17 @@ npm run game-flight-sim:browser-smoke
 
 | Evidence | Result | Boundary |
 |---|---|---|
-| `node scripts/check-game-flight-sim-readiness.mjs` | Passed at provisional runtime commit `8d8461cca942460c5f13d09ca3a291a18d594ada` | Source authority, asset UTF-8/size/hash/license and 21-package closure gates, 45-property/4,500-case registration, and configuration of the tracked all-repository FlightGear/Fable no-copy/dependency gate were checked. |
-| `npm -C canvas run test:smoke:game-flight-sim:source` | Passed at provisional runtime commit `8d8461cca942460c5f13d09ca3a291a18d594ada` | Source suite: 122 focused tests. Within that suite, the separate fast-check property layer contains all 45 uniquely named properties at at least 100 runs each (4,500 generated cases). |
-| `npx tsc -b --noEmit` from `canvas/` | Passed at provisional runtime commit `8d8461cca942460c5f13d09ca3a291a18d594ada` | Focused TypeScript project proof. |
-| `npm run game-flight-sim:runtime-ready` | Pending at the final post-document exact HEAD | The aggregate `smoke:prepare`, source authority, full ECS tests, focused source suite, Canvas check, and production build must complete before handoff. No aggregate-pass claim is made for `8d8461cc`. |
-| `npm run game-flight-sim:browser-smoke` | Passed two serial runs at provisional runtime commit `8d8461cca942460c5f13d09ca3a291a18d594ada` | Exact candidate/source identity, retained authored XR Canvas, 1.554 s / 1.705 s first frames under the 3 s limit, playable input, strict diagnostics/WebMCP deadlines, lifecycle/entry/restoration/Exit disposal, fixed-follow/free-orbit plus Timeline round-trip, 375x812 HUD, and zero blocked/non-local requests |
-| `data/outputs/game-flight-sim-browser-smoke.{json,png}` | Ignored local artifacts | Evidence only; not source or release artifacts |
+| `node scripts/check-game-flight-sim-readiness.mjs` | Mandatory exact-candidate gate | Tracked Kiro authority, source contract, canonical Cost_Log, exact `1/60`, system topology, lifecycle/persistence, asset UTF-8/size/hash/license and 21-package closure, 45-property/4,500-case registration, bounded named-contamination scan, and provenance attestation |
+| `npm -C canvas run test:smoke:game-flight-sim:source` | Mandatory exact-candidate gate | Focused source suite, including 45 uniquely named fast-check properties at at least 100 runs each (4,500 generated cases) |
+| `npx tsc -b --noEmit` from `canvas/` | Mandatory exact-candidate gate | Focused TypeScript project proof |
+| `npm run game-flight-sim:runtime-ready` | Mandatory final aggregate | `smoke:prepare`, readiness authority, full ECS tests, focused source suite, crafted negative gates, failure/no-mutation orchestration contracts, Canvas check, and production build |
+| `npm run game-flight-sim:browser-smoke` | Mandatory two-run exact-HEAD proof | Retained authored XR Canvas, first frame under 3 s, desktop/WebMCP input, trusted Chromium-emulated touch at 375x812, ordered three-waypoint plus landing-pad completion through public production runtime APIs, lifecycle/failure/Exit disposal, fixed-follow/free-orbit plus Timeline round-trip, and zero blocked/non-local requests |
+| `data/outputs/game-flight-sim-browser-smoke*.{json,png}` | Ignored local artifacts | Exact branch/HEAD/tree/source evidence only; not source, integration, or release artifacts |
 | Protected PR `#369` | Pending | No protected integration claim |
 | Agentic workspace-seed projection | Absent | Release-gated until a separate authorized change |
 | Production / Cloudflare | Not authorized | No deployment or remote storage mutation |
 
-The provisional browser identity was branch `agent/huis-macbook-pro-3/game-flight-sim-runtime-readiness`, HEAD/runtime revision `8d8461cca942460c5f13d09ca3a291a18d594ada`, tree `5f7ca81b09afb1c68fdacdea884f1c0c6625390e`, authored Flight seed SHA-256 `06708ff752ad23a566a10908e18adeb566eabf0fd9a0ec617d11051d2e777f6c`, and Physics source SHA-256 `fabd624f4fd8550f2836c7a562b2808e33e1ba0a4f211ca7379591f619a57895`. Both runs recorded `runIndex` 1/2 and 2/2. The automation host returned native Pointer Lock `WrongDocumentError`; only that exact error activated the smoke’s browser-interface pointer-lock contract harness, while production code retained native request/rejection diagnostics. Final handoff evidence will supersede these provisional hashes with the post-document/seed exact identity.
+Each `knowgrph-flight-sim-browser-run/v3` record carries `runIndex` 1/2 or 2/2, exact candidate/source identity, first-frame timing, trusted Chromium-emulated touch provenance, ordered route transitions and terminal Decision, camera ownership, lifecycle/failure evidence, and network/error inventories. The aggregate v3 record requires both runs to share the same identity. Native Pointer Lock is attempted first; only the exact automation-host `WrongDocumentError` may activate the browser-interface contract harness, while production code retains native request and rejection diagnostics. The final handoff reports the exact evidence-bound SHA and source hash without embedding a self-invalidating commit hash in this tracked document.
 
 Both commands are finite and local apart from ordinary build/test artifacts, access no paid model or runtime image-to-3D service, and do not deploy or mutate Cloudflare. The physics-playground seed (`docs/workspace-seeds/knowgrph-physics-playground-demo.md`) is the canonical shared XR source authority: it provides the shared Canvas, procedural Singapore terrain, selectable airplane/helicopter subjects, the Physics-controller camera with exactly fixed-follow/free-orbit, Motion Control boundary, and `/ @ #` MCP grammar.
 
@@ -374,4 +378,4 @@ Both commands are finite and local apart from ordinary build/test artifacts, acc
 
 ## Release Boundary
 
-This module is a local runtime-ready candidate with protected integration still pending. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, merge, or release claim belongs to this scope. The optional opaque fallback is a committed-local runtime input, not an asset-generation service or deployment dependency. A future release must begin from a protected integrated SHA and explicit operator authorization.
+This module is implementation-ready; its runtime-ready claim is established only by the externally reported exact-HEAD handoff proof, and protected integration remains pending. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, merge, or release claim belongs to this scope. The optional opaque fallback is a committed-local runtime input, not an asset-generation service or deployment dependency. A future release must begin from a protected integrated SHA and explicit operator authorization.
