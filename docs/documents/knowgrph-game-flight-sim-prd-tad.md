@@ -244,7 +244,7 @@ No node in this topology is a model, remote service, Cloudflare resource, Git op
 
 Flight dynamics are constant and source-controlled: throttle drives thrust; control input drives pitch/roll/yaw within bounded stable limits; lift, drag, and gravity are approximated deterministically. The simulation advances from normalized input frames on the exact `1 / 60` second step (approximately 16.667 ms), not raw DOM events, and the bounded accumulator executes no more than five catch-up ticks per rendered frame. This mathematically reconciles the Kiro shorthand “16 ms / 60 Hz”: `1 / 60` second is the normative source value because literal 16 ms would be 62.5 Hz.
 
-Each control axis is normalized independently: pitch/roll/yaw are clamped to `[-1, 1]`, throttle is held or bounded to `[0, 1]`, and simultaneous device conflicts select the candidate with the largest absolute magnitude on that axis rather than summing values. Replay records contiguous normalized input frames and canonical captures; schema/source/seed/input mismatches fail before adoption, while a capture-byte mismatch returns the last matching mission with explicit divergence evidence.
+Each sampled control field is normalized independently: `pitch`, `roll`, `yaw`, and per-tick `throttleDelta` use `[-1, 1]`, while aircraft throttle state and the explicit absolute throttle operation use `[0, 1]`. Finite outliers clamp, infinities map to signed bounds, and NaN reuses only the corresponding last valid input field while recording internal out-of-range metadata; integration then continues. With no input, every sampled field is zero, so aircraft throttle state is held. Simultaneous device conflicts select the candidate with the largest absolute magnitude on that field rather than summing values. Replay records contiguous normalized input frames and canonical captures; schema/source/seed/input mismatches fail before adoption, while a capture-byte mismatch returns the last matching mission with explicit divergence evidence.
 
 ### World_Tick ordering and Kiro structural reconciliation
 
@@ -252,7 +252,7 @@ The implemented ECS transaction contains four meaningful construction-time-order
 
 | Order | Transactional system | Committed responsibility |
 |---|---|---|
-| 1 | `InputIntegrationSystem` | Validate/normalize one combined input frame, write tick/input components, and retain the previous aircraft state |
+| 1 | `InputIntegrationSystem` | Validate/normalize one `{ pitch, roll, yaw, throttleDelta }` frame, write tick/input components, and record internal out-of-range metadata |
 | 2 | `FlightModelSystem` | Integrate deterministic thrust, attitude, lift, drag, and gravity |
 | 3 | `CollisionResolverSystem` | Resolve swept/de-penetrating AABB contact against the authored profile |
 | 4 | `ObjectiveSystem` | Advance only the next ordered objective and emit pending mission Decisions |
@@ -280,7 +280,7 @@ The build begins with a bounded scan over every tracked repository file and fail
 
 ### Persistence and resume
 
-The local save path is owned by the flight adapter under WorkspaceFs. A terminal result leaves canonical Decisions pending; only explicit **Save** merges them idempotently by `decisionId`. Admission accepts the three canonical types `dialogue_outcome`, `quest_flag`, and `world_tick_result`; generic `dialogue_outcome` records persist but do not fabricate mission replay progress. Existing authored bytes remain untouched except for supported KGC Decision insertion. Resume derives mission progress from the validated Decision index before the first tick. Malformed existing KGC is not equivalent to an absent save: the runtime reports the precise local path and error, creates no partial World, and waits for explicit reset.
+The local save path is owned by the flight adapter under WorkspaceFs. A terminal result leaves canonical Decisions pending; only explicit **Save** merges gameplay Decisions idempotently by `decisionId`. Admission accepts the three canonical types `dialogue_outcome`, `quest_flag`, and `world_tick_result`; generic `dialogue_outcome` records persist but do not fabricate mission replay progress. Existing authored bytes remain untouched except for supported KGC Decision insertion. Resume derives mission progress, the validated active run identifier, and ordered waypoint history from the Decision index before the first tick; Start continues that hydrated run, and only explicit Restart mints a fresh run. Malformed existing KGC is not equivalent to an absent save: the runtime reports the precise local path and error, creates no partial World, and waits for explicit Reset, which is a separate recovery write of the canonical empty KGC document.
 
 ### Error model
 
@@ -345,7 +345,7 @@ The runtime writes canonical KGC Decisions through the existing browser-local fi
 
 ## Runtime Readiness Gate
 
-The repository registers finite local proof commands. Final handoff requires both commands on one clean exact HEAD; the browser wrapper rejects a responsive pre-existing server, starts two fresh serial servers, and binds each evidence record to the candidate branch, HEAD, tree, runtime revision, authored source path, and seed SHA-256:
+The repository registers finite local proof commands. Final handoff requires both commands on one clean exact HEAD. Each command clones that exact candidate into a child-owned local verification workspace with copy-on-write dependency bytes, so tracked or untracked verifier mutations are named and discarded without touching the caller checkout. The browser wrapper rejects a responsive pre-existing server, starts two fresh serial servers, and binds each evidence record to the candidate branch, HEAD, tree, runtime revision, authored source path, and seed SHA-256. Browser evidence is staged separately, the child workspace must clean up successfully before publication, and a publication failure restores every prior evidence byte:
 
 ```bash
 npm run game-flight-sim:runtime-ready
@@ -357,8 +357,8 @@ npm run game-flight-sim:browser-smoke
 | `node scripts/check-game-flight-sim-readiness.mjs` | Mandatory exact-candidate gate | Tracked Kiro authority, source contract, canonical Cost_Log, exact `1/60`, system topology, lifecycle/persistence, asset UTF-8/size/hash/license and 21-package closure, 45-property/4,500-case registration, bounded named-contamination scan, and provenance attestation |
 | `npm -C canvas run test:smoke:game-flight-sim:source` | Mandatory exact-candidate gate | Focused source suite, including 45 uniquely named fast-check properties at at least 100 runs each (4,500 generated cases) |
 | `npx tsc -b --noEmit` from `canvas/` | Mandatory exact-candidate gate | Focused TypeScript project proof |
-| `npm run game-flight-sim:runtime-ready` | Mandatory final aggregate | `smoke:prepare`, readiness authority, full ECS tests, focused source suite, crafted negative gates, failure/no-mutation orchestration contracts, Canvas check, and production build |
-| `npm run game-flight-sim:browser-smoke` | Mandatory two-run exact-HEAD proof | Retained authored XR Canvas, first frame under 3 s, desktop/WebMCP input, trusted Chromium-emulated touch at 375x812, ordered three-waypoint plus landing-pad completion through public production runtime APIs, lifecycle/failure/Exit disposal, fixed-follow/free-orbit plus Timeline round-trip, and zero blocked/non-local requests |
+| `npm run game-flight-sim:runtime-ready` | Mandatory final aggregate | Child-isolated `smoke:prepare`, readiness authority, full ECS tests, focused source suite, crafted negative gates, failure/no-mutation orchestration contracts, Canvas check, and production build |
+| `npm run game-flight-sim:browser-smoke` | Mandatory two-run exact-HEAD proof | Child-isolated retained authored XR Canvas, first frame under 3 s, desktop/WebMCP input, trusted Chromium-emulated touch at 375x812, ordered three-waypoint plus landing-pad completion through public production runtime APIs, lifecycle/failure/Exit disposal, fixed-follow/free-orbit plus Timeline round-trip, zero blocked/non-local requests, and cleanup-before-transactional-evidence publication |
 | `data/outputs/game-flight-sim-browser-smoke*.{json,png}` | Ignored local artifacts | Exact branch/HEAD/tree/source evidence only; not source, integration, or release artifacts |
 | Protected PR `#369` | Pending | No protected integration claim |
 | Agentic workspace-seed projection | Absent | Release-gated until a separate authorized change |

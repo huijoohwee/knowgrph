@@ -168,7 +168,7 @@ flight_sim:
   validation_input_forbid_hardcode_in_repo: true
 runtime_validation:
   mode_activation: ["xr surface", "3d renderer", "xr stage"]
-  required_states: ["ready", "running", "paused"]
+  required_states: ["ready", "flying", "stopped"]
   aircraft_parity: ["vehicle-airplane"]
   replayable: true
   local_assets_only: true
@@ -181,7 +181,7 @@ runtime_validation:
   glb_fallback_runtime: "one committed-local, CC0-1.0, SHA-pinned optional beacon; remote or unavailable fallbacks fail closed"
   first_playable_frame_limit_ms: 3000
   property_proof: "45 named fast-check properties at 100 runs each (4,500 generated cases)"
-  focused_source_tests_minimum: 126
+  focused_source_tests_minimum: 127
   browser_proof: "two fresh serial runs; each evidence record binds clean branch, HEAD, tree, authored seed SHA-256, and source path before launch"
   browser_evidence: ["data/outputs/game-flight-sim-browser-smoke-run-1.json", "data/outputs/game-flight-sim-browser-smoke-run-2.json"]
   editor_chrome: true
@@ -258,7 +258,7 @@ The browser-local control contract uses `knowgrph.control_local_flight_sim` and 
 
 Camera source is independent of aircraft selection. In **FloatingPanel Camera → SHOOT**, choose the catalog's only two modes: **Fixed Follow** for stage-aware aircraft tracking or **Free Orbit** for direct pan, rotate, and zoom. The same shared catalog is invocable through `knowgrph.control_local_camera` with `/camera.select @camera #camera camera=fixed-follow` or `camera=free-orbit`. Flight supplies a pure aircraft follow/framing descriptor; the Physics controller hook alone mutates the camera and OrbitControls. Timeline camera-mark playback temporarily takes framing ownership, then returns to the selected source. Motion Control is optional normalized player input only and never becomes flight policy. Conflicting device commands resolve independently per axis to the value with the largest absolute magnitude.
 
-Terminal results remain pending and never auto-save. **Save** is the only operation that persists validated Decisions through browser-local WorkspaceFs at `/game-flight-sim/mission-1-decisions.md`. Malformed bytes remain intact and block Start and Restart until **Reset local save** succeeds.
+Terminal results remain pending and never auto-save. **Save** is the only operation that persists validated gameplay Decisions through browser-local WorkspaceFs at `/game-flight-sim/mission-1-decisions.md`; explicit **Reset local save** is a separate recovery write of the canonical empty KGC document. Successful hydration preserves the validated active run identifier and ordered waypoint history, Start continues that run, and only Restart mints a fresh run. Malformed bytes remain intact and block Start and Restart until Reset succeeds.
 
 The mission uses the fixed `flight-meters-20` transform: one authored Singapore scene unit equals 20 mission meters, while Flight rendering and camera framing apply the inverse scale on the retained authored XR world. The simulation advances at exactly `1/60` second (approximately 16.667 ms, 60 Hz) and executes at most five catch-up ticks per advance. Capture exactly three waypoints in authored order and then the marked landing pad; all four objective radii are 50 m, and an out-of-order waypoint cannot advance progress.
 
@@ -274,8 +274,9 @@ The required aircraft loads from committed img2threejs-style TypeScript plus `ve
 - [x] Flight is an XR Mode overlay on the Physics source-authored world; it owns no second rendered XR world, scene owner, or Canvas.
 - [x] Fixed Follow and Free Orbit come from the shared Camera catalog, and the Physics controller hook is the sole camera/OrbitControls mutator for the pure Flight framing descriptor.
 - [x] The default load is spec-primary for the required aircraft and contains exactly one committed-local optional opaque GLB; remote and unavailable fallbacks fail closed.
-- [x] Exactly 45 named fast-check properties are registered for at least 100 cases each (4,500 generated cases), alongside at least 126 focused source checks.
+- [x] Exactly 45 named fast-check properties are registered for at least 100 cases each (4,500 generated cases), alongside at least 127 focused source checks.
 - [x] Browser proof enforces a clean exact branch/HEAD/tree and authored-seed SHA-256 before each of two fresh serial runs, including the ≤3 s first-frame, 375×812 HUD, lifecycle, camera, persistence-failure, pointer-lock contract, and zero-network fences.
+- [x] Runtime and browser verification execute in child-owned exact local workspaces; failed tracked/untracked mutations are discarded, cleanup precedes browser evidence publication, and publication failure restores prior evidence bytes.
 - [x] `npm run game-flight-sim:runtime-ready` is the mandatory aggregate gate for the clean final candidate.
 - [x] `npm run game-flight-sim:browser-smoke` requires two serial runs on that same exact candidate revision.
 - [ ] The protected PR integrates the verified candidate.

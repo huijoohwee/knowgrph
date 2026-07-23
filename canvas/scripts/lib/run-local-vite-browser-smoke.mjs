@@ -2,6 +2,11 @@ import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+const supportedStartModes = new Set([
+  'npm-dev',
+  'vite-runner',
+  'vite-preview-runner',
+])
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -69,10 +74,28 @@ function runCommand(command, args, env) {
   })
 }
 
-function startDevServer({ devServerPort, devServerStartMode, env }) {
-  if (devServerStartMode === 'vite-runner') {
+function startDevServer({
+  devServerPort,
+  devServerStartMode,
+  env,
+  previewOutDir,
+}) {
+  if (
+    devServerStartMode === 'vite-runner'
+    || devServerStartMode === 'vite-preview-runner'
+  ) {
     const viteCliPath = resolve(process.cwd(), '../node_modules/vite/bin/vite.js')
-    return spawn(process.execPath, [viteCliPath, '--configLoader', 'runner', '--port', devServerPort, '--strictPort'], {
+    const viteArgs = [
+      viteCliPath,
+      ...(devServerStartMode === 'vite-preview-runner' ? ['preview'] : []),
+      '--configLoader',
+      'runner',
+      '--port',
+      devServerPort,
+      '--strictPort',
+      ...(previewOutDir ? ['--outDir', previewOutDir] : []),
+    ]
+    return spawn(process.execPath, viteArgs, {
       cwd: process.cwd(),
       stdio: 'inherit',
       env,
@@ -96,9 +119,13 @@ export async function runLocalViteBrowserSmoke({
   prepareBeforeStart = false,
   devServerStartMode = 'npm-dev',
   existingServerPolicy = 'reuse',
+  previewOutDir = '',
 }) {
   if (!['reuse', 'forbid'].includes(existingServerPolicy)) {
     throw new Error(`Unsupported existingServerPolicy: ${existingServerPolicy}`)
+  }
+  if (!supportedStartModes.has(devServerStartMode)) {
+    throw new Error(`Unsupported devServerStartMode: ${devServerStartMode}`)
   }
   const devServerBaseUrl = `http://localhost:${devServerPort}`
   const normalizedPath = devServerPath.startsWith('/') ? devServerPath : `/${devServerPath}`
@@ -116,7 +143,12 @@ export async function runLocalViteBrowserSmoke({
     if (prepareBeforeStart) {
       await runCommand(npmCommand, ['run', 'predev'], process.env)
     }
-    devServer = startDevServer({ devServerPort, devServerStartMode, env: process.env })
+    devServer = startDevServer({
+      devServerPort,
+      devServerStartMode,
+      env: process.env,
+      previewOutDir,
+    })
   } else {
     console.log(`[${logLabel}] reusing existing dev server at ${devServerUrl}`)
   }

@@ -34,7 +34,7 @@ This repository-tracked design is part of the normative `.kiro/specs/knowgrph-ga
 
 ### Layered composition
 
-`Flight_Sim` is a thin, deterministic domain layer over the Agentic ECS. Input, invocation, and MCP calls are converted into normalized frames and lifecycle operations; the ECS `World_Tick` advances ordered flight systems; an immutable projection feeds the shared renderer and HUD; and only validated Decisions leave the process through WorkspaceFs.
+`Flight_Sim` is a thin, deterministic domain layer over the Agentic ECS. Input, invocation, and MCP calls are converted into normalized frames and lifecycle operations; the ECS `World_Tick` advances ordered flight systems; an immutable projection feeds the shared renderer and HUD; and only explicit Save persists validated gameplay Decisions through WorkspaceFs, while explicit Reset is a separate fail-closed recovery write.
 
 ```mermaid
 flowchart TB
@@ -85,7 +85,7 @@ flowchart TB
   HYD -->|before first tick| LIFE
 ```
 
-No node in this topology is a model call, remote service, Cloudflare resource, Git operation, or runtime image-to-3D call. Every arrow crossing the process boundary is either a committed-local file read (Asset_Spec/GLB_Fallback, save hydration) or the single explicit Decisions-only local write.
+No node in this topology is a model call, remote service, Cloudflare resource, Git operation, or runtime image-to-3D call. Every arrow crossing the process boundary is either a committed-local file read (Asset_Spec/GLB_Fallback, save hydration), an explicit Save of validated Decisions, or an explicit Reset recovery write of the canonical empty KGC document.
 
 ### Determinism architecture
 
@@ -103,7 +103,7 @@ Each `World_Tick` runs a fixed, construction-time-ordered pipeline of systems in
 
 | Order | System | Responsibility | Primary requirements |
 |---|---|---|---|
-| 1 | `InputIntegrationSystem` | Read the single normalized input frame for this tick; clamp out-of-range/non-finite values to nearest bound; hold last valid frame when no input | R7.5, R16.1–R16.5 |
+| 1 | `InputIntegrationSystem` | Read one `{ pitch, roll, yaw, throttleDelta }` frame; clamp finite outliers, map infinities to signed bounds, reuse only NaN fields from the last valid input, and record internal out-of-range metadata | R7.5, R16.1–R16.5 |
 | 2 | `FlightModelSystem` | Apply thrust from throttle and pitch/roll/yaw from control inputs; apply bounded lift/drag/gravity; update attitude/velocity to finite, bounded values | R7.1–R7.4 |
 | 3 | `CollisionResolverSystem` | Sweep previous→proposed aircraft cuboid against the AABB slab catalog + perimeter/ceiling blockers; return earliest non-penetrating hit; zero velocity along hit normal | R8.1–R8.6 |
 | 4 | `ObjectiveSystem` | Advance ordered waypoint capture and landing-pad completion; emit terminal-result Decision as pending | R17.1–R17.5 |
@@ -127,13 +127,25 @@ The stdio ECS server injects no systems (per the ECS design); the four flight sy
 The lifecycle and orchestration owner. Holds the ECS World handle, the simulation clock, the pending-decision buffer, and the current lifecycle state.
 
 ```ts
-type LifecycleOp = "open" | "start" | "stop" | "restart" | "throttle" | "save" | "exit";
-
-interface FlightRuntime {
-  apply(op: LifecycleOp, args?: { throttle?: number }): Promise<LifecycleResult>;
-  // Advances at most `maxCatchUp` (=5) fixed ticks for elapsed real time.
-  pump(nowMs: number, frame: NormalizedInputFrame): Promise<void>;
-  inspect(): Readonly<FlightSimProjection>;          // read-only, no mutation
+interface FlightSimRuntime {
+  profile(): FlightSimSpatialProfile;
+  read(): FlightSimSnapshot;
+  subscribe(listener: () => void): () => void;
+  open(webglSupported?: boolean): FlightSimSnapshot;
+  start(): FlightSimSnapshot;
+  stop(): FlightSimSnapshot;
+  restart(): FlightSimSnapshot;
+  exit(): FlightSimSnapshot;
+  setProfile(profile: FlightSimSpatialProfile): FlightSimSnapshot;
+  setInput(patch: Partial<FlightSimTickInput>): FlightSimSnapshot;
+  queueInput(patch: Partial<FlightSimTickInput>): FlightSimSnapshot;
+  setThrottle(value: number): FlightSimSnapshot;
+  advanceBy(deltaSeconds: number): Promise<FlightSimSnapshot>;
+  acknowledgeDecisions(ids: readonly string[]): FlightSimSnapshot;
+  hydrate(decisions: readonly unknown[]): FlightSimSnapshot;
+  resetPersistence(): FlightSimSnapshot;
+  rejectGameplayNetworkAttempt(operation: string, executor: () => unknown): FlightSimSnapshot;
+  fail(error: unknown): FlightSimSnapshot;
 }
 ```
 
@@ -144,31 +156,47 @@ Responsibilities: reject any state change outside a committed `World_Tick` (R5.1
 Pure deterministic flight-dynamics function used by `FlightModelSystem`.
 
 ```ts
-interface AircraftState {
-  position: Vec3; velocity: Vec3;        // world units, world units/s
-  attitude: Vec3;                        // pitch, roll, yaw in degrees [-180,180]
+interface FlightSimAircraftState {
+  position: SpatialVector;
+  velocity: SpatialVector;
+  pitch: number; roll: number; yaw: number;
+  throttle: number;
 }
-interface FlightInput { throttle: number; pitch: number; roll: number; yaw: number; }
+interface FlightSimTickInput {
+  pitch: number; roll: number; yaw: number;
+  throttleDelta: number;
+}
 
-function integrateFlight(
-  prev: AircraftState, input: FlightInput, k: FlightConstants, dtSeconds = 1 / 60
-): { next: AircraftState; clampedInput: FlightInput; outOfRange: boolean };
+function integrateFlightModel(
+  previous: FlightSimAircraftState,
+  input: FlightSimTickInput,
+  stepSeconds = 1 / 60,
+): FlightSimAircraftState;
 ```
 
-Guarantees: throttle clamped to `[0,1]`, control axes to `[-1,1]`, non-finite inputs clamped to nearest bound with `outOfRange` surfaced and prior valid state retained (R7.5); output attitude bounded to `[-180,180]` per axis, velocity components bounded to configured min/max, and all outputs finite — never NaN/Infinity (R7.1); lift/drag/gravity applied deterministically each tick (R7.2, R7.3); no external physics engine (R7.4, R3.3).
+Guarantees: sampled control fields use `[-1,1]`; aircraft throttle state remains in `[0,1]` and changes from `throttleDelta` or an explicit absolute setpoint; finite outliers clamp, infinities become signed bounds, and NaN reuses only the corresponding last valid input field while recording internal `outOfRange`, after which integration continues (R7.5); internal output attitude is stored as scalar pitch/roll/yaw radians bounded to `[-π,π]` per axis, with visible HUD angles derived in degrees, velocity components bounded to configured min/max, and all outputs finite — never NaN/Infinity (R7.1); lift/drag/gravity applied deterministically each tick (R7.2, R7.3); no external physics engine (R7.4, R3.3).
 
 ### Collision_Resolver (`flightModel.ts` / spatial profile)
 
 Pure swept-AABB resolver used by `CollisionResolverSystem`.
 
 ```ts
-interface AabbBlocker { id: string; min: Vec3; max: Vec3; }   // stable ascending id order
-interface SweptResult { position: Vec3; velocity: Vec3; hit?: { blockerId: string; t: number; normal: Vec3 }; }
+interface FlightSimBlocker {
+  id: string;
+  center: SpatialVector;
+  halfSize: SpatialVector;
+}
+interface FlightSimCollisionResolution {
+  state: FlightSimAircraftState;
+  collisionId: string | null;
+  impactSpeed: number;
+}
 
-function resolveSweep(
-  prev: Vec3, proposed: Vec3, half: Vec3,   // aircraft cuboid half-extents
-  catalog: AabbBlocker[], velocity: Vec3
-): SweptResult;
+function resolveFlightSimAabbMotion(
+  previous: FlightSimAircraftState,
+  proposed: FlightSimAircraftState,
+  profile: Pick<FlightSimSpatialProfile, "aircraftHalfSize" | "blockers">,
+): FlightSimCollisionResolution;
 ```
 
 Guarantees: sweeps previous→proposed parameterized by `t ∈ [0,1]` and completes within the tick (R8.1); selects lowest-`t` earliest hit, breaking ties by smallest blocker id under stable ascending ordering (R8.2); returns a position with ≥ 0.001 world-unit separation margin (no penetration) and zeroes velocity along the hit normal within 0.0001 wu/s while preserving tangential velocity (R8.3); returns proposed position/velocity unchanged when the catalog is empty (R8.4); de-penetrates a start-of-tick overlap along the axis of shallowest penetration (R8.5); uses no mesh colliders/navmesh/generated geometry (R8.6).
@@ -177,7 +205,7 @@ Guarantees: sweeps previous→proposed parameterized by `t ∈ [0,1]` and comple
 
 Combines desktop keyboard, pointer, mobile touch, standard gamepad, and optional Motion_Control into a single `NormalizedInputFrame` per tick.
 
-Guarantees: single combined frame per tick (R16.1); pitch/roll/yaw mapped to `[-1,1]`, throttle to `[0,1]` (R16.2); out-of-range clamped to nearest bound with last valid frame retained (R16.3); no input → pitch/roll/yaw 0.0 and last commanded throttle held (R16.4); multi-device conflict resolved by largest absolute magnitude (R16.5); Motion_Control contributes optional normalized input only and is never the control policy (R16.6, R16.7).
+Guarantees: single combined `{ pitch, roll, yaw, throttleDelta }` frame per tick (R16.1); all four fields map to `[-1,1]`, while aircraft throttle state and explicit setpoints remain in `[0,1]` (R16.2); finite outliers clamp, infinities map to signed bounds, and only NaN fields reuse the corresponding last valid input field, with internal `outOfRange` recorded (R16.3); no input → all four fields are `0.0`, so aircraft throttle state is held (R16.4); multi-device conflict resolved by largest absolute magnitude (R16.5); Motion_Control contributes optional normalized input only and is never the control policy (R16.6, R16.7).
 
 ### Invocation_Parser (`flightSimMcpContract.mjs`)
 
@@ -197,7 +225,7 @@ Guarantees: prefers `Asset_Spec` when both spec and GLB exist (R9.1); resolves i
 
 ### WorkspaceFs_Adapter & Hydration_Adapter (`flightSimDecisionStore.ts`, `flightSimDecisionAdmission.ts`, `flightSimPendingDecisions.ts`, `flightSimHydrationGate.ts`)
 
-Decisions-only persistence over the existing WorkspaceFs KGC decision document. Writes only canonical `EcsDecision` additions of type `dialogue_outcome`/`quest_flag`/`world_tick_result`, rejecting other types (R19.1); merges idempotently by `decisionId` (R19.2); preserves all authored bytes except supported Decision insertions (R19.3); persists only on explicit Save, never auto-saving (R19.4); on failure leaves bytes and prior Decisions unchanged and surfaces an error (R19.5). Hydration reconstructs mission progress from the validated Decision index before the first tick (R20.7); a validation failure blocks World creation, names the unreadable path, preserves bytes, and exposes Reset (R20.2, R20.3); Reset re-enables Start/Restart (R20.4); write failure retains pending Decisions and exposes Retry (R20.5, R20.6).
+Decisions-only gameplay persistence over the existing WorkspaceFs KGC decision document. Save writes only canonical `EcsDecision` additions of type `dialogue_outcome`/`quest_flag`/`world_tick_result`, rejecting other types (R19.1); merges idempotently by `decisionId` (R19.2); preserves all authored bytes except supported Decision insertions (R19.3); persists gameplay Decisions only on explicit Save, never auto-saving (R19.4); on failure leaves bytes and prior Decisions unchanged and surfaces an error (R19.5). Hydration reconstructs mission progress, active run identity, and ordered waypoint history from the validated Decision index before the first tick, so Start continues that run and only Restart mints a fresh run (R20.7); a validation failure blocks World creation, names the unreadable path, preserves bytes, and exposes Reset (R20.2, R20.3); explicit Reset is a separate recovery write of the canonical empty KGC document and re-enables Start/Restart (R20.4); write failure retains pending Decisions and exposes Retry (R20.5, R20.6).
 
 ### HUD (`FlightSimHud.tsx`)
 
@@ -212,7 +240,7 @@ Stored as Agentic ECS numeric components (typed arrays), never persisted:
 ```
 Position   { x: f32, y: f32, z: f32 }          // world units
 Velocity   { x: f32, y: f32, z: f32 }          // world units/s, each clamped to configured [min,max]
-Attitude   { pitch: f32, roll: f32, yaw: f32 } // degrees, each in [-180.0, 180.0]
+Attitude   { pitch: f32, roll: f32, yaw: f32 } // radians, each in [-π, π]
 Throttle   { value: f32 }                       // normalized [0.0, 1.0]
 ```
 
@@ -222,38 +250,44 @@ Invariants: every field finite (no NaN/Infinity); attitude bounded per axis; vel
 
 ```ts
 interface NormalizedInputFrame {
-  tickIndex: number;         // monotonic; drives the fixed clock
-  throttle: number;          // [0.0, 1.0]
-  pitch: number; roll: number; yaw: number; // each [-1.0, 1.0]
-  sources: InputSourceTag[]; // provenance; not part of canonical simulation state
+  pitch: number; roll: number; yaw: number;
+  throttleDelta: number; // each field is in [-1.0, 1.0]
 }
 ```
 
 ### AABB slab catalog
 
 ```ts
-interface AabbBlocker { id: string; min: Vec3; max: Vec3; kind: "slab" | "perimeter" | "ceiling"; }
-type AabbCatalog = AabbBlocker[]; // stable ascending sort by id; sourced from the authored XR spatial profile
+interface FlightSimBlocker {
+  id: string;
+  center: SpatialVector;
+  halfSize: SpatialVector;
+}
+type AabbCatalog = FlightSimBlocker[]; // stable ascending sort by id; sourced from the authored XR spatial profile
 ```
 
-Invariants: `min <= max` per axis for every blocker; ids unique; ordering stable and ascending for deterministic tie-breaking.
+Invariants: every `halfSize` axis is positive and finite; every center axis is finite; ids are unique; ordering is stable and ascending for deterministic tie-breaking.
 
 ### Asset_Spec (img2threejs-style)
 
 ```ts
-interface AssetSpec {
-  identity: string;                 // non-empty; matches canonical scene-library identity
-  sceneLibrary: string;             // non-empty; must match the canonical renderer library id
-  shape: ProceduralShapeDescriptor; // non-empty procedural renderer shape
-  dimensions: Vec3;                 // each strictly > 0
-  collisionSize: Vec3;              // each strictly > 0
-  color: string;                    // non-empty
-  zeroCallMetadata: { runtimeModelCalls: 0; runtimeNetworkCalls: 0; };
-  opaqueBinaryFallback: null;       // MUST be null in this increment; non-null fails closed
+interface FlightSimAircraftAssetSpec {
+  schema: "knowgrph.img2threejs-scene/v1";
+  id: "vehicle-airplane";
+  label: string;
+  representation: "typescript-json";
+  renderer: "xr-procedural-vehicle";
+  shape: "airplane";
+  dimensionsMeters: SpatialVector;
+  collisionHalfSizeMeters: SpatialVector;
+  defaultColor: string;
+  opaqueBinaryFallback: null;
+  runtimeModelCalls: 0;
+  runtimeNetworkCalls: 0;
 }
 ```
 
-Constraints: committed human-editable UTF-8 text, ≤ 1 MB per spec (R11.2, R11.5); authored fully offline before commit (R11.1); any unknown field, non-positive dimension/collision size, missing field, non-null `opaqueBinaryFallback`, or mismatched `sceneLibrary` fails closed (R9.2–R9.4).
+Constraints: committed source-authored human-editable UTF-8 text, ≤ 1 MB per spec (R11.1, R11.2, R11.5); any unknown field, non-positive dimension/collision half-size, missing field, non-null `opaqueBinaryFallback`, or mismatch with the canonical scene-library id/shape fails closed (R9.2–R9.4). The separate offline worker transaction authors only the optional beacon GLB plus its generated TypeScript companion.
 
 ### GLB_Fallback metadata
 
@@ -367,11 +401,11 @@ Each property MUST be implemented as a single property-based test running at lea
 **Validates: Requirements 6.6**
 
 ### Property 13: Flight integration stays finite and bounded
-*For any* aircraft state and control input, `Flight_Model` integration within a single World_Tick produces only finite values (no NaN or infinite), attitude bounded to −180.0 to 180.0 degrees per axis, and each velocity component bounded to its configured min/max limits, applying deterministic thrust, pitch, roll, yaw, lift, drag, and gravity.
+*For any* aircraft state and control input, `Flight_Model` integration within a single World_Tick produces only finite values (no NaN or infinite), internal attitude bounded to −π to π radians per axis with HUD angles derived in degrees, and each velocity component bounded to its configured min/max limits, applying deterministic thrust, pitch, roll, yaw, lift, drag, and gravity.
 **Validates: Requirements 7.1, 7.2, 7.3**
 
 ### Property 14: Input clamping to valid ranges
-*For any* throttle, pitch, roll, or yaw value that is outside its defined normalized range (throttle 0.0–1.0; control axes −1.0–1.0) or non-finite, the value is clamped to its nearest valid bound before integration, the last valid frame/aircraft state is retained, and an out-of-range indication is surfaced.
+*For any* sampled pitch, roll, yaw, or `throttleDelta` field, finite values outside −1.0–1.0 clamp to the nearest bound, positive/negative infinity maps to the corresponding signed bound, and NaN reuses only that field from the last valid input; internal `outOfRange` is recorded and integration continues with the normalized frame. Any invalid explicit absolute throttle setpoint is rejected without changing aircraft throttle state.
 **Validates: Requirements 7.5, 16.3**
 
 ### Property 15: Swept AABB collision yields a non-penetrating result
@@ -423,7 +457,7 @@ Each property MUST be implemented as a single property-based test running at lea
 **Validates: Requirements 13.2, 13.3**
 
 ### Property 27: Normalized input frame composition
-*For any* combination of desktop keyboard, pointer, mobile touch, and standard gamepad inputs in a tick, the Input_Normalizer produces exactly one normalized flight input frame with pitch/roll/yaw in −1.0 to 1.0 and throttle in 0.0 to 1.0; when input for one control arrives from multiple devices it resolves to the value with the largest absolute magnitude; and when no input is received it sets pitch/roll/yaw to 0.0 and holds the last commanded throttle.
+*For any* combination of desktop keyboard, pointer, mobile touch, and standard gamepad inputs in a tick, the Input_Normalizer produces exactly one `{ pitch, roll, yaw, throttleDelta }` frame with every field in −1.0 to 1.0; when input for one control arrives from multiple devices it resolves to the value with the largest absolute magnitude; and when no input is received all four fields are 0.0 so the aircraft throttle state is held.
 **Validates: Requirements 16.1, 16.2, 16.4, 16.5**
 
 ### Property 28: Motion_Control is optional input only
@@ -459,7 +493,7 @@ Each property MUST be implemented as a single property-based test running at lea
 **Validates: Requirements 20.5, 20.6**
 
 ### Property 36: Hydration reconstructs saved progress before first tick
-*For any* save document that passes validation, the Hydration_Adapter reconstructs equivalent mission progress from the validated Decision index before the first World_Tick.
+*For any* save document that passes validation, the Hydration_Adapter reconstructs equivalent mission progress, the validated active run identifier, and ordered waypoint history from the validated Decision index before the first World_Tick; Start continues that hydrated run, and only an explicit Restart mints a fresh run identifier.
 **Validates: Requirements 20.7**
 
 ### Property 37: Fail-closed admission keeps mission stopped
@@ -511,7 +545,7 @@ All error handling is local, fail-closed, and non-destructive. No error path iss
 | Prohibited/unlicensed/unauthorized dependency, including either inspiration-only project | Build gate | Terminate build with no artifact; name each offending item | 3.4, 3.5, 4.5 |
 | System failure in a World_Tick | Agentic_ECS | Roll back only the failing system; preserve prior commits; return structured failure naming system + cause | 5.4 |
 | Out-of-tick mutation attempt | Flight_Runtime | Reject; leave World unchanged; return structured transactional-boundary error | 5.1, 5.7 |
-| Out-of-range / non-finite input | Input_Normalizer / Flight_Model | Clamp to nearest bound; retain last valid frame/state; surface out-of-range indication | 7.5, 16.3 |
+| Out-of-range / non-finite sampled input | Input_Normalizer / Flight_Model | Clamp finite outliers; map infinities to signed bounds; reuse only NaN fields from the last valid input; record internal out-of-range; continue integration | 7.5, 16.3 |
 | Invalid invocation grammar | Invocation_Parser | Fail closed; take no action; leave prior state unchanged; name missing token/violation | 12.2, 12.3 |
 | Unsupported lifecycle operation | Flight_Runtime / WebMCP | Reject with unsupported-operation error; leave state unchanged | 12.5, 13.5 |
 | Inspect while state unavailable | WebMCP_Registry | Return error result; leave mission state unchanged | 13.3 |
@@ -540,7 +574,7 @@ The strategy is dual: property-based tests verify universal invariants across la
 
 - Dependency-gate behavior over crafted dependency sets: fail-with-names on non-OSI/prohibited/unauthorized items or either inspiration-only project; pass on a clean set (R3.4, R3.5, R4.5, R4.6).
 - Configuration/surface facts: exactly two WebMCP tools for the surface (R13.1); exactly three ECS stdio tools (R13.7); exactly two framing options and Fixed_Follow default (R15.1, R15.5); one ordered three-waypoint route + pad with capture radius 50–200 m (R17.1); required aircraft admitted via exactly one committed TS+JSON spec with GLB count zero (R9.5, R9.6); each committed spec is UTF-8 text ≤ 1 MB (R11.2).
-- Authoring-tool behavior: offline authoring aborts before commit on a disallowed model/network/Cloudflare op, names the op, and leaves prior specs unchanged (R11.4).
+- Authoring-tool behavior: the optional fallback worker aborts before its atomic output commit on a disallowed model/network/Cloudflare op, names the op, and leaves the prior beacon GLB plus generated TypeScript companion unchanged (R11.4).
 - Synchronous WebGL probe returns available/unavailable without deferred resolution (R21.1).
 - Runtime-readiness and browser-smoke command failure paths report non-success naming each failed verification with no repository change (R22.2, R22.4).
 

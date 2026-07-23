@@ -1,6 +1,7 @@
 import React from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { type Group, type Mesh } from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { XrProceduralVehicleGeometry } from '@/features/three/XrProceduralVehicleGeometry'
 import {
   claimThreeViewportInputOwnership,
@@ -12,7 +13,7 @@ import {
   motionControlPoseToControllerInput,
 } from '@/features/three/motionControlPose'
 import { readXrNativeControllerCamera } from '@/features/three/xrNativeControllerCameraRuntime'
-import { FLIGHT_SIM_AIRCRAFT_ASSET_SPEC } from './assetSpec/flightSimAssetSpec'
+import { readFlightSimDefaultAssetLoadReport } from './assetSpec/flightSimDefaultAssets'
 import {
   installFlightSimDesktopInput,
   mergeFlightSimInputs,
@@ -23,37 +24,87 @@ import {
 } from './flightSimInput'
 import { flightSimInputFromMotionController } from './flightSimMotionControlAdapter'
 import {
-  advanceFlightSimByFixedStep,
-  isFlightSimHydrationPending,
-  readFlightSimSnapshot,
-  readFlightSimSpatialProfile,
-  setFlightSimInput,
-  stopFlightSim,
-  subscribeFlightSimSnapshot,
-} from './flightSimRuntime'
-import { FLIGHT_SIM_FIXED_STEP_SECONDS, FLIGHT_SIM_NEUTRAL_INPUT } from './flightSimModel'
-import { createFlightSimSimulationClock } from './flightSimSimulationClock'
+  FLIGHT_SIM_FIXED_STEP_SECONDS,
+  FLIGHT_SIM_NEUTRAL_INPUT,
+} from './flightSimModel'
+import type {
+  FlightSimStageRuntimeController,
+} from './flightSimStageRuntimeController'
+import {
+  createFlightSimSimulationClock,
+  runFlightSimStageSimulationStep,
+} from './flightSimSimulationClock'
 import { completeFlightSimReadyFrame } from './flightSimDeadlineRuntime'
 
 const INPUT_OWNER_ID = 'flight-sim:aircraft'
 const CLOCK_INTERVAL_MS = FLIGHT_SIM_FIXED_STEP_SECONDS * 1000
 
-export function FlightSimMissionStage({ coordinateScale = 1 }: {
+export type FlightSimMissionStageProps = Readonly<{
   coordinateScale?: number
-}) {
+  runtimeController: FlightSimStageRuntimeController
+}>
+
+export function FlightSimMissionStage({
+  coordinateScale = 1,
+  runtimeController,
+}: FlightSimMissionStageProps) {
   const { gl } = useThree()
   const actorRef = React.useRef<Group | null>(null)
   const waypointRefs = React.useRef(new Map<string, Mesh>())
   const landingPadRef = React.useRef<Mesh | null>(null)
-  const snapshotRef = React.useRef(readFlightSimSnapshot())
+  const snapshotRef = React.useRef(runtimeController.readSnapshot())
   const desktopInputRef = React.useRef(FLIGHT_SIM_NEUTRAL_INPUT)
   const desktopBindingRef = React.useRef<FlightSimInputBinding | null>(null)
   const inputClaimedRef = React.useRef(false)
-  const profile = React.useMemo(() => readFlightSimSpatialProfile(), [])
+  const profile = React.useMemo(
+    () => runtimeController.readSpatialProfile(),
+    [runtimeController],
+  )
+  const assetCatalog = React.useMemo(readFlightSimDefaultAssetLoadReport, [])
+  const [optionalBeaconScene, setOptionalBeaconScene] =
+    React.useState<Group | null>(null)
 
-  React.useEffect(() => subscribeFlightSimSnapshot(() => {
-    snapshotRef.current = readFlightSimSnapshot()
-  }), [])
+  React.useEffect(() => {
+    let retained = true
+    const bytes = Uint8Array.from(assetCatalog.optionalBeacon.bytes)
+    new GLTFLoader().parse(
+      bytes.buffer,
+      '',
+      gltf => {
+        if (!retained) return
+        const scene = gltf.scene.clone(true)
+        let partIndex = 0
+        scene.name = 'kg_flight_sim_optional_beacon'
+        scene.traverse(object => {
+          if (object === scene) return
+          partIndex += 1
+          object.name = `kg_flight_sim_optional_beacon_part_${partIndex}`
+        })
+        scene.userData = {
+          assetKind: assetCatalog.optionalBeacon.kind,
+          assetPath: assetCatalog.optionalBeacon.path,
+          assetSha256: assetCatalog.optionalBeacon.sha256,
+          opaque: assetCatalog.optionalBeacon.opaque,
+        }
+        setOptionalBeaconScene(scene)
+      },
+      error => {
+        if (!retained) return
+        runtimeController.reportRenderFailure(new Error(
+          `Flight Sim optional beacon GLB could not render: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ))
+      },
+    )
+    return () => {
+      retained = false
+    }
+  }, [assetCatalog])
+
+  React.useEffect(() => runtimeController.subscribe(() => {
+    snapshotRef.current = runtimeController.readSnapshot()
+  }), [runtimeController])
 
   React.useEffect(() => {
     const canvas = gl.domElement
@@ -69,7 +120,7 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
       },
       onPause: () => {
         setFlightSimTouchInput({})
-        stopFlightSim()
+        runtimeController.stop()
       },
       shouldPauseOnPointerRelease: () => readXrNativeControllerCamera().mode === 'fixed-follow',
       shouldRequestPointerLock: () => readXrNativeControllerCamera().mode === 'fixed-follow',
@@ -101,23 +152,26 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
           readStandardFlightSimGamepad(),
           motionInput,
         ])
-        setFlightSimInput(input)
-        if (readFlightSimSnapshot().phase === 'flying') await advanceFlightSimByFixedStep()
+        await runFlightSimStageSimulationStep({
+          input,
+          stageInput: runtimeController.setInput,
+          advanceFixedStep: runtimeController.advanceByFixedStep,
+        })
       },
       onStepError: () => {
-        stopFlightSim()
+        runtimeController.stop()
       },
     })
     const timer = window.setInterval(clock.requestStep, CLOCK_INTERVAL_MS)
     return () => {
       window.clearInterval(timer)
       clock.dispose()
-      setFlightSimInput(FLIGHT_SIM_NEUTRAL_INPUT)
+      runtimeController.setInput(FLIGHT_SIM_NEUTRAL_INPUT)
     }
-  }, [])
+  }, [runtimeController])
 
   useFrame(() => {
-    const snapshot = readFlightSimSnapshot()
+    const snapshot = runtimeController.readSnapshot()
     snapshotRef.current = snapshot
     const actor = actorRef.current
     if (actor) {
@@ -141,7 +195,7 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
     }
     const playable = (snapshot.phase === 'ready' || snapshot.phase === 'flying')
       && snapshot.runId > 0
-      && !isFlightSimHydrationPending()
+      && !runtimeController.isHydrationPending()
     if (snapshot.active && playable && inputClaimedRef.current && !snapshot.runtimeError) {
       gl.domElement.dataset.kgFlightSimFirstFrame = '1'
       if (snapshot.phase === 'ready' && snapshot.tick === 0) {
@@ -163,18 +217,29 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
         name="kg_flight_sim_aircraft"
         position={snapshotRef.current.aircraft.position}
         userData={{
-          assetId: FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.id,
-          representation: FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.representation,
+          assetId: assetCatalog.aircraft.assetSpec.id,
+          representation: assetCatalog.aircraft.assetSpec.representation,
         }}
       >
         <group rotation={[-Math.PI / 2, 0, 0]}>
           <XrProceduralVehicleGeometry
             kind="airplane"
-            color={FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.defaultColor}
-            size={FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.dimensionsMeters}
+            color={assetCatalog.aircraft.assetSpec.defaultColor}
+            size={assetCatalog.aircraft.assetSpec.dimensionsMeters}
           />
         </group>
       </group>
+      {optionalBeaconScene ? (
+        <primitive
+          object={optionalBeaconScene}
+          position={[
+            profile.landingPad.position[0] + 8,
+            profile.landingPad.position[1] + 0.25,
+            profile.landingPad.position[2] + 8,
+          ]}
+          scale={4}
+        />
+      ) : null}
       {profile.waypoints.map((waypoint, index) => (
         <mesh
           key={waypoint.id}
@@ -219,4 +284,17 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
       </mesh>
     </group>
   )
+}
+
+export function createFlightSimMissionStage(
+  runtimeController: FlightSimStageRuntimeController,
+): React.ComponentType<{ coordinateScale?: number }> {
+  return function BoundFlightSimMissionStage(props) {
+    return (
+      <FlightSimMissionStage
+        {...props}
+        runtimeController={runtimeController}
+      />
+    )
+  }
 }

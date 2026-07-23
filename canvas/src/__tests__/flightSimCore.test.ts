@@ -3,7 +3,7 @@ import test from 'node:test'
 import { JSDOM } from 'jsdom'
 import {
   FLIGHT_SIM_AIRCRAFT_ASSET_SPEC,
-  FLIGHT_SIM_OPAQUE_BINARY_FALLBACK_COUNT,
+  FLIGHT_SIM_REQUIRED_AIRCRAFT_GLB_FALLBACK_COUNT,
   readFlightSimAircraftAssetSpec,
 } from '../features/game-flight-sim/assetSpec/flightSimAssetSpec'
 import {
@@ -164,7 +164,7 @@ test('source-authored aircraft JSON is validated as the local spec-primary asset
   assert.equal(FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.representation, 'typescript-json')
   assert.equal(FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.runtimeModelCalls, 0)
   assert.equal(FLIGHT_SIM_AIRCRAFT_ASSET_SPEC.runtimeNetworkCalls, 0)
-  assert.equal(FLIGHT_SIM_OPAQUE_BINARY_FALLBACK_COUNT, 0)
+  assert.equal(FLIGHT_SIM_REQUIRED_AIRCRAFT_GLB_FALLBACK_COUNT, 0)
   assert.throws(
     () => readFlightSimAircraftAssetSpec({
       ...FLIGHT_SIM_AIRCRAFT_ASSET_SPEC,

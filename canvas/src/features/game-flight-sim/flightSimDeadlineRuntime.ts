@@ -81,6 +81,16 @@ function publishDeadline(
   return observation
 }
 
+function publishHudDeadline(
+  observation: FlightSimDeadlineObservation,
+): FlightSimDeadlineObservation {
+  const recorded = deadlineSnapshot.hudUpdate
+  if (recorded && !recorded.withinLimit && observation.withinLimit) {
+    return recorded
+  }
+  return publishDeadline('hudUpdate', observation)
+}
+
 export function readFlightSimDeadlineSnapshot(): FlightSimDeadlineSnapshot {
   return deadlineSnapshot
 }
@@ -165,31 +175,31 @@ export function beginFlightSimHudUpdate(
   revision: number,
   now: MonotonicNow = monotonicNow,
 ): void {
-  pendingHudUpdates.set(revision, now())
-  while (pendingHudUpdates.size > 32) {
-    const oldestRevision = pendingHudUpdates.keys().next().value
-    if (typeof oldestRevision !== 'number') break
-    pendingHudUpdates.delete(oldestRevision)
-  }
+  if (!pendingHudUpdates.has(revision)) pendingHudUpdates.set(revision, now())
 }
 
 export function completeFlightSimHudUpdate(
   revision: number,
   now: MonotonicNow = monotonicNow,
 ): FlightSimDeadlineObservation | null {
-  const startedAtMs = pendingHudUpdates.get(revision)
-  if (startedAtMs === undefined) return null
-  for (const pendingRevision of [...pendingHudUpdates.keys()]) {
-    if (pendingRevision <= revision) pendingHudUpdates.delete(pendingRevision)
+  if (!pendingHudUpdates.has(revision)) return null
+  const completedAtMs = now()
+  const completed: FlightSimDeadlineObservation[] = []
+  for (const [pendingRevision, startedAtMs] of pendingHudUpdates) {
+    if (pendingRevision > revision) continue
+    pendingHudUpdates.delete(pendingRevision)
+    completed.push(elapsedObservation({
+      startedAtMs,
+      completedAtMs,
+      limitMs: FLIGHT_SIM_HUD_UPDATE_LIMIT_MS,
+      source: 'runtime-publish-to-hud-layout',
+      synchronous: false,
+      revision: pendingRevision,
+    }))
   }
-  return publishDeadline('hudUpdate', elapsedObservation({
-    startedAtMs,
-    completedAtMs: now(),
-    limitMs: FLIGHT_SIM_HUD_UPDATE_LIMIT_MS,
-    source: 'runtime-publish-to-hud-layout',
-    synchronous: false,
-    revision,
-  }))
+  const observation = completed.find(candidate => !candidate.withinLimit)
+    || completed.find(candidate => candidate.revision === revision)
+  return observation ? publishHudDeadline(observation) : null
 }
 
 export function measureFlightSimGameplayNetworkBlock(

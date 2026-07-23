@@ -71,141 +71,249 @@ test('Flight Sim activation is source-authored and path conflicts fail closed', 
   }
 })
 
-test('Flight browser proof activates only after applying the authored source', () => {
-  const runner = readFileSync(
+test('Flight surface opening preloads the existing lazy mission stage before activation', () => {
+  const viteConfig = readFileSync(
+    resolve(repoRoot, 'canvas/vite.config.ts'),
+    'utf8',
+  )
+  const loader = readFileSync(
+    resolve(repoRoot, 'canvas/src/lib/three/flightSimMissionStageLoader.ts'),
+    'utf8',
+  )
+  const overlay = readFileSync(
+    resolve(repoRoot, 'canvas/src/lib/three/ThreeGameplayOverlay.tsx'),
+    'utf8',
+  )
+  const runtime = readFileSync(
     resolve(
       repoRoot,
-      'canvas/scripts/run_game_flight_sim_browser_smoke.mjs',
+      'canvas/src/features/game-flight-sim/flightSimRuntime.ts',
     ),
     'utf8',
   )
-  const verifier = readFileSync(
+  const stageImport =
+    "import('@/features/game-flight-sim/FlightSimMissionStage')"
+  assert.match(
+    viteConfig,
+    /optimizeDeps:\s*\{[\s\S]*?include:\s*\[[\s\S]*?'maplibre-gl\/dist\/maplibre-gl\.js'[\s\S]*?'fflate'[\s\S]*?'three\/examples\/jsm\/loaders\/GLTFLoader\.js'/,
+  )
+  assert.match(
+    viteConfig,
+    /exclude:\s*\[\s*'gympgrph',\s*'grph-shared',\s*'entities'\s*\]/,
+  )
+  assert.equal(loader.split(stageImport).length - 1, 1)
+  assert.match(
+    loader,
+    /if \(cachedPromise === requestedPromise\) cachedPromise = null/,
+  )
+  assert.match(
+    overlay,
+    /const FlightSimMissionStageLazy = React\.lazy\(loadFlightSimMissionStage\)/,
+  )
+  assert.match(loader, /module\.createFlightSimMissionStage\(runtimeController\)/)
+  assert.match(
+    overlay,
+    /from '\.\/flightSimMissionStageLoader'/,
+  )
+  assert.match(
+    runtime,
+    /from '@\/lib\/three\/flightSimMissionStageLoader'/,
+  )
+  assert.doesNotMatch(runtime, /from '@\/lib\/three\/ThreeGameplayOverlay'/)
+  assert.match(
+    runtime,
+    /const \[decisions\] = await Promise\.all\(\[[\s\S]*preloadFlightSimMissionStage\(flightSimStageRuntimeController\),[\s\S]*\]\)/,
+  )
+  const missionStage = readFileSync(
     resolve(
       repoRoot,
-      'canvas/scripts/verify_game_flight_sim_browser_smoke.py',
+      'canvas/src/features/game-flight-sim/FlightSimMissionStage.tsx',
     ),
     'utf8',
   )
-  const runtimePhases = readFileSync(
+  assert.doesNotMatch(missionStage, /from '\.\/flightSimRuntime'/)
+  assert.match(missionStage, /runtimeController\.readSnapshot\(\)/)
+  const opening = runtime.indexOf('async function performFlightSimSurfaceOpen')
+  const preload = runtime.indexOf(
+    'preloadFlightSimMissionStage(flightSimStageRuntimeController)',
+    opening,
+  )
+  const activation = runtime.indexOf(
+    'surfaceActivated = activateXrSceneSurface',
+    opening,
+  )
+  const readyDeadline = runtime.indexOf(
+    'return startFlightSimWithReadyFrame',
+    opening,
+  )
+  assert.ok(opening >= 0 && preload > opening)
+  assert.ok(preload < activation)
+  assert.ok(activation < readyDeadline)
+})
+
+test('Flight surface fencing drains and restores both workspace seed-sync owners', () => {
+  const runtime = readFileSync(
+    resolve(repoRoot, 'canvas/src/features/game-flight-sim/flightSimRuntime.ts'),
+    'utf8',
+  )
+  const sourceFilesBootstrap = readFileSync(
     resolve(
       repoRoot,
-      'canvas/scripts/lib/game_flight_sim_smoke_runtime_phases.py',
+      'canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx',
     ),
     'utf8',
   )
-  const serverOwner = readFileSync(
+  const workspaceExplorer = readFileSync(
     resolve(
       repoRoot,
-      'canvas/scripts/lib/run-local-vite-browser-smoke.mjs',
+      'canvas/src/lib/markdown-workspace-runtime/useMarkdownWorkspaceExplorerState.tsx',
     ),
     'utf8',
   )
-  const touchVerifier = readFileSync(
-    resolve(
-      repoRoot,
-      'canvas/scripts/lib/game_flight_sim_smoke_mobile.py',
-    ),
+  const deferredScheduler = readFileSync(resolve(repoRoot, 'canvas/src/lib/workspace/workspaceSeedSyncDeferredScheduler.ts'), 'utf8')
+  const storageLifecycle = readFileSync(resolve(repoRoot, 'canvas/src/features/source-files/sourceFilesKnowgrphStorageLifecycle.ts'), 'utf8')
+  const storageLoader = readFileSync(resolve(repoRoot, 'canvas/src/features/source-files/sourceFilesKnowgrphStorageRuntime.ts'), 'utf8')
+  const storageClient = readFileSync(
+    resolve(repoRoot, 'canvas/src/lib/storage/knowgrphStorageClientRuntime.ts'),
     'utf8',
   )
-  const missionVerifier = readFileSync(
-    resolve(
-      repoRoot,
-      'canvas/scripts/lib/game_flight_sim_smoke_mission.py',
-    ),
-    'utf8',
-  )
-  const sceneVerifier = readFileSync(
-    resolve(
-      repoRoot,
-      'canvas/scripts/lib/game_flight_sim_smoke_scene.py',
-    ),
-    'utf8',
+  const inboundStorageApply = readFileSync(resolve(repoRoot, 'canvas/src/features/source-files/sourceFilesInboundStorageApply.ts'), 'utf8')
+  assert.match(
+    sourceFilesBootstrap,
+    /workspaceRematerializeSeedSyncScheduler\.schedule\(request\)/,
   )
   assert.match(
-    runner,
-    /delete process\.env\.VITE_KNOWGRPH_RUN_READY_DEMO/,
-  )
-  assert.doesNotMatch(
-    runner,
-    /VITE_KNOWGRPH_RUN_READY_DEMO\s*\|\|=\s*['"]flight-sim['"]/,
-  )
-  assert.doesNotMatch(
-    runner,
-    /VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH\s*=/,
-  )
-  assert.match(runner, /const runCount = 2/)
-  assert.match(runner, /existingServerPolicy: 'forbid'/)
-  assert.match(runner, /KG_GAME_FLIGHT_SIM_EXPECTED_HEAD/)
-  assert.match(runner, /KG_GAME_FLIGHT_SIM_EXPECTED_SOURCE_SHA256/)
-  assert.match(runner, /freshServerPerRun: true/)
-  assert.match(
-    runner,
-    /candidate\?\.runtimeRevision !== candidateHead/,
+    deferredScheduler,
+    /const schedule = \(request:[\s\S]*if \(inFlight\) return/,
   )
   assert.match(
-    runner,
-    /candidate\?\.runtimeBranch !== candidateBranch/,
+    deferredScheduler,
+    /const runScheduledRequest[\s\S]*const request = task\.takePending\(\)[\s\S]*if \(!request\) \{[\s\S]*return/,
   )
   assert.match(
-    runner,
-    /source\?\.authoredSeedSha256 !== sourceSha256/,
+    deferredScheduler,
+    /await drainWorkspaceSeedSyncDeferredRequests\([\s\S]*task\.complete\(\)/,
+  )
+  assert.doesNotMatch(sourceFilesBootstrap, /workspaceMaterializeTimerRef|workspaceMaterializeInFlightRef/)
+  assert.match(
+    sourceFilesBootstrap,
+    /runWorkspaceSeedSyncTask\(signal,[\s\S]*materializeActivePathWithSourceAuthority/,
   )
   assert.match(
-    runner,
-    /source\?\.workspaceSourceSha256 !== sourceSha256/,
+    sourceFilesBootstrap,
+    /runWorkspaceSeedSyncTask\(controller\.signal,[\s\S]*runBootstrapSourceFileHydration\(\)[\s\S]*materializeBootstrapWorkspaceSourceFiles/,
   )
   assert.match(
-    runner,
-    /inputProof\?\.touchInteraction\?\.runId[\s\S]*missionProof\?\.runId/,
-  )
-  assert.match(runner, /missionProof\?\.phase !== 'completed'/)
-  assert.match(runner, /missionProof\?\.transitions\?\.length !== 3/)
-  assert.match(
-    runner,
-    /gameplayNetworkBlock:\s*\{[\s\S]*?source: 'flight-runtime-network-guard'/,
-  )
-  assert.match(runner, /verificationLedger\.every/)
-  assert.match(touchVerifier, /chromium-cdp-emulated-touch/)
-  assert.match(touchVerifier, /pointer_down\.get\("isTrusted"\) is not True/)
-  assert.match(missionVerifier, /accelerated-public-production-runtime/)
-  assert.match(missionVerifier, /snapshot\.tick !== prior\.tick \+ 1/)
-  assert.match(sceneVerifier, /expected_landing_pad_count = 1/)
-  assert.match(
-    serverOwner,
-    /refusing responsive pre-existing server/,
-  )
-  for (const proofField of [
-    'runtimeRevision',
-    'FIRST_PLAYABLE_FRAME_LIMIT_MS',
-    'touchInteraction',
-    'missionProof',
-    'verificationLedger',
-  ]) {
-    assert.match(verifier, new RegExp(proofField))
-  }
-  for (const proofField of [
-    'authoredSeedSha256',
-    'workspaceSourceSha256',
-    'durationMs',
-    'verify_flight_deadline_contracts',
-    'verify_mobile_touch_interaction',
-    'complete_authored_flight_mission',
-  ]) {
-    assert.match(runtimePhases, new RegExp(proofField))
-  }
-  assert.ok(
-    runtimePhases.indexOf(
-      'source_application, source = apply_and_verify_exact_authored_source',
-    )
-      < runtimePhases.indexOf("page.locator('[data-kg-flight-sim-hud=\"1\"]')"),
-  )
-  assert.ok(
-    runtimePhases.indexOf('"runtime deadline contracts"')
-      < runtimePhases.indexOf('"first playable frame"'),
+    sourceFilesBootstrap,
+    /if \(!request\) \{\s*stopKnowgrphStorageWorkspaceRuntime\(\)\s*return/,
   )
   assert.match(
-    runtimePhases,
-    /"first playable frame"[\s\S]*depends_on=\("runtime deadline contracts",\)/,
+    sourceFilesBootstrap,
+    /createKnowgrphStorageCurrentOwnershipHandler\([\s\S]*signal: args\.signal,[\s\S]*taskContext: args\.taskContext[\s\S]*await result\.completion/,
+  )
+  assert.match(
+    sourceFilesBootstrap,
+    /knowgrphStorageQueueOperations\.enqueue\(\{ ownership, request \}, async ownedRequest => \{[\s\S]*ownership: capturedOwnership[\s\S]*ensureKnowgrphStorageRuntimeDependencies\(capturedOwnership\)[\s\S]*runWorkspaceSeedSyncTask\(capturedOwnership\.signal,[\s\S]*deps\.syncSourceFilesToKnowgrphStorage/,
+  )
+  assert.match(
+    sourceFilesBootstrap,
+    /createKnowgrphStorageLatestOperationRunner<KnowgrphStorageOwnedQueueRequest>[\s\S]*const ownership = knowgrphStorageWorkspaceLifecycle\.readOwnership\(\)[\s\S]*knowgrphStorageQueueOperations\.enqueue\(\{ ownership, request \},[\s\S]*isCurrent\(capturedOwnership\)/,
+  )
+  assert.match(
+    sourceFilesBootstrap,
+    /clearKnowgrphStorageQueueState[\s\S]*knowgrphStorageQueueOperations\.clearPending\(\)/,
+  )
+  assert.match(
+    storageLifecycle,
+    /const next = pending[\s\S]*if \(next\) start\(next\)/,
+  )
+  assert.match(
+    storageLifecycle,
+    /if \(active\) \{\s*pending = entry\s*return\s*\}/,
+  )
+  assert.equal(
+    sourceFilesBootstrap.match(/onPulledChangesApplied: createKnowgrphStoragePulledChangesHandler\(ownership\)/g)?.length,
+    2,
+  )
+  assert.match(storageLifecycle, /lifecycle\.isCurrent\(ownership\) \|\| args\.signal\?\.aborted/)
+  assert.match(storageLifecycle, /controller\?\.abort\(reason\)/)
+  assert.match(storageLifecycle, /pending = null[\s\S]*pendingSignal = null/)
+  assert.match(storageLifecycle, /loadKnowgrphStorageRuntimeDependencies/)
+  assert.match(storageLoader, /runWorkspaceSeedSyncTask\(signal,[\s\S]*Promise\.all\(\[/)
+  assert.match(storageClient, /runWorkspaceSeedSyncTask\(args\.signal,[\s\S]*pushKnowgrphStorageOutbox[\s\S]*pullKnowgrphStorageChanges/)
+  assert.match(inboundStorageApply, /runWorkspaceSeedSyncTask\(signal, operation\)/)
+  assert.match(inboundStorageApply, /runWorkspaceSeedSyncTaskWithContext\(taskContext, operation\)/)
+  assert.match(inboundStorageApply, /fetch\(requestUrl, \{ signal: args\.signal \}\)/)
+  const resumedRefresh = workspaceExplorer.indexOf(
+    'return subscribeWorkspaceSeedSyncResumed',
+  )
+  const resumedActiveCheck = workspaceExplorer.indexOf(
+    'if (!runtimeRef.current.active) return',
+    resumedRefresh,
+  )
+  const resumedDeferredClear = workspaceExplorer.indexOf(
+    'workspaceRefreshDeferredRef.current = false',
+    resumedActiveCheck,
+  )
+  assert.ok(resumedRefresh >= 0 && resumedActiveCheck > resumedRefresh)
+  assert.ok(resumedDeferredClear > resumedActiveCheck)
+  assert.match(
+    workspaceExplorer,
+    /const refreshOnce[\s\S]*const finishSeedSyncTask = beginWorkspaceSeedSyncTask\(\)[\s\S]*workspaceRefreshDeferredRef\.current = true/,
+  )
+  assert.match(
+    workspaceExplorer,
+    /if \(!args\.active \|\| !workspaceRefreshDeferredRef\.current\) return[\s\S]*refresh\(\{ silent: true \}\)/,
+  )
+  const surfaceOpen = runtime.indexOf(
+    'async function performFlightSimSurfaceOpen',
+  )
+  const acquireSyncSuspension = runtime.indexOf(
+    'await acquireWorkspaceSeedSyncSuspension(options.signal)',
+    surfaceOpen,
+  )
+  const activateSurface = runtime.indexOf(
+    'surfaceActivated = activateXrSceneSurface',
+    surfaceOpen,
+  )
+  const installFence = runtime.indexOf(
+    'installFlightSimGameplayNetworkFence',
+    activateSurface,
+  )
+  assert.ok(surfaceOpen >= 0 && acquireSyncSuspension > surfaceOpen)
+  assert.ok(acquireSyncSuspension < activateSurface)
+  assert.ok(activateSurface < installFence)
+  const exitSurface = runtime.indexOf('export function exitFlightSimSurface')
+  const uninstallFence = runtime.indexOf(
+    'const failures = restoreGameplayNetworkOwnership()',
+    exitSurface,
+  )
+  const releaseSyncSuspension = runtime.indexOf(
+    'restoreWorkspaceSeedSyncOwnership()',
+    uninstallFence,
+  )
+  const restorePreviousSurface = runtime.indexOf(
+    '...restoreSurfaceOwnership(',
+    uninstallFence,
+  )
+  assert.ok(exitSurface >= 0 && uninstallFence > exitSurface)
+  assert.ok(uninstallFence < restorePreviousSurface)
+  assert.ok(restorePreviousSurface < releaseSyncSuspension)
+  assert.match(
+    runtime,
+    /flightSimSurfaceLifecycleGeneration \+= 1[\s\S]*cancelFlightSimHydration\(\)/,
+  )
+  assert.match(
+    runtime,
+    /locallyAcquiredSeedSyncRelease =[\s\S]*await acquireWorkspaceSeedSyncSuspension\(options\.signal\)[\s\S]*throwIfFlightSimSurfaceOpenStale\(expectedGeneration\)[\s\S]*releaseFlightSimWorkspaceSeedSyncSuspension =[\s\S]*locallyAcquiredSeedSyncRelease/,
+  )
+  assert.match(
+    runtime,
+    /defaultRuntime\.read\(\)\.active \|\| flightSimSurfaceOpenTail/,
+  )
+  assert.match(
+    runtime,
+    /openController\.controller\.abort\(new FlightSimSurfaceOpenSettledError\(\)\)/,
   )
 })
 

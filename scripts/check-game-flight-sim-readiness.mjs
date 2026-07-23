@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { assertFlightSimCameraReadiness } from './game-flight-sim-camera-readiness.mjs'
 import { assertFlightSimAssetReadiness } from './lib/game-flight-sim-asset-readiness.mjs'
 import { assertFlightSimKiroReadiness } from './lib/game-flight-sim-kiro-readiness.mjs'
+import { assertFlightSimFeatureNetworkBoundary } from './lib/game-flight-sim-network-readiness.mjs'
 import { assertFlightSimPropertyReadiness } from './lib/game-flight-sim-property-readiness.mjs'
 import { assertFlightSimSeedReadiness } from './lib/game-flight-sim-seed-readiness.mjs'
 import { assertFlightSimVerificationReadiness } from './lib/game-flight-sim-verification-readiness.mjs'
@@ -30,6 +31,7 @@ const requiredPaths = [
   `${flightFeatureRoot}/FlightSimWebglUnsupportedState.tsx`,
   `${flightFeatureRoot}/assetSpec/fallbacks/optionalBeaconGlb.generated.ts`,
   `${flightFeatureRoot}/assetSpec/flightSimAssetLoader.ts`,
+  `${flightFeatureRoot}/assetSpec/flightSimDefaultAssets.ts`,
   `${flightFeatureRoot}/assetSpec/flightSimAssetSpec.ts`,
   `${flightFeatureRoot}/assetSpec/vehicle-airplane.scene.json`,
   `${flightFeatureRoot}/flightModel.ts`,
@@ -45,9 +47,10 @@ const requiredPaths = [
   `${flightFeatureRoot}/flightSimMotionControlAdapter.ts`,
   `${flightFeatureRoot}/flightSimPendingDecisions.ts`,
   `${flightFeatureRoot}/flightSimRuntime.ts`,
+  `${flightFeatureRoot}/flightSimRuntimeCore.ts`,
   `${flightFeatureRoot}/flightSimRuntimeState.ts`,
   `${flightFeatureRoot}/flightSimSimulationClock.ts`,
-  `${flightFeatureRoot}/flightSimSpatialProfile.ts`,
+  `${flightFeatureRoot}/flightSimSpatialProfile.ts`, `${flightFeatureRoot}/flightSimStageRuntimeController.ts`,
   `${flightFeatureRoot}/index.ts`,
   'canvas/src/App.tsx',
   'canvas/src/features/agentic-os/agenticOsRemoteGrammarClient.ts',
@@ -62,7 +65,7 @@ const requiredPaths = [
   'canvas/src/features/three/xrNativeControllerCameraRuntime.ts',
   'canvas/src/features/workspace-fs/workspaceDecisionStore.ts',
   'canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts',
-  'canvas/src/lib/three/ThreeGameplayOverlay.tsx',
+  'canvas/src/lib/three/flightSimMissionStageLoader.ts', 'canvas/src/lib/three/ThreeGameplayOverlay.tsx',
   'canvas/src/lib/three/ThreeGraph.impl.tsx',
   'canvas/src/__tests__/flightSimCore.test.ts',
   'canvas/src/__tests__/flightSimDecisionStore.test.ts',
@@ -82,6 +85,11 @@ const requiredPaths = [
   'scripts/lib/game-flight-sim-asset-readiness.mjs',
   'scripts/lib/game-flight-sim-boundary.mjs',
   'scripts/lib/game-flight-sim-kiro-readiness.mjs',
+  'scripts/lib/game-flight-sim-network-readiness.mjs',
+  'scripts/lib/game-flight-sim-offline-author-contract.mjs',
+  'scripts/lib/game-flight-sim-offline-author-worker.mjs',
+  'scripts/lib/game-flight-sim-offline-authoring.mjs',
+  'scripts/lib/game-flight-sim-optional-prop-author.mjs',
   'scripts/lib/game-flight-sim-seed-readiness.mjs',
   'scripts/lib/game-flight-sim-verification-readiness.mjs',
   'scripts/__tests__/game-flight-sim-boundary.test.mjs',
@@ -106,10 +114,6 @@ const forbiddenDependencies = [
 const forbiddenFeaturePatterns = [
   [/<Canvas(?:\s|>)/, 'a feature-local Canvas'],
   [/\bnew\s+(?:THREE\.)?WebGLRenderer\s*\(/, 'a feature-local renderer'],
-  [/\bfetch\s*\(/, 'fetch'],
-  [/\bWebSocket\s*\(/, 'WebSocket'],
-  [/\bEventSource\s*\(/, 'EventSource'],
-  [/\bXMLHttpRequest\b/, 'XMLHttpRequest'],
   [/navigator\.credentials/, 'credentials access'],
   [/\bgetUserMedia\s*\(/, 'camera access'],
   [/\b(?:OpenAI|Anthropic)\b/, 'a model SDK'],
@@ -151,6 +155,7 @@ const featureSources = await Promise.all(featurePaths.map(async relativePath => 
 for (const { relativePath, source } of featureSources) {
   const lineCount = source.split(/\r?\n/).length
   if (lineCount > 600) throw new Error(`${relativePath} exceeds the 600-line feature limit`)
+  assertFlightSimFeatureNetworkBoundary({ relativePath, source })
   for (const [pattern, capability] of forbiddenFeaturePatterns) {
     if (pattern.test(source)) {
       throw new Error(`${relativePath} introduces forbidden Flight Sim capability: ${capability}`)
@@ -183,6 +188,7 @@ requireMarkers(featureIndexSource, [
   "export * from './flightSimRuntime'",
   "export * from './assetSpec/flightSimAssetSpec'",
   "export * from './assetSpec/flightSimAssetLoader'",
+  "export * from './assetSpec/flightSimDefaultAssets'",
   "export { FlightSimMissionStage } from './FlightSimMissionStage'",
   "export { FlightSimHud } from './FlightSimHud'",
 ], 'Flight Sim public feature surface')
@@ -214,9 +220,10 @@ if (
 const missionStageSource = await readText(`${flightFeatureRoot}/FlightSimMissionStage.tsx`)
 requireMarkers(missionStageSource, [
   'export function FlightSimMissionStage',
-  'readFlightSimSnapshot',
-  'subscribeFlightSimSnapshot',
-  'FLIGHT_SIM_AIRCRAFT_ASSET_SPEC',
+  'runtimeController.readSnapshot',
+  'runtimeController.subscribe',
+  'readFlightSimDefaultAssetLoadReport',
+  'kg_flight_sim_optional_beacon',
   "shouldPauseOnPointerRelease: () => readXrNativeControllerCamera().mode === 'fixed-follow'", 'blocksProgrammaticCamera: false',
   "snapshot.phase === 'ready' || snapshot.phase === 'flying'",
   "gl.domElement.dataset.kgFlightSimFirstFrame = '1'",
@@ -229,11 +236,11 @@ if (
 ) {
   throw new Error('FlightSimMissionStage must render only Flight actors and objective overlays')
 }
-
+const missionStageLoaderSource = await readText('canvas/src/lib/three/flightSimMissionStageLoader.ts')
+requireMarkers(missionStageLoaderSource, ["import('@/features/game-flight-sim/FlightSimMissionStage')", 'module.createFlightSimMissionStage(runtimeController)', 'if (cachedPromise === requestedPromise) cachedPromise = null'], 'shared Flight Sim mission-stage loader')
 const gameplayOverlaySource = await readText('canvas/src/lib/three/ThreeGameplayOverlay.tsx')
 requireMarkers(gameplayOverlaySource, [
-  "import('@/features/game-flight-sim/FlightSimMissionStage')",
-  'default: mod.FlightSimMissionStage',
+  "from './flightSimMissionStageLoader'",
   'if (props.flightSimActive)',
   '<FlightSimMissionStageLazy coordinateScale={props.coordinateScale} />',
 ], 'shared Three gameplay overlay')
@@ -314,6 +321,7 @@ requireMarkers(modelSource, [
   'export const FLIGHT_SIM_MAX_MISSION_TICKS = 60 * 90', 'export const FLIGHT_SIM_MAX_PERSISTED_RUN_ID',
   'export const FLIGHT_SIM_MISSION_ENTITY_REF',
   'export const FLIGHT_SIM_NEUTRAL_INPUT: FlightSimTickInput = Object.freeze({',
+  'export function stageFlightSimInputPatch(',
   "model: 'none'",
   'prompt_tokens: 0',
   'completion_tokens: 0',
@@ -325,6 +333,7 @@ requireMarkers(modelSource, [
   'Flight Sim Decision decisionId is not canonical', 'Flight Sim Decision producedAt is not canonical',
 ], 'immutable Flight Sim model')
 const runtimeSource = await readText(`${flightFeatureRoot}/flightSimRuntime.ts`)
+  + await readText(`${flightFeatureRoot}/flightSimRuntimeCore.ts`)
   + await readText(`${flightFeatureRoot}/flightSimRuntimeState.ts`)
 requireMarkers(runtimeSource, [
   'export type FlightSimAdvanceRequest = Readonly<{',
@@ -336,11 +345,17 @@ requireMarkers(runtimeSource, [
   'const workingMission = cloneFlightSimMission(activeMission)',
   'tickFlightSimMission(',
   'mission !== activeMission || generation !== request.generation',
+  'const failedCapture = captureFlightSimMission(workingMission)',
   'mission = workingMission',
+  'return stageMissionInput(input)',
+  'return stageMissionInput(stageFlightSimInputPatch(FLIGHT_SIM_NEUTRAL_INPUT, {',
   'createFlightSimPendingDecisionIndex(freezeFlightSimDecision)',
   'pendingDecisions.discardRun(runId)',
   'tickQueue.then(() => advanceCurrentMission(request))',
-  'flightSimSurfaceOpenTail.then(() => performFlightSimSurfaceOpen(options))',
+  'flightSimSurfaceOpenTail.then(() => (', 'performFlightSimSurfaceOpen(operationOptions, expectedGeneration)',
+  'readFlightSimDefaultAssetLoadReport()',
+  'installFlightSimGameplayNetworkFence(operation => (',
+  'uninstallFlightSimGameplayNetworkFence()',
   'readFlightSimDecisionStore().hydrationBlocked', 'reportFlightSimDecisionLoadFailure(hydrated.runtimeError)',
   'defaultRuntime.resetPersistence()',
   'export async function persistFlightSimPendingDecisions',
@@ -502,7 +517,8 @@ requireMarkers(webMcpRuntimeSource, [
 const flightMcpRuntimeSource = await readText(`${flightFeatureRoot}/flightSimMcpRuntime.ts`)
 requireMarkers(flightMcpRuntimeSource, [
   'persistFlightSimPendingDecisions',
-  'const saved = await persistFlightSimPendingDecisions()',
+  'const saved = await persistFlightSimPendingDecisions(',
+  'fence ? { signal: fence.signal } : {}',
 ], 'Flight Sim MCP save facade')
 if (/\bpersistPendingFlightSimDecisions\b/.test(flightMcpRuntimeSource)) {
   throw new Error('Flight Sim MCP must save through the core runtime acknowledgement facade')

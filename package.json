@@ -109,7 +109,7 @@
     "game-fps:runtime-ready": "node ./scripts/check-game-fps-readiness.mjs && npm run ecs:test && npm -C canvas run test:smoke:game-fps:source && npm -C canvas run check && KG_SKIP_DOCS_UPDATE=1 npm -C canvas run build",
     "game-fps:browser-smoke": "npm -C canvas run test:smoke:game-fps:browser",
     "game-flight-sim:runtime-ready": "node ./scripts/run-game-flight-sim-runtime-ready.mjs",
-    "game-flight-sim:orchestration:test": "node --test ./scripts/__tests__/game-flight-sim-verification-aggregation.test.mjs && python3 -m unittest discover -s ./canvas/scripts/__tests__ -p 'test_game_flight_sim_smoke_ledger.py'",
+    "game-flight-sim:orchestration:test": "node --test ./scripts/__tests__/game-flight-sim-verification-aggregation.test.mjs && node --test ./canvas/scripts/__tests__/game-flight-sim-browser-smoke-launcher.test.mjs && python3 -m unittest discover -s ./canvas/scripts/__tests__ -p 'test_game_flight_sim_smoke_ledger.py'",
     "game-flight-sim:negative-gates:test": "node --test ./scripts/__tests__/game-flight-sim-negative-gates.test.mjs ./scripts/__tests__/game-flight-sim-readiness-contract.test.mjs",
     "game-flight-sim:browser-smoke": "npm -C canvas run test:smoke:game-flight-sim:browser",
     "runtime:ci": "node --test --test-concurrency=1 ecs/__tests__/*.test.mjs cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs web/__tests__/*.test.mjs contracts/__tests__/*.test.mjs",

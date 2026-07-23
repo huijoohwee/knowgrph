@@ -36,6 +36,12 @@ export type FlightSimControlInput = Readonly<{
   throttle?: number
 }>
 
+export type FlightSimControlExecutionFence = Readonly<{
+  signal: AbortSignal
+  generation: number
+  isCurrent: () => boolean
+}>
+
 export type NormalizedFlightSimControl = Readonly<{
   invocation: string
   operation: FlightSimOperation
@@ -380,7 +386,14 @@ const runtimeFailureMessage = (
   fallback: string,
 ): string => String(snapshot.runtimeError || fallback)
 
-export async function controlLocalFlightSim(input: unknown) {
+const isFlightSimControlCurrent = (
+  fence?: FlightSimControlExecutionFence,
+): boolean => !fence || (!fence.signal.aborted && fence.isCurrent())
+
+export async function controlLocalFlightSim(
+  input: unknown,
+  fence?: FlightSimControlExecutionFence,
+) {
   const diagnostic = diagnoseFlightSimControl(input)
   if (diagnostic.ok === false) {
     return controlResult(
@@ -391,13 +404,21 @@ export async function controlLocalFlightSim(input: unknown) {
     )
   }
   const control = diagnostic.value
+  const cancelled = () => controlResult(
+    false,
+    'Flight Sim control was cancelled before its mutation could commit.',
+    control.operation,
+  )
+  if (!isFlightSimControlCurrent(fence)) return cancelled()
 
   const before = readFlightSimSnapshot()
   if (control.operation === 'open') {
     if (before.active) {
       return controlResult(false, 'Open requires an inactive Flight Sim surface.', control.operation)
     }
-    const opened = await openFlightSimSurface()
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
+    const opened = await openFlightSimSurface(fence ? { signal: fence.signal } : {})
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
     const ok = opened.active && opened.phase === 'stopped' && opened.webglSupported && !opened.runtimeError
     return controlResult(
       ok,
@@ -409,6 +430,7 @@ export async function controlLocalFlightSim(input: unknown) {
     if (!before.active || before.phase !== 'stopped') {
       return controlResult(false, 'Start requires an open, stopped Flight Sim.', control.operation)
     }
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
     const started = startFlightSim()
     const ok = (started.phase === 'ready' || started.phase === 'flying') && !started.runtimeError
     let message = 'Flight Sim resumed its retained in-memory flight.'
@@ -426,6 +448,7 @@ export async function controlLocalFlightSim(input: unknown) {
     if (!before.active || (before.phase !== 'ready' && before.phase !== 'flying')) {
       return controlResult(false, 'Stop requires a ready or flying Flight Sim mission.', control.operation)
     }
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
     const stopped = stopFlightSim()
     const ok = stopped.active && stopped.phase === 'stopped' && !stopped.runtimeError
     return controlResult(
@@ -438,6 +461,7 @@ export async function controlLocalFlightSim(input: unknown) {
     if (!before.active) {
       return controlResult(false, 'Restart requires an open Flight Sim surface.', control.operation)
     }
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
     const restarted = restartFlightSim()
     const ok = restarted.phase === 'ready' && !restarted.runtimeError
     return controlResult(
@@ -450,6 +474,7 @@ export async function controlLocalFlightSim(input: unknown) {
     if (!before.active || (before.phase !== 'ready' && before.phase !== 'flying') || control.throttle === undefined) {
       return controlResult(false, 'Throttle requires a ready or flying Flight Sim mission and a finite value from 0 through 1.', control.operation)
     }
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
     const throttled = setFlightSimThrottle(control.throttle)
     const ok = (throttled.phase === 'ready' || throttled.phase === 'flying') && !throttled.runtimeError
     return controlResult(
@@ -462,7 +487,11 @@ export async function controlLocalFlightSim(input: unknown) {
     if (before.phase !== 'completed' && before.phase !== 'crashed') {
       return controlResult(false, 'Save requires a completed or crashed Flight Sim mission.', control.operation)
     }
-    const saved = await persistFlightSimPendingDecisions()
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
+    const saved = await persistFlightSimPendingDecisions(
+      fence ? { signal: fence.signal } : {},
+    )
+    if (!isFlightSimControlCurrent(fence)) return cancelled()
     const ok = saved.status === 'saved'
     return controlResult(
       ok,
@@ -473,6 +502,7 @@ export async function controlLocalFlightSim(input: unknown) {
   if (!before.active) {
     return controlResult(false, 'Exit requires an open Flight Sim surface.', control.operation)
   }
+  if (!isFlightSimControlCurrent(fence)) return cancelled()
   const exited = exitFlightSim()
   const ok = !exited.active && exited.phase === 'stopped'
   return controlResult(

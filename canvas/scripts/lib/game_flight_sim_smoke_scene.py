@@ -8,6 +8,14 @@ from playwright.sync_api import Page
 FLIGHT_MISSION_NODE = "kg_flight_sim_mission"
 FLIGHT_AIRCRAFT_NODE = "kg_flight_sim_aircraft"
 FLIGHT_ASSET_NODE = "kg_xr_procedural_airplane"
+FLIGHT_OPTIONAL_BEACON_NODE = "kg_flight_sim_optional_beacon"
+FLIGHT_OPTIONAL_BEACON_PATH = (
+    "canvas/src/features/game-flight-sim/assetSpec/fallbacks/"
+    "optional-beacon.glb"
+)
+FLIGHT_OPTIONAL_BEACON_SHA256 = (
+    "be41f87bb745ba35c439336d932dd69c34223d26e117443a3c8556e44fce70cd"
+)
 AUTHORED_XR_NODES = {
     "kg_graph_xr_stage",
     "kg_xr_native_controller_demo",
@@ -254,6 +262,14 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
             if (name) counts[name] = (counts[name] || 0) + 1
             return counts
           }, {})
+          const optionalBeaconNode = descendants.find(
+            node => node?.name === 'kg_flight_sim_optional_beacon',
+          )
+          const optionalBeaconNodes = descendants.filter(
+            node => String(node?.name || '').startsWith(
+              'kg_flight_sim_optional_beacon',
+            ),
+          )
           const authoredTransforms = [
             'kg_graph_xr_stage',
             'kg_xr_native_controller_demo',
@@ -369,6 +385,22 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
                 ),
               ).length,
             },
+            optionalBeacon: {
+              assetKind: optionalBeaconNode?.extras?.assetKind ?? null,
+              assetPath: optionalBeaconNode?.extras?.assetPath ?? null,
+              assetSha256: optionalBeaconNode?.extras?.assetSha256 ?? null,
+              opaque: optionalBeaconNode?.extras?.opaque === true,
+              meshDescendantCount: optionalBeaconNodes.filter(
+                node => Number.isInteger(node?.mesh),
+              ).length,
+              partNames: optionalBeaconNodes
+                .map(node => String(node?.name || '').trim())
+                .filter(name => (
+                  name
+                  && name !== 'kg_flight_sim_optional_beacon'
+                ))
+                .sort(),
+            },
           }
         }
         """
@@ -433,9 +465,28 @@ def assert_active_flight_scene(
     }:
         raise AssertionError(f"Flight Sim XR surface contract was not active: {root}")
     counts = scene.get("namedNodeCounts") or {}
-    expected_once = (FLIGHT_MISSION_NODE, FLIGHT_AIRCRAFT_NODE, FLIGHT_ASSET_NODE)
+    expected_once = (
+        FLIGHT_MISSION_NODE,
+        FLIGHT_AIRCRAFT_NODE,
+        FLIGHT_ASSET_NODE,
+        FLIGHT_OPTIONAL_BEACON_NODE,
+    )
     if any(counts.get(name) != 1 for name in expected_once):
         raise AssertionError(f"Flight actor-only stage was duplicated or missing: {counts}")
+    optional_beacon = scene.get("optionalBeacon") or {}
+    if (
+        optional_beacon.get("assetKind") != "glb-fallback"
+        or optional_beacon.get("assetPath") != FLIGHT_OPTIONAL_BEACON_PATH
+        or optional_beacon.get("assetSha256")
+        != FLIGHT_OPTIONAL_BEACON_SHA256
+        or optional_beacon.get("opaque") is not True
+        or int(optional_beacon.get("meshDescendantCount") or 0) < 1
+        or not optional_beacon.get("partNames")
+    ):
+        raise AssertionError(
+            "Flight optional beacon did not retain its admitted rendered GLB "
+            f"identity: {optional_beacon}"
+        )
     waypoint_names = [
         name for name in counts if name.startswith("kg_flight-sim_waypoint_")
     ]
@@ -473,6 +524,7 @@ def assert_active_flight_scene(
         for name in mission.get("descendantNames") or []
         if name not in {FLIGHT_AIRCRAFT_NODE, FLIGHT_ASSET_NODE}
         and not name.startswith("kg_xr_airplane_")
+        and not name.startswith("kg_flight_sim_optional_beacon")
         and not name.startswith("kg_flight-sim_waypoint_")
         and name != landing_pad_name
     )

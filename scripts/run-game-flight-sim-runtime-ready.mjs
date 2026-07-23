@@ -8,6 +8,9 @@ import {
   repositoryStatesEqual,
 } from './lib/git-repository-state.mjs'
 import {
+  createGitVerificationWorkspace,
+} from './lib/git-verification-workspace.mjs'
+import {
   collectNamedVerifications,
   throwForNamedFailures,
 } from './lib/named-verification-runner.mjs'
@@ -87,22 +90,70 @@ export function executeVerificationCommand(
 
 export async function runFlightSimRuntimeReadiness({
   captureState = captureGitRepositoryState,
+  createWorkspace = createGitVerificationWorkspace,
   execute = executeVerificationCommand,
   log = console,
   repositoryRoot = defaultRepositoryRoot,
 } = {}) {
   const before = await captureState(repositoryRoot)
-  const report = await collectNamedVerifications({
-    execute: verification => execute(verification, repositoryRoot),
-    log,
-    verifications: FLIGHT_SIM_RUNTIME_VERIFICATIONS,
-  })
-  const failures = [...report.failures]
+  if (before.status) {
+    throwForNamedFailures('Game Flight Sim runtime readiness', [
+      Object.freeze({
+        name: 'clean checkout preflight',
+        message: `runtime-ready requires an initially clean checkout:\n${
+          before.status.replaceAll('\0', '\n').trim()
+        }`,
+      }),
+    ])
+  }
+  const failures = []
+  let report = null
+  let workspace = null
+  try {
+    workspace = await createWorkspace(repositoryRoot)
+    const isolatedBefore = await captureState(workspace.repositoryRoot)
+    report = await collectNamedVerifications({
+      execute: verification => execute(
+        verification,
+        workspace.repositoryRoot,
+      ),
+      log,
+      verifications: FLIGHT_SIM_RUNTIME_VERIFICATIONS,
+    })
+    failures.push(...report.failures)
+    const isolatedAfter = await captureState(workspace.repositoryRoot)
+    if (!repositoryStatesEqual(isolatedBefore, isolatedAfter)) {
+      failures.push(Object.freeze({
+        name: 'repository source immutability',
+        message: `runtime-ready changed its isolated checkout ${
+          describeRepositoryStateChange(isolatedBefore, isolatedAfter)
+        }`,
+      }))
+    }
+  } catch (error) {
+    failures.push(Object.freeze({
+      name: 'isolated verification workspace',
+      message: error instanceof Error ? error.message : String(error),
+    }))
+  } finally {
+    if (workspace) {
+      try {
+        await workspace.dispose()
+      } catch (error) {
+        failures.push(Object.freeze({
+          name: 'isolated verification cleanup',
+          message: error instanceof Error ? error.message : String(error),
+        }))
+      }
+    }
+  }
   const after = await captureState(repositoryRoot)
   if (!repositoryStatesEqual(before, after)) {
     failures.push(Object.freeze({
-      name: 'repository source immutability',
-      message: `runtime-ready changed ${describeRepositoryStateChange(before, after)}`,
+      name: 'caller checkout isolation',
+      message: `caller checkout changed outside the isolated verification: ${
+        describeRepositoryStateChange(before, after)
+      }`,
     }))
   }
   throwForNamedFailures('Game Flight Sim runtime readiness', failures)

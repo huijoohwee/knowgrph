@@ -30,6 +30,7 @@ import {
   parseFlightSimInvocation,
 } from '@/features/game-flight-sim/flightSimMcpRuntime'
 import {
+  advanceFlightSimByFixedStep,
   exitFlightSimSurface,
   isFlightSimHydrationPending,
   openFlightSimSurface,
@@ -234,8 +235,10 @@ test('Flight Sim builder rejects invalid programmatic invocation values', () => 
 
 test('Flight Sim MCP enforces the active tick-zero lifecycle and resumable stop/start', async () => {
   resetFlightSimRuntimeForTests()
+  const hostFetch = globalThis.fetch
   try {
     await openFlightSimSurface({ openPanel: false, webglSupported: true })
+    assert.notEqual(globalThis.fetch, hostFetch)
     assert.equal(inspectLocalFlightSim().flightSim.active, true)
     assert.equal((await controlLocalFlightSim({ operation: 'inspect' })).errorCode, 'FLIGHT_SIM_CONTROL_UNSUPPORTED_OPERATION')
     assert.equal((await controlLocalFlightSim({ operation: 'open' })).ok, false)
@@ -244,7 +247,11 @@ test('Flight Sim MCP enforces the active tick-zero lifecycle and resumable stop/
     assert.equal(readFlightSimSnapshot().phase, 'ready')
 
     assert.equal((await controlLocalFlightSim({ operation: 'throttle', throttle: 0.75 })).ok, true)
+    assert.equal(readFlightSimSnapshot().phase, 'ready')
+    assert.notEqual(readFlightSimSnapshot().aircraft.throttle, 0.75)
+    await advanceFlightSimByFixedStep()
     assert.equal(readFlightSimSnapshot().phase, 'flying')
+    assert.equal(readFlightSimSnapshot().aircraft.throttle, Math.fround(0.75))
 
     assert.equal((await controlLocalFlightSim({ operation: 'stop' })).ok, true)
     assert.equal(readFlightSimSnapshot().phase, 'stopped')
@@ -256,11 +263,17 @@ test('Flight Sim MCP enforces the active tick-zero lifecycle and resumable stop/
     assert.equal(readFlightSimSnapshot().tick, 0)
     assert.equal((await controlLocalFlightSim({ operation: 'save' })).ok, false)
 
+    await assert.rejects(
+      globalThis.fetch('https://airvio.co/api/storage'),
+      (error: Error & { code?: string }) => error.code === 'FLIGHT_SIM_GAMEPLAY_NETWORK_BLOCKED',
+    )
     assert.equal((await controlLocalFlightSim({ operation: 'exit' })).ok, true)
+    assert.equal(globalThis.fetch, hostFetch)
     assert.equal(readFlightSimSnapshot().active, false)
     assert.equal((await controlLocalFlightSim({ operation: 'exit' })).ok, false)
   } finally {
     if (readFlightSimSnapshot().active) await controlLocalFlightSim({ operation: 'exit' })
+    assert.equal(globalThis.fetch, hostFetch)
   }
 })
 
@@ -407,7 +420,10 @@ test('profile-incompatible Decisions block hydration before a mission World is c
     assert.equal(blocked.runId, 0)
     assert.equal(blocked.phase, 'stopped')
     assert.equal(readFlightSimDecisionStore().hydrationBlocked, true)
-    assert.match(blocked.runtimeError || '', /active mission profile/)
+    assert.match(
+      blocked.runtimeError || '',
+      /Unreadable \/game-flight-sim\/mission-1-decisions\.md: local Decision document is invalid\./,
+    )
   } finally {
     if (readFlightSimSnapshot().active) exitFlightSimSurface()
     resetFlightSimDecisionStoreForTests()
@@ -518,8 +534,23 @@ test('Flight Sim WebMCP deadline returns a deterministic structured timeout enve
   }
   let observedDeadlineMs = 0
   let cancelled = false
+  let releaseControl: (() => void) | undefined
+  let resolveControlSettled: (() => void) | undefined
+  let observedFence: Parameters<typeof controlLocalFlightSim>[1]
+  const controlSettled = new Promise<void>(resolve => {
+    resolveControlSettled = resolve
+  })
+  resetFlightSimRuntimeForTests()
   const builders = buildFlightSimWebMcpToolBuilders(findContract, {
-    control: () => new Promise(() => {}),
+    control: async (input, fence) => {
+      observedFence = fence
+      await new Promise<void>(resolve => {
+        releaseControl = resolve
+      })
+      const result = await controlLocalFlightSim(input, fence)
+      resolveControlSettled?.()
+      return result
+    },
     createDeadline: deadlineMs => {
       observedDeadlineMs = deadlineMs
       return {
@@ -547,4 +578,16 @@ test('Flight Sim WebMCP deadline returns a deterministic structured timeout enve
   assert.equal(observedDeadlineMs, FLIGHT_SIM_WEB_MCP_DEADLINE_MS)
   assert.equal(cancelled, true)
   assert.equal(JSON.stringify(readFlightSimSnapshot()), before)
+  assert.equal(observedFence?.signal.aborted, true)
+  assert.equal(observedFence?.isCurrent(), false)
+
+  assert.ok(releaseControl)
+  releaseControl()
+  await controlSettled
+  assert.equal(
+    JSON.stringify(readFlightSimSnapshot()),
+    before,
+    'a timed-out delayed control must not mutate after its timeout envelope settles',
+  )
+  resetFlightSimRuntimeForTests()
 })

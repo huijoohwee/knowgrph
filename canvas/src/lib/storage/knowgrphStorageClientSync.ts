@@ -1,5 +1,6 @@
 export type {
   KnowgrphStorageFetchLike,
+  KnowgrphStoragePulledChangesApplyArgs,
   KnowgrphStorageSyncNowArgs,
   KnowgrphStorageSyncRunResult,
   QueueKnowgrphStorageMutationArgs,

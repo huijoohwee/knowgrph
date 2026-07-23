@@ -37,6 +37,7 @@ export type WorkspaceDecisionStoreSnapshot = Readonly<{
 
 export type WorkspaceDecisionStoreOptions = Readonly<{
   workspace?: WorkspaceFs
+  signal?: AbortSignal
 }>
 
 export type WorkspaceDecisionStore<TDecision extends WorkspaceDecisionRecord> = Readonly<{
@@ -57,12 +58,36 @@ export type WorkspaceDecisionStoreConfig<TDecision extends WorkspaceDecisionReco
   title: string
   body: string
   validateDecisions: (decisions: readonly TDecision[]) => void
+  validatePendingDecisions?: (decisions: readonly TDecision[]) => void
 }>
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message
     ? error.message
     : String(error || 'Decision save failed')
+}
+
+class WorkspaceDecisionDocumentError extends Error {
+  constructor(savePath: WorkspacePath) {
+    super(`Unreadable ${savePath}: local Decision document is invalid.`)
+    this.name = 'WorkspaceDecisionDocumentError'
+  }
+}
+
+function createDecisionLoadError(
+  savePath: WorkspacePath,
+): WorkspaceDecisionDocumentError {
+  return new WorkspaceDecisionDocumentError(savePath)
+}
+
+function operationAbortError(signal?: AbortSignal): Error {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new Error('Workspace Decision operation was aborted')
+}
+
+function throwIfOperationAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw operationAbortError(signal)
 }
 
 function createEmptyDecisionDocument(title: string, body: string): string {
@@ -116,6 +141,10 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
     revision: 0,
   })
 
+  function notifyListeners(): void {
+    for (const listener of [...listeners]) listener()
+  }
+
   function publish(patch: Partial<WorkspaceDecisionStoreSnapshot>): WorkspaceDecisionStoreSnapshot {
     snapshot = Object.freeze({
       ...snapshot,
@@ -123,7 +152,7 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
       retainedCount: pending.size,
       revision: snapshot.revision + 1,
     })
-    for (const listener of [...listeners]) listener()
+    notifyListeners()
     return snapshot
   }
 
@@ -136,17 +165,18 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
     return () => listeners.delete(listener)
   }
 
-  function reportLoadFailure(error: unknown): WorkspaceDecisionStoreSnapshot {
+  function reportLoadFailure(_error: unknown): WorkspaceDecisionStoreSnapshot {
     return publish({
       status: 'error',
       errorKind: 'load',
       hydrationBlocked: true,
-      error: `Unreadable ${savePath}: ${errorMessage(error)}`,
+      error: createDecisionLoadError(savePath).message,
     })
   }
 
   function queue(decisions: readonly TDecision[]): void {
     const normalized = normalizeDecisionBatch([...decisions]) as TDecision[]
+    config.validatePendingDecisions?.(normalized)
     for (const decision of normalized) pending.set(decision.decisionId, decision)
     if (snapshot.hydrationBlocked || snapshot.status === 'error') {
       publish({})
@@ -159,19 +189,32 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
     })
   }
 
-  async function load(options: WorkspaceDecisionStoreOptions = {}): Promise<TDecision[]> {
+  function readValidatedDecisionDocument(text: string): TDecision[] {
     try {
-      const workspace = options.workspace ?? await getWorkspaceFs()
-      const text = await workspace.readFileText(savePath)
-      if (text == null) return []
       const { nodes } = readKgcNodeState(text)
       const decisions: TDecision[] = []
       nodes.forEach((node: unknown, index: number) => {
         if ((node as { type?: unknown } | null)?.type !== ECS_DECISION_NODE_TYPE) return
         decisions.push(normalizeDecisionNode(node, index) as TDecision)
       })
-      const normalizedDecisions = normalizeDecisionBatch(decisions) as TDecision[]
-      config.validateDecisions(normalizedDecisions)
+      const normalized = normalizeDecisionBatch(decisions) as TDecision[]
+      config.validateDecisions(normalized)
+      return normalized
+    } catch {
+      throw createDecisionLoadError(savePath)
+    }
+  }
+
+  async function load(options: WorkspaceDecisionStoreOptions = {}): Promise<TDecision[]> {
+    try {
+      throwIfOperationAborted(options.signal)
+      const workspace = options.workspace ?? await getWorkspaceFs()
+      throwIfOperationAborted(options.signal)
+      const text = await workspace.readFileText(savePath)
+      throwIfOperationAborted(options.signal)
+      if (text == null) return []
+      const normalizedDecisions = readValidatedDecisionDocument(text)
+      throwIfOperationAborted(options.signal)
       if (!snapshot.hydrationBlocked) {
         const preserveRetainedWriteFailure = pending.size > 0
           && snapshot.status === 'error'
@@ -189,24 +232,61 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
       }
       return normalizedDecisions
     } catch (error) {
-      reportLoadFailure(error)
-      throw error
+      if (options.signal?.aborted) throw operationAbortError(options.signal)
+      const loadError = createDecisionLoadError(savePath)
+      reportLoadFailure(loadError)
+      throw loadError
+    }
+  }
+
+  async function restoreWorkspaceText(
+    workspace: WorkspaceFs,
+    previousText: string | null,
+  ): Promise<void> {
+    const currentText = await workspace.readFileText(savePath)
+    if (currentText !== previousText) {
+      if (previousText == null) {
+        if (currentText != null) await workspace.deleteEntry(savePath)
+      } else {
+        await upsertWorkspaceTextDocument({
+          fs: workspace,
+          parentPath: folderPath,
+          name: fileName,
+          text: previousText,
+        })
+      }
+    }
+    const restoredText = await workspace.readFileText(savePath)
+    if (restoredText !== previousText) {
+      throw new Error('Decision save rollback read-back mismatch')
     }
   }
 
   async function resetLocalSave(
     workspaceOverride?: WorkspaceFs,
+    signal?: AbortSignal,
   ): Promise<WorkspaceDecisionStoreSnapshot> {
+    let workspace: WorkspaceFs | null = null
+    let previousText: string | null = null
+    let previousTextKnown = false
     try {
-      const workspace = workspaceOverride ?? await getWorkspaceFs()
+      throwIfOperationAborted(signal)
+      workspace = workspaceOverride ?? await getWorkspaceFs()
+      throwIfOperationAborted(signal)
+      previousText = await workspace.readFileText(savePath)
+      previousTextKnown = true
+      throwIfOperationAborted(signal)
       await ensureWorkspaceFolderTreeIfMissing({ fs: workspace, folderPath })
+      throwIfOperationAborted(signal)
       await upsertWorkspaceTextDocument({
         fs: workspace,
         parentPath: folderPath,
         name: fileName,
         text: emptyDocument,
       })
+      throwIfOperationAborted(signal)
       const readBack = await workspace.readFileText(savePath)
+      throwIfOperationAborted(signal)
       if (readBack !== emptyDocument) throw new Error('Reset save read-back mismatch')
       pending.clear()
       return publish({
@@ -217,6 +297,12 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
         error: null,
       })
     } catch (error) {
+      if (signal?.aborted) {
+        if (workspace && previousTextKnown) {
+          await restoreWorkspaceText(workspace, previousText)
+        }
+        throw operationAbortError(signal)
+      }
       return publish({
         status: 'error',
         errorKind: snapshot.hydrationBlocked ? 'load' : 'write',
@@ -235,14 +321,16 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
   }
 
   function reset(options: WorkspaceDecisionStoreOptions = {}): Promise<WorkspaceDecisionStoreSnapshot> {
-    return enqueueDecisionMutation(() => resetLocalSave(options.workspace))
+    return enqueueDecisionMutation(() => resetLocalSave(options.workspace, options.signal))
   }
 
   async function persistPending(
-    workspaceOverride?: WorkspaceFs,
+    options: WorkspaceDecisionStoreOptions = {},
   ): Promise<WorkspaceDecisionStoreSnapshot> {
+    throwIfOperationAborted(options.signal)
     if (snapshot.hydrationBlocked) return publish({})
     if (pending.size === 0) {
+      throwIfOperationAborted(options.signal)
       return publish({
         status: 'saved',
         errorKind: null,
@@ -250,31 +338,47 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
         error: null,
       })
     }
+    const snapshotBeforeSaving = snapshot
+    const restoreSnapshotOnAbort = () => {
+      snapshot = snapshotBeforeSaving
+      notifyListeners()
+    }
+    options.signal?.addEventListener('abort', restoreSnapshotOnAbort, { once: true })
     publish({ status: 'saving', errorKind: null, error: null })
     const batch = [...pending.values()]
     let workspace: WorkspaceFs | null = null
     let previousText: string | null = null
+    let previousTextKnown = false
     try {
-      workspace = workspaceOverride ?? await getWorkspaceFs()
+      config.validatePendingDecisions?.(batch)
+      throwIfOperationAborted(options.signal)
+      workspace = options.workspace ?? await getWorkspaceFs()
+      throwIfOperationAborted(options.signal)
       previousText = await workspace.readFileText(savePath)
+      previousTextKnown = true
+      throwIfOperationAborted(options.signal)
       const current = previousText ?? emptyDocument
+      readValidatedDecisionDocument(current)
       const merged = mergeDecisionsIntoKgcMarkdown(current, batch)
       await ensureWorkspaceFolderTreeIfMissing({ fs: workspace, folderPath })
+      throwIfOperationAborted(options.signal)
       await upsertWorkspaceTextDocument({
         fs: workspace,
         parentPath: folderPath,
         name: fileName,
         text: merged.markdown,
       })
+      throwIfOperationAborted(options.signal)
       const readBack = await workspace.readFileText(savePath)
+      throwIfOperationAborted(options.signal)
       if (readBack == null) throw new Error('Decision save read-back was empty')
+      const readBackDecisions = readValidatedDecisionDocument(readBack)
       const verification = mergeDecisionsIntoKgcMarkdown(readBack, batch)
       if (verification.persistedCount !== 0 || verification.idempotentCount !== batch.length) {
         throw new Error('Decision save read-back did not contain every pending Decision')
       }
-      const savedCount = readKgcNodeState(readBack).nodes.filter((node: unknown) => (
-        (node as { type?: unknown } | null)?.type === ECS_DECISION_NODE_TYPE
-      )).length
+      const savedCount = readBackDecisions.length
+      throwIfOperationAborted(options.signal)
       for (const decision of batch) pending.delete(decision.decisionId)
       return publish({
         status: 'saved',
@@ -283,45 +387,52 @@ export function createWorkspaceDecisionStore<TDecision extends WorkspaceDecision
         error: null,
       })
     } catch (error) {
-      if (workspace) {
+      const documentInvalid = error instanceof WorkspaceDecisionDocumentError
+      let rollbackError: unknown = null
+      if (workspace && previousTextKnown) {
         try {
-          const currentText = await workspace.readFileText(savePath)
-          if (currentText !== previousText) {
-            if (previousText == null) {
-              if (currentText != null) await workspace.deleteEntry(savePath)
-            } else {
-              await upsertWorkspaceTextDocument({
-                fs: workspace,
-                parentPath: folderPath,
-                name: fileName,
-                text: previousText,
-              })
-            }
-            const restoredText = await workspace.readFileText(savePath)
-            if (restoredText !== previousText) {
-              throw new Error('Decision save rollback read-back mismatch')
-            }
-          }
-        } catch (rollbackError) {
-          return publish({
-            status: 'error',
-            errorKind: 'write',
-            error: `${errorMessage(error)}; rollback failed: ${errorMessage(rollbackError)}`,
-          })
+          await restoreWorkspaceText(workspace, previousText)
+        } catch (caughtRollbackError) {
+          rollbackError = caughtRollbackError
         }
+      }
+      if (options.signal?.aborted) {
+        if (rollbackError) {
+          throw new Error(
+            `${errorMessage(operationAbortError(options.signal))}; rollback failed: ${errorMessage(rollbackError)}`,
+          )
+        }
+        throw operationAbortError(options.signal)
+      }
+      if (documentInvalid) {
+        return publish({
+          status: 'error',
+          errorKind: 'load',
+          hydrationBlocked: true,
+          error: createDecisionLoadError(savePath).message,
+        })
+      }
+      if (rollbackError) {
+        return publish({
+          status: 'error',
+          errorKind: 'write',
+          error: `${errorMessage(error)}; rollback failed: ${errorMessage(rollbackError)}`,
+        })
       }
       return publish({
         status: 'error',
         errorKind: 'write',
         error: errorMessage(error),
       })
+    } finally {
+      options.signal?.removeEventListener('abort', restoreSnapshotOnAbort)
     }
   }
 
   function persist(
     options: WorkspaceDecisionStoreOptions = {},
   ): Promise<WorkspaceDecisionStoreSnapshot> {
-    return enqueueDecisionMutation(() => persistPending(options.workspace))
+    return enqueueDecisionMutation(() => persistPending(options))
   }
 
   function resetForTests(): void {

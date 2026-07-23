@@ -22,12 +22,19 @@ from lib.game_flight_sim_smoke_mobile import (
 from lib.game_flight_sim_smoke_mission import complete_authored_flight_mission
 from lib.game_flight_sim_smoke_scene import (
     FLIGHT_MISSION_NODE,
+    FLIGHT_OPTIONAL_BEACON_PATH,
+    FLIGHT_OPTIONAL_BEACON_SHA256,
     assert_active_flight_scene,
     read_flight_scene,
 )
 from lib.game_flight_sim_smoke_source import (
     apply_and_verify_exact_authored_source,
     prepare_authored_physics_surface,
+)
+from lib.game_flight_sim_smoke_throttle import (
+    FLIGHT_THROTTLE_PROOF_TARGET,
+    assert_staged_throttle_response,
+    is_committed_throttle_target,
 )
 from lib.game_flight_sim_smoke_vite import prepare_stable_candidate_page
 from lib.game_flight_sim_smoke_web_mcp import (
@@ -89,6 +96,9 @@ def run_flight_runtime_verifications(
     screenshot_path: Path,
     target_url: str,
     web_mcp_calls: list[dict[str, Any]],
+    websocket_probe_url: str,
+    websocket_probe_events: list[str],
+    websocket_probe_route_hits: list[str],
 ) -> dict[str, Any]:
     state: dict[str, Any] = {}
 
@@ -186,7 +196,21 @@ def run_flight_runtime_verifications(
         scene = poll(
             page,
             lambda: read_flight_scene(page),
-            lambda value: FLIGHT_MISSION_NODE in set(value.get("names") or []),
+            lambda value: (
+                FLIGHT_MISSION_NODE in set(value.get("names") or [])
+                and (value.get("optionalBeacon") or {}).get("assetPath")
+                == FLIGHT_OPTIONAL_BEACON_PATH
+                and (value.get("optionalBeacon") or {}).get("assetSha256")
+                == FLIGHT_OPTIONAL_BEACON_SHA256
+                and (value.get("optionalBeacon") or {}).get("opaque") is True
+                and int(
+                    (value.get("optionalBeacon") or {}).get(
+                        "meshDescendantCount"
+                    )
+                    or 0
+                )
+                >= 1
+            ),
             label="Flight actor-only scene",
             timeout_ms=120_000,
         )
@@ -196,7 +220,12 @@ def run_flight_runtime_verifications(
     state["source"] = ledger.verify("Source Files apply", source_apply)
     state["deadlines"] = ledger.verify(
         "runtime deadline contracts",
-        lambda: verify_flight_deadline_contracts(page),
+        lambda: verify_flight_deadline_contracts(
+            page,
+            websocket_probe_url=websocket_probe_url,
+            websocket_probe_events=websocket_probe_events,
+            websocket_probe_route_hits=websocket_probe_route_hits,
+        ),
         depends_on=("Source Files apply",),
     )
     state["playable"] = ledger.verify(
@@ -278,20 +307,28 @@ def run_flight_runtime_verifications(
     )
 
     def throttle_restart() -> dict[str, Any]:
+        previous_throttle = float(
+            read_runtime(page)["aircraft"]["throttle"]
+        )
         throttle = control_flight_via_web_mcp(
             page,
-            "/flight.sim @canvas #flight operation=throttle throttle=0.75",
+            "/flight.sim @canvas #flight operation=throttle "
+            f"throttle={FLIGHT_THROTTLE_PROOF_TARGET}",
             web_mcp_calls,
         )
-        if (
-            throttle.get("ok") is not True
-            or abs(
-                throttle["flight"]["flightSim"]["aircraft"]["throttle"] - 0.75
-            ) > 1e-6
-        ):
-            raise AssertionError(
-                f"strict absolute throttle control failed: {throttle}"
-            )
+        staged_snapshot = assert_staged_throttle_response(
+            throttle,
+            previous_throttle,
+        )
+        committed_throttle = poll(
+            page,
+            lambda: read_runtime(page),
+            lambda value: is_committed_throttle_target(
+                value,
+                staged_snapshot,
+            ),
+            label="Flight throttle target on a committed World_Tick",
+        )
         restarted_result = control_flight_via_web_mcp(
             page,
             "/flight.sim @canvas #flight operation=restart",
@@ -322,6 +359,7 @@ def run_flight_runtime_verifications(
             "replayed": replayed,
             "restarted": restarted,
             "throttle": throttle,
+            "committedThrottle": committed_throttle,
         }
 
     state["restart"] = ledger.verify(

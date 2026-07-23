@@ -58,6 +58,54 @@ function missionState(snapshot: FlightSimSnapshot) {
   return state
 }
 
+test('WebGL admission reuses the mounted shared Three renderer context', () => {
+  let createdProbeCanvas = false
+  let releasedSharedContext = false
+  const sharedContext = {
+    isContextLost: () => false,
+    getExtension: () => ({
+      loseContext: () => {
+        releasedSharedContext = true
+      },
+    }),
+  }
+  const documentValue = {
+    querySelector: (selector: string) => {
+      assert.equal(selector, 'canvas[data-engine^="three.js"]')
+      return {
+        getContext: (kind: string) => kind === 'webgl2' ? sharedContext : null,
+      }
+    },
+    createElement: () => {
+      createdProbeCanvas = true
+      return { getContext: () => null }
+    },
+  } as unknown as Document
+
+  assert.equal(readWebglSupport(documentValue), true)
+  assert.equal(createdProbeCanvas, false)
+  assert.equal(releasedSharedContext, false)
+})
+
+test('WebGL admission fails closed when multiple Three renderer owners are mounted', () => {
+  let probedRenderer = false
+  const documentValue = {
+    querySelectorAll: (selector: string) => {
+      assert.equal(selector, 'canvas[data-engine^="three.js"]')
+      return [
+        { getContext: () => { probedRenderer = true; return {} } },
+        { getContext: () => { probedRenderer = true; return {} } },
+      ]
+    },
+    createElement: () => {
+      throw new Error('ambiguous renderer ownership must not create a fallback probe')
+    },
+  } as unknown as Document
+
+  assert.equal(readWebglSupport(documentValue), false)
+  assert.equal(probedRenderer, false)
+})
+
 test('actual WebGL probe is synchronous and a probe over 100 ms fails closed', () => {
   resetFlightSimDeadlineRuntimeForTests()
   let contextReleased = false
@@ -131,6 +179,26 @@ test('ready-frame and HUD deadlines record asynchronous presentation semantics',
     () => 80 + FLIGHT_SIM_HUD_UPDATE_LIMIT_MS + 0.001,
   )
   assert.equal(lateHud?.withinLimit, false)
+})
+
+test('a newer HUD completion cannot hide an older overdue revision', () => {
+  resetFlightSimDeadlineRuntimeForTests()
+  beginFlightSimHudUpdate(11, () => 100)
+  beginFlightSimHudUpdate(12, () => 190)
+
+  const newerCompletion = completeFlightSimHudUpdate(
+    12,
+    () => 100 + FLIGHT_SIM_HUD_UPDATE_LIMIT_MS + 0.001,
+  )
+  assert.equal(newerCompletion?.revision, 11)
+  assert.equal(newerCompletion?.withinLimit, false)
+  assert.equal(readFlightSimDeadlineSnapshot().hudUpdate?.revision, 11)
+
+  beginFlightSimHudUpdate(13, () => 300)
+  const laterOnTimeCompletion = completeFlightSimHudUpdate(13, () => 301)
+  assert.equal(laterOnTimeCompletion?.revision, 11)
+  assert.equal(laterOnTimeCompletion?.withinLimit, false)
+  assert.equal(readFlightSimDeadlineSnapshot().hudUpdate?.revision, 11)
 })
 
 test('production runtime blocks a gameplay network attempt within 1 s and retains mission state', () => {

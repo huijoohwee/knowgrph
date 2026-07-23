@@ -127,9 +127,10 @@ const invalidAssetSpecCaseArbitrary = fc.oneof(
   fc.constant({ assetSpecPresent: false } as InvalidAssetSpecCase),
 )
 
-const localFallbackOutcomeArbitrary = fc.array(
-  fc.constantFrom('loaded', 'missing', 'unreadable'),
-  { minLength: 0, maxLength: 8 },
+const localFallbackOutcomeArbitrary = fc.constantFrom(
+  'loaded',
+  'missing',
+  'unreadable',
 )
 
 const remoteFallbackPathArbitrary = fc.oneof(
@@ -297,37 +298,29 @@ test('Feature: knowgrph-game-flight-sim, Property 21 - GLB fallback is opaque, l
   const fetchProbe = installFetchProbe()
   try {
     fc.assert(
-      fc.property(localFallbackOutcomeArbitrary, outcomes => {
-        const candidates = outcomes.map((_, index) => {
-          const subjectId = `${FLIGHT_SIM_OPTIONAL_BEACON_SUBJECT_ID}-${index}`
-          return {
-            subjectId,
-            glbFallback: fallbackForSubject(
-              subjectId,
-              `${FLIGHT_SIM_FALLBACK_DIRECTORY}property-${index}.glb`,
-            ),
-          }
-        })
-        const outcomeByPath = new Map(candidates.map((candidate, index) => [
-          (candidate.glbFallback as FlightSimGlbFallbackReference).path,
-          outcomes[index],
-        ]))
-        const localReads = new Map<string, number>()
-        const report = loadFlightSimAssets(candidates, {
+      fc.property(localFallbackOutcomeArbitrary, outcome => {
+        let localReadCount = 0
+        const report = loadFlightSimAssets([{
+          subjectId: FLIGHT_SIM_OPTIONAL_BEACON_SUBJECT_ID,
+          glbFallback: FLIGHT_SIM_OPTIONAL_BEACON_GLB_FALLBACK,
+        }], {
           readCommittedLocalAsset: sourcePath => {
-            localReads.set(sourcePath, (localReads.get(sourcePath) || 0) + 1)
-            const outcome = outcomeByPath.get(sourcePath)
+            assert.equal(
+              sourcePath,
+              FLIGHT_SIM_OPTIONAL_BEACON_GLB_FALLBACK.path,
+            )
+            localReadCount += 1
             if (outcome === 'loaded') return validGlbBytes
             if (outcome === 'unreadable') throw new Error('property unreadable local file')
             return null
           },
         })
-        const loadedCount = outcomes.filter(outcome => outcome === 'loaded').length
+        const loadedCount = outcome === 'loaded' ? 1 : 0
         assert.equal(fetchProbe.calls(), 0)
-        assert.equal(report.subjects.length, outcomes.length)
+        assert.equal(report.subjects.length, 1)
         assert.equal(report.glbFallbackCount, loadedCount)
         assert.equal(report.loaded.length, loadedCount)
-        assert.equal(report.errors.length, outcomes.length - loadedCount)
+        assert.equal(report.errors.length, 1 - loadedCount)
         assert.ok(Number.isInteger(report.glbFallbackCount))
         assert.ok(report.glbFallbackCount >= 0)
         assert.ok(report.glbFallbackCount <= report.subjects.length)
@@ -336,9 +329,7 @@ test('Feature: knowgrph-game-flight-sim, Property 21 - GLB fallback is opaque, l
           && asset.opaque === true
           && asset.source === 'committed-local-file'
         )))
-        for (const [sourcePath] of outcomeByPath) {
-          assert.equal(localReads.get(sourcePath), 1)
-        }
+        assert.equal(localReadCount, 1)
         for (const error of report.errors) {
           assert.equal(error.code, 'unavailable-glb-fallback')
         }

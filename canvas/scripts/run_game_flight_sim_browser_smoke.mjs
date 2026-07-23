@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   copyFile,
@@ -11,9 +11,26 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { runLocalViteBrowserSmoke } from './lib/run-local-vite-browser-smoke.mjs'
-import { runSerialBrowserProof } from '../../scripts/lib/game-flight-sim-browser-proof-orchestration.mjs'
+import {
+  runIsolatedBrowserProof,
+  runSerialBrowserProof,
+} from '../../scripts/lib/game-flight-sim-browser-proof-orchestration.mjs'
+import {
+  assertExactFlightSimBrowserVerificationLedger,
+  assertExactFlightSimRendererOptionalBeacon,
+} from '../../scripts/lib/game-flight-sim-browser-evidence.mjs'
+import {
+  prepareFlightSimBrowserEvidencePublication,
+} from '../../scripts/lib/game-flight-sim-browser-evidence-publication.mjs'
+import {
+  FLIGHT_SIM_OPTIONAL_GLB_PATH,
+} from '../../scripts/lib/game-flight-sim-asset-readiness.mjs'
+import {
+  assertGitVerificationWorkspace,
+} from '../../scripts/lib/git-verification-workspace.mjs'
 
-const canvasRoot = path.dirname(fileURLToPath(import.meta.url))
+const scriptPath = fileURLToPath(import.meta.url)
+const canvasRoot = path.dirname(scriptPath)
 const repoRoot = path.resolve(canvasRoot, '..', '..')
 const outputRoot = path.join(repoRoot, 'data', 'outputs')
 const sourcePath = path.join(
@@ -23,7 +40,22 @@ const sourcePath = path.join(
   'knowgrph-game-flight-sim-demo.md',
 )
 const sourceRelativePath = 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'
+const websocketProbePath = '/flight-sim-browser-websocket-proof'
 const runCount = 2
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+const isolationTokenEnvironmentName = 'KG_GAME_FLIGHT_SIM_ISOLATION_TOKEN'
+const browserEvidenceNames = Object.freeze([
+  'game-flight-sim-browser-smoke.json',
+  'game-flight-sim-browser-smoke.png',
+  ...Array.from(
+    { length: runCount },
+    (_, index) => `game-flight-sim-browser-smoke-run-${index + 1}.json`,
+  ),
+  ...Array.from(
+    { length: runCount },
+    (_, index) => `game-flight-sim-browser-smoke-run-${index + 1}.png`,
+  ),
+])
 
 process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT ||= path.resolve(process.cwd(), '../docs')
 process.env.VITE_KNOWGRPH_WORKSPACE_SEEDS_ABS_ROOT ||= path.resolve(process.cwd(), '../docs/workspace-seeds')
@@ -86,20 +118,52 @@ async function assertCandidateState({
   }
 }
 
+async function buildExactProductionPreview(candidate) {
+  await assertCandidateState(candidate)
+  await new Promise((resolvePromise, reject) => {
+    const child = spawn(npmCommand, ['run', 'build'], {
+      cwd: canvasRoot,
+      env: {
+        ...process.env,
+        KG_SKIP_DOCS_UPDATE: '1',
+        VITE_BASE_PATH: '/',
+      },
+      shell: false,
+      stdio: 'inherit',
+    })
+    child.once('error', reject)
+    child.once('exit', (code, signal) => {
+      if (code === 0) {
+        resolvePromise()
+        return
+      }
+      reject(new Error(
+        signal
+          ? `production preview build terminated by signal ${signal}`
+          : `production preview build exited with status ${code ?? 'unknown'}`,
+      ))
+    })
+  })
+  await assertCandidateState(candidate)
+  const indexBytes = await readFile(path.join(canvasRoot, 'dist', 'index.html'))
+  const indexSource = indexBytes.toString('utf8')
+  if (
+    !indexSource.includes('<main id="root"></main>')
+    || indexSource.includes('/@vite/client')
+  ) {
+    throw new Error(
+      'Flight browser proof requires a built root shell without the Vite client',
+    )
+  }
+  return Object.freeze({
+    basePath: '/',
+    indexSha256: sha256(indexBytes),
+    mode: 'vite-preview',
+  })
+}
+
 async function clearPriorEvidence() {
-  const names = [
-    'game-flight-sim-browser-smoke.json',
-    'game-flight-sim-browser-smoke.png',
-    ...Array.from(
-      { length: runCount },
-      (_, index) => `game-flight-sim-browser-smoke-run-${index + 1}.json`,
-    ),
-    ...Array.from(
-      { length: runCount },
-      (_, index) => `game-flight-sim-browser-smoke-run-${index + 1}.png`,
-    ),
-  ]
-  await Promise.all(names.map(name => rm(path.join(outputRoot, name), {
+  await Promise.all(browserEvidenceNames.map(name => rm(path.join(outputRoot, name), {
     force: true,
   })))
 }
@@ -116,6 +180,16 @@ async function readValidatedRunEvidence({
     `game-flight-sim-browser-smoke-run-${runIndex}.json`,
   )
   const evidence = JSON.parse(await readFile(evidencePath, 'utf8'))
+  const expectedWebSocketProbeUrl = new URL(
+    websocketProbePath,
+    evidence?.targetUrl,
+  )
+  expectedWebSocketProbeUrl.protocol = (
+    expectedWebSocketProbeUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+  )
+  const expectedWebSocketOperation = (
+    `websocket:${expectedWebSocketProbeUrl.toString()}`
+  )
   const deadlineContracts = {
     webglAdmission: {
       limitMs: 100,
@@ -137,6 +211,11 @@ async function readValidatedRunEvidence({
       source: 'flight-runtime-network-guard',
       synchronous: true,
     },
+    gameplayWebSocketBlock: {
+      limitMs: 1_000,
+      source: 'flight-runtime-network-guard',
+      synchronous: true,
+    },
   }
   const deadlinesPassed = Object.entries(deadlineContracts).every(
     ([name, contract]) => {
@@ -154,15 +233,35 @@ async function readValidatedRunEvidence({
     evidence?.deadlines?.webglAdmission?.available === true
     && evidence?.deadlines?.readyFrame?.tick === 0
     && evidence?.deadlines?.gameplayNetworkBlock?.operation
-      === 'fetch:browser-deadline-proof'
+      === 'fetch:GET:/api/storage/flight-sim-browser-deadline-proof'
+    && evidence?.deadlines?.gameplayNetworkBlockedError?.code
+      === 'FLIGHT_SIM_GAMEPLAY_NETWORK_BLOCKED'
+    && evidence?.deadlines?.gameplayNetworkTransportObserved === false
+    && evidence?.deadlines?.gameplayWebSocketBlock?.operation
+      === expectedWebSocketOperation
+    && evidence?.deadlines?.gameplayWebSocketBlockedError?.code
+      === 'FLIGHT_SIM_GAMEPLAY_NETWORK_BLOCKED'
+    && evidence?.deadlines?.gameplayWebSocketBlockedError?.operation
+      === expectedWebSocketOperation
+    && evidence?.deadlines?.gameplayWebSocketFlightActive === true
+    && evidence?.deadlines?.gameplayWebSocketMissionStateRetained === true
+    && evidence?.deadlines?.gameplayWebSocketTransportObserved === false
+    && evidence?.deadlines?.gameplayWebSocketFenceEscapeObserved === false
+    && evidence?.deadlines?.gameplayWebSocketEvents?.length === 0
+    && evidence?.deadlines?.gameplayWebSocketRouteHits?.length === 0
     && evidence?.deadlines?.hudUpdate?.browserElapsedMs <= 100
   )
-  const namedVerificationsPassed = (
-    Array.isArray(evidence?.verificationLedger)
-    && evidence.verificationLedger.length > 0
-    && evidence.verificationLedger.every(
-      verification => verification?.status === 'passed',
-    )
+  await assertExactFlightSimBrowserVerificationLedger(
+    evidence?.verificationLedger,
+  )
+  assertExactFlightSimRendererOptionalBeacon(
+    evidence?.renderer?.optionalBeacon,
+    {
+      expectedPath: FLIGHT_SIM_OPTIONAL_GLB_PATH,
+      expectedSha256: sha256(await readFile(
+        path.join(repoRoot, FLIGHT_SIM_OPTIONAL_GLB_PATH),
+      )),
+    },
   )
   if (
     evidence?.candidate?.head !== candidateHead
@@ -182,18 +281,31 @@ async function readValidatedRunEvidence({
     || evidence?.missionProof?.waypointIndex !== 3
     || evidence?.missionProof?.transitions?.length !== 3
     || evidence?.missionProof?.pendingUntilExplicitSave !== true
+    || evidence?.webSocketProbe?.url
+      !== expectedWebSocketProbeUrl.toString()
+    || evidence?.webSocketProbe?.productionFenceEscapeObserved !== false
+    || evidence?.webSocketProbe?.serverTransportAllowed !== false
+    || evidence?.webSocketProbe?.transportObserved !== false
+    || evidence?.webSocketProbe?.events?.length !== 0
+    || evidence?.webSocketProbe?.routeHits?.length !== 0
+    || evidence?.webSocketAttempts?.routePattern !== '**/*'
+    || evidence?.webSocketAttempts?.serverTransportAllowed !== false
+    || evidence?.webSocketAttempts?.events?.length !== 0
+    || evidence?.webSocketAttempts?.routeHits?.length !== 0
+    || evidence?.webSocketAttempts?.unexpectedEvents?.length !== 0
+    || evidence?.webSocketAttempts?.unexpectedRouteHits?.length !== 0
     || !deadlinesPassed
-    || !namedVerificationsPassed
   ) {
     throw new Error(
       `Browser proof run ${runIndex} did not preserve identity, trusted touch, `
-      + 'ordered mission completion, deadlines, and named verifications',
+      + 'ordered mission completion, blocked transports, deadlines, and named '
+      + 'verifications',
     )
   }
   return evidence
 }
 
-async function run() {
+async function runCandidateProof() {
   const candidateHead = readGitValue(['rev-parse', 'HEAD'])
   const candidateTree = readGitValue(['rev-parse', 'HEAD^{tree}'])
   const candidateBranch = readGitValue(['rev-parse', '--abbrev-ref', 'HEAD'])
@@ -209,6 +321,7 @@ async function run() {
     throw new Error(`Invalid KG_GAME_FLIGHT_SIM_SMOKE_PORT: ${firstPort}`)
   }
   process.env.KNOWGRPH_SOURCE_REVISION = candidateHead
+  const productionBuild = await buildExactProductionPreview(candidate)
 
   const runs = await runSerialBrowserProof({
     assertExactCandidate: () => assertCandidateState(candidate),
@@ -229,7 +342,7 @@ async function run() {
         verifierArgs: ['scripts/verify_game_flight_sim_browser_smoke.py'],
         verifierFailureLabel: `Game Flight Sim browser smoke run ${runIndex}`,
         prepareBeforeStart: false,
-        devServerStartMode: 'vite-runner',
+        devServerStartMode: 'vite-preview-runner',
         existingServerPolicy: 'forbid',
       })
     },
@@ -255,6 +368,7 @@ async function run() {
       sha256: sourceSha256,
     },
     runCount,
+    productionBuild,
     freshServerPerRun: true,
     serial: true,
     runs,
@@ -277,6 +391,72 @@ async function run() {
   console.log(
     `[game-flight-sim-browser-smoke] two fresh serial runs passed at ${candidateHead}`,
   )
+}
+
+async function executeIsolatedProof(isolatedRepositoryRoot, token) {
+  const isolatedCanvasRoot = path.join(isolatedRepositoryRoot, 'canvas')
+  const isolatedScriptPath = path.join(
+    isolatedCanvasRoot,
+    'scripts',
+    path.basename(scriptPath),
+  )
+  await new Promise((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [isolatedScriptPath], {
+      cwd: isolatedCanvasRoot,
+      env: {
+        ...process.env,
+        [isolationTokenEnvironmentName]: token,
+        VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT: path.join(
+          isolatedRepositoryRoot,
+          'docs',
+        ),
+        VITE_KNOWGRPH_WORKSPACE_SEEDS_ABS_ROOT: path.join(
+          isolatedRepositoryRoot,
+          'docs',
+          'workspace-seeds',
+        ),
+      },
+      shell: false,
+      stdio: 'inherit',
+    })
+    child.once('error', reject)
+    child.once('exit', (code, signal) => {
+      if (code === 0) {
+        resolvePromise()
+        return
+      }
+      reject(new Error(
+        signal
+          ? `isolated browser proof terminated by signal ${signal}`
+          : `isolated browser proof exited with status ${code ?? 'unknown'}`,
+      ))
+    })
+  })
+}
+
+async function prepareIsolatedEvidence(isolatedRepositoryRoot) {
+  return prepareFlightSimBrowserEvidencePublication({
+    destinationRoot: outputRoot,
+    names: browserEvidenceNames,
+    sourceRoot: path.join(isolatedRepositoryRoot, 'data', 'outputs'),
+  })
+}
+
+async function run() {
+  const isolationToken = process.env[isolationTokenEnvironmentName]
+  if (isolationToken) {
+    await assertGitVerificationWorkspace({
+      repositoryRoot: repoRoot,
+      token: isolationToken,
+    })
+    await runCandidateProof()
+    return
+  }
+  await runIsolatedBrowserProof({
+    prepareEvidence: prepareIsolatedEvidence,
+    repositoryRoot: repoRoot,
+    runProof: executeIsolatedProof,
+  })
 }
 
 run().catch(error => {

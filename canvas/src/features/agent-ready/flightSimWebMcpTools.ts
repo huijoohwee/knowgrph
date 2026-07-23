@@ -1,6 +1,7 @@
 import {
   controlLocalFlightSim,
   inspectLocalFlightSim,
+  type FlightSimControlExecutionFence,
 } from '@/features/game-flight-sim/flightSimMcpRuntime'
 import { KNOWGRPH_AGENT_READY_TOOL_IDS } from './knowgrphAgentReadyToolContract.mjs'
 
@@ -26,8 +27,11 @@ type FlightSimDeadline = Readonly<{
 }>
 
 export type FlightSimWebMcpDependencies = Readonly<{
-  inspect?: () => unknown | Promise<unknown>
-  control?: (input: Record<string, unknown>) => unknown | Promise<unknown>
+  inspect?: (fence: FlightSimControlExecutionFence) => unknown | Promise<unknown>
+  control?: (
+    input: Record<string, unknown>,
+    fence: FlightSimControlExecutionFence,
+  ) => unknown | Promise<unknown>
   createDeadline?: (deadlineMs: number) => FlightSimDeadline
 }>
 
@@ -53,16 +57,56 @@ const webMcpError = (
   detail: Readonly<Record<string, unknown>> = {},
 ) => Object.freeze({ ok: false, errorCode, message, ...detail })
 
+type FlightSimExecutionFence = FlightSimControlExecutionFence & Readonly<{
+  invalidate: (reason: Error) => void
+}>
+
+function createFlightSimExecutionFenceOwner(): Readonly<{
+  begin: () => FlightSimExecutionFence
+}> {
+  let generation = 0
+  let activeController: AbortController | null = null
+  return {
+    begin: () => {
+      activeController?.abort(new Error('Flight Sim WebMCP operation was superseded.'))
+      const controller = new AbortController()
+      activeController = controller
+      generation += 1
+      const executionGeneration = generation
+      return Object.freeze({
+        signal: controller.signal,
+        generation: executionGeneration,
+        isCurrent: () => (
+          activeController === controller
+          && generation === executionGeneration
+          && !controller.signal.aborted
+        ),
+        invalidate: (reason: Error) => {
+          if (activeController === controller) activeController = null
+          if (!controller.signal.aborted) controller.abort(reason)
+        },
+      })
+    },
+  }
+}
+
 async function executeWithinFlightSimDeadline(
   operationName: 'inspect' | 'control',
-  execute: () => unknown | Promise<unknown>,
+  execute: (fence: FlightSimControlExecutionFence) => unknown | Promise<unknown>,
   deadlineFactory: (deadlineMs: number) => FlightSimDeadline,
+  fenceOwner: ReturnType<typeof createFlightSimExecutionFenceOwner>,
 ): Promise<unknown> {
   const deadline = deadlineFactory(FLIGHT_SIM_WEB_MCP_DEADLINE_MS)
-  const timeout = deadline.expired.then(() => FLIGHT_SIM_WEB_MCP_TIMEOUT)
+  const fence = fenceOwner.begin()
+  const timeout = deadline.expired.then(() => {
+    fence.invalidate(new Error(
+      `Flight Sim ${operationName} exceeded its WebMCP deadline.`,
+    ))
+    return FLIGHT_SIM_WEB_MCP_TIMEOUT
+  })
   try {
     const result = await Promise.race([
-      Promise.resolve().then(execute),
+      Promise.resolve().then(() => execute(fence)),
       timeout,
     ])
     if (result === FLIGHT_SIM_WEB_MCP_TIMEOUT) {
@@ -81,6 +125,7 @@ async function executeWithinFlightSimDeadline(
     )
   } finally {
     deadline.cancel()
+    fence.invalidate(new Error(`Flight Sim ${operationName} execution settled.`))
   }
 }
 
@@ -95,15 +140,20 @@ export function buildFlightSimWebMcpToolBuilders(
 ): Record<string, () => FlightSimWebMcpTool> {
   const inspectContract = findContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalFlightSim)
   const controlContract = findContract(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalFlightSim)
-  const inspect = dependencies.inspect || inspectLocalFlightSim
-  const control = dependencies.control || controlLocalFlightSim
+  const inspect = dependencies.inspect || (() => inspectLocalFlightSim())
+  const control = dependencies.control || ((
+    input: Record<string, unknown>,
+    fence: FlightSimControlExecutionFence,
+  ) => controlLocalFlightSim(input, fence))
   const deadlineFactory = dependencies.createDeadline || createFlightSimDeadline
+  const inspectFenceOwner = createFlightSimExecutionFenceOwner()
+  const controlFenceOwner = createFlightSimExecutionFenceOwner()
   return {
     [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalFlightSim]: () => (
       buildTool(inspectContract, async () => executeWithinFlightSimDeadline(
         'inspect',
-        async () => {
-          const inspection = await inspect()
+        async fence => {
+          const inspection = await inspect(fence)
           const active = (
             inspection
             && typeof inspection === 'object'
@@ -119,13 +169,15 @@ export function buildFlightSimWebMcpToolBuilders(
             )
         },
         deadlineFactory,
+        inspectFenceOwner,
       ))
     ),
     [KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalFlightSim]: () => (
       buildTool(controlContract, async input => executeWithinFlightSimDeadline(
         'control',
-        () => control(input || {}),
+        fence => control(input || {}, fence),
         deadlineFactory,
+        controlFenceOwner,
       ))
     ),
   }

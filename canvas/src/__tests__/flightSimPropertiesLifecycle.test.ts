@@ -240,6 +240,7 @@ test('Feature: knowgrph-game-flight-sim, Property 39 - Focus-loss pauses the clo
           const runtime = createFlightSimRuntime({ profile: PROPERTY_PROFILE })
           runtime.start()
           runtime.setInput({ pitch: 0.25 })
+          await runtime.advanceBy(FLIGHT_SIM_FIXED_STEP_SECONDS)
           const beforeEvent = runtime.read()
           const beforeEventBytes = missionStateBytes(beforeEvent)
           let pauseCount = 0

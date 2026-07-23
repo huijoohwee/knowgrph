@@ -267,7 +267,7 @@ const requireFlightCompanionIdentity = source => {
     if (actual !== expected) missing.push(`${label}=${JSON.stringify(expected)}`)
   }
   requireValue('status', frontmatter.status, 'projection-pending')
-  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-ready-source')
+  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-candidate')
   requireValue('kgCanvasSurfaceMode', readCanvasSurfaceMode(frontmatter.kgCanvasSurfaceMode), '2d')
   requireValue('kgCanvasRenderMode', readCanvasRenderMode(frontmatter.kgCanvasRenderMode), '2d')
   requireValue('kgCanvas2dRenderer', readCanvas2dRenderer(frontmatter.kgCanvas2dRenderer), 'flow')

@@ -119,11 +119,11 @@ Concepts and architecture take inspiration only from FlightGear (https://gitlab.
 
 #### Acceptance Criteria
 
-1. WHEN control input is applied during a World_Tick, THE Flight_Model SHALL update aircraft attitude and velocity within that same World_Tick, producing only finite values (no NaN or infinite values) with attitude bounded to -180.0 to 180.0 degrees per axis and each velocity component bounded to configured min/max limits.
-2. THE Flight_Model SHALL compute thrust from a normalized throttle input in the range 0.0 to 1.0, and pitch, roll, and yaw from normalized control inputs in the range -1.0 to 1.0, using deterministic in-repo integration that produces identical outputs for identical inputs and initial state.
+1. WHEN control input is applied during a World_Tick, THE Flight_Model SHALL update aircraft attitude and velocity within that same World_Tick, producing only finite values (no NaN or infinite values), with internal attitude expressed in radians and bounded to -π to π per axis and each velocity component bounded to configured min/max limits; the HUD SHALL derive visible angle values in degrees without mutating the stored attitude.
+2. THE Flight_Model SHALL compute thrust from the aircraft throttle state in the range 0.0 to 1.0, update that state from a normalized per-tick `throttleDelta` in the range -1.0 to 1.0 or an explicit absolute throttle setpoint in the range 0.0 to 1.0, and compute pitch, roll, and yaw from normalized control inputs in the range -1.0 to 1.0, using deterministic in-repo integration that produces identical outputs for identical inputs and initial state.
 3. WHEN a World_Tick occurs, THE Flight_Model SHALL apply deterministic lift, drag, and gravity approximations to update aircraft state.
 4. THE Flight_Model SHALL compute flight dynamics without an external physics engine.
-5. IF a throttle or control input is outside its defined range or is non-finite, THEN THE Flight_Model SHALL clamp the value to its nearest valid bound before integration and retain the previous valid aircraft state, with the clamped input surfaced through an indication that the value was out of range.
+5. WHEN a sampled pitch, roll, yaw, or `throttleDelta` value is finite but outside -1.0 to 1.0, THE Input_Normalizer SHALL clamp it to the nearest bound; WHEN it is positive or negative infinity, THE Input_Normalizer SHALL use the corresponding signed bound; WHEN it is NaN, THE Input_Normalizer SHALL reuse that field from the last valid input frame; in every case THE Input_Normalizer SHALL record an internal out-of-range indication and the Flight_Model SHALL continue integration with the normalized frame. IF an explicit absolute throttle setpoint is non-finite or outside 0.0 to 1.0, THEN THE Flight_Runtime SHALL reject it without changing the aircraft throttle state.
 
 ### Requirement 8: In-repo AABB terrain collision
 
@@ -170,10 +170,10 @@ Concepts and architecture take inspiration only from FlightGear (https://gitlab.
 
 #### Acceptance Criteria
 
-1. THE Asset_Spec authoring step SHALL complete entirely offline before commit, producing all Asset_Spec outputs without any network connectivity.
-2. THE Flight_Sim SHALL commit every aircraft and prop Asset_Spec in-repo as human-editable UTF-8 text with a maximum file size of 1 MB per Asset_Spec.
+1. THE required aircraft TypeScript-plus-JSON Asset_Spec SHALL be committed as source-authored human-editable text created entirely offline, and THE optional fallback author SHALL generate only the optional beacon GLB plus its generated TypeScript companion entirely offline before commit.
+2. THE Flight_Sim SHALL commit every Asset_Spec that exists in-repo as human-editable UTF-8 text with a maximum file size of 1 MB per Asset_Spec, including the required aircraft Asset_Spec; an optional subject without an Asset_Spec MAY use the admitted committed-local GLB_Fallback.
 3. WHILE the Flight_Sim is executing at runtime, THE Flight_Sim SHALL invoke zero image-to-3D model calls, zero network fetches, and zero Cloudflare resource requests.
-4. IF the Asset_Spec authoring step attempts an image-to-3D model call, a network fetch, or a Cloudflare resource request, THEN THE Asset_Spec authoring step SHALL abort before commit and SHALL produce an error indication identifying the disallowed operation, leaving any previously committed Asset_Spec unchanged.
+4. IF the optional fallback author attempts an image-to-3D model call, a network fetch, or a Cloudflare resource request, THEN the author SHALL abort before its atomic output commit and SHALL produce an error indication identifying the disallowed operation, leaving the prior optional beacon GLB and generated TypeScript companion unchanged.
 5. IF a committed Asset_Spec is not human-editable UTF-8 text or exceeds 1 MB, THEN THE Flight_Sim SHALL reject the Asset_Spec and SHALL produce an error indication identifying the non-conforming Asset_Spec.
 
 ### Requirement 12: Strict native invocation grammar
@@ -235,9 +235,9 @@ Concepts and architecture take inspiration only from FlightGear (https://gitlab.
 #### Acceptance Criteria
 
 1. WHEN input is sampled for a World_Tick, THE Input_Normalizer SHALL combine desktop keyboard, pointer, mobile touch, and standard gamepad input into a single normalized flight input frame for that World_Tick.
-2. WHEN pitch, roll, or yaw input is received from any supported device, THE Input_Normalizer SHALL map that input to the corresponding normalized flight control within the range -1.0 to 1.0 inclusive, and WHEN throttle input is received, THE Input_Normalizer SHALL map it to the range 0.0 to 1.0 inclusive.
-3. IF an input value is outside its defined normalized range, THEN THE Input_Normalizer SHALL clamp that value to the nearest boundary of that range before the World_Tick and retain the last valid frame state.
-4. IF no input is received from any supported device for a World_Tick, THEN THE Input_Normalizer SHALL set pitch, roll, and yaw to 0.0 and hold the last commanded throttle value.
+2. WHEN pitch, roll, yaw, or throttle-change input is received from any supported device, THE Input_Normalizer SHALL map it to the corresponding `pitch`, `roll`, `yaw`, or `throttleDelta` field in the inclusive range -1.0 to 1.0; the aircraft throttle state and explicit absolute throttle lifecycle setpoint SHALL remain in the inclusive range 0.0 to 1.0.
+3. IF a sampled field is finite but outside -1.0 to 1.0, THEN THE Input_Normalizer SHALL clamp it to the nearest boundary before the World_Tick; IF it is positive or negative infinity, THEN THE Input_Normalizer SHALL use the corresponding signed boundary; IF it is NaN, THEN THE Input_Normalizer SHALL reuse only that field from the last valid input frame; and in all three cases it SHALL record an internal out-of-range indication while allowing integration to continue.
+4. IF no input is received from any supported device for a World_Tick, THEN THE Input_Normalizer SHALL set pitch, roll, yaw, and `throttleDelta` to 0.0 so the aircraft throttle state is held.
 5. WHEN input for the same flight control is received from more than one supported device within a single World_Tick, THE Input_Normalizer SHALL resolve it to a single normalized value by selecting the input with the largest absolute magnitude.
 6. WHERE Motion_Control is started by explicit Operator action, THE Input_Normalizer SHALL treat Motion_Control output as optional normalized player input only.
 7. THE Flight_Runtime SHALL NOT use Motion_Control as the flight control policy.
@@ -290,7 +290,7 @@ Concepts and architecture take inspiration only from FlightGear (https://gitlab.
 4. WHEN an explicit Reset local save completes successfully, THE Flight_Runtime SHALL create a fresh mission and re-enable the Start and Restart actions.
 5. IF a local write fails, THEN THE WorkspaceFs_Adapter SHALL retain all pending Decisions in memory, preserve the prior bytes unchanged, display an error indicating the save did not persist, and expose a Retry save action.
 6. WHEN a player invokes the Retry save action, THE WorkspaceFs_Adapter SHALL re-attempt writing the retained pending Decisions to the local path.
-7. WHEN a save document passes validation, THE Hydration_Adapter SHALL reconstruct mission progress from the validated Decision index before the first World_Tick.
+7. WHEN a save document passes validation, THE Hydration_Adapter SHALL reconstruct mission progress, the validated active run identifier, and ordered waypoint history from the validated Decision index before the first World_Tick; Start SHALL continue that hydrated run, and only an explicit Restart SHALL mint a fresh run identifier.
 
 ### Requirement 21: Synchronous WebGL admission and resumable lifecycle
 
@@ -316,7 +316,7 @@ Concepts and architecture take inspiration only from FlightGear (https://gitlab.
 1. THE Flight_Sim SHALL register a repository-owned runtime-readiness command that verifies source authority, native ECS integration, focused tests, TypeScript checks, and a production build, where a run is deemed successful only when every one of these five verifications passes.
 2. IF any verification performed by the runtime-readiness command does not pass, THEN THE Flight_Sim SHALL terminate the command with a non-success result that identifies each failed verification and SHALL make no repository change as a result of the run.
 3. THE Flight_Sim SHALL register a repository-owned browser-smoke command that verifies Source Files apply, one retained authored XR Canvas, playable input, strict WebMCP, lifecycle, Timeline camera round-trip, and the mobile HUD, where a run is deemed successful only when every one of these verifications passes.
-4. IF any verification performed by the browser-smoke command does not pass, THEN THE Flight_Sim SHALL terminate the command with a non-success result that identifies each failed verification.
+4. IF any verification performed by the browser-smoke command does not pass, THEN THE Flight_Sim SHALL terminate the command with a non-success result that identifies each failed verification and SHALL make no repository change as a result of the run.
 5. THE runtime-readiness and browser-smoke commands SHALL run using only locally available source, dependency, build, and test artifacts, and SHALL invoke zero paid model, image-to-3D, or Cloudflare service and zero other network resource.
 6. THE Flight_Sim SHALL NOT perform an automatic Git operation or production deployment from the browser runtime.
 

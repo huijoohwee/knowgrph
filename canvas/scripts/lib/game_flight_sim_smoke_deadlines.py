@@ -2,8 +2,20 @@ from __future__ import annotations
 
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 from playwright.sync_api import Page
+
+
+GAMEPLAY_NETWORK_PROBE_PATH = (
+    "/api/storage/flight-sim-browser-deadline-proof"
+)
+GAMEPLAY_NETWORK_PROBE_OPERATION = (
+    f"fetch:GET:{GAMEPLAY_NETWORK_PROBE_PATH}"
+)
+GAMEPLAY_WEBSOCKET_PROBE_PATH = (
+    "/flight-sim-browser-websocket-proof"
+)
 
 
 def _read_deadlines(page: Page) -> dict[str, Any]:
@@ -32,7 +44,13 @@ def _wait_for_initial_deadlines(page: Page) -> dict[str, Any]:
     )
 
 
-def verify_flight_deadline_contracts(page: Page) -> dict[str, Any]:
+def verify_flight_deadline_contracts(
+    page: Page,
+    *,
+    websocket_probe_url: str,
+    websocket_probe_events: list[str],
+    websocket_probe_route_hits: list[str],
+) -> dict[str, Any]:
     initial = _wait_for_initial_deadlines(page)
     webgl = initial["webglAdmission"]
     ready = initial["readyFrame"]
@@ -61,9 +79,17 @@ def verify_flight_deadline_contracts(page: Page) -> dict[str, Any]:
             f"Flight ready frame was not presented within 100 ms: {ready}"
         )
 
-    interaction = page.evaluate(
-        """
-        async () => {
+    observed_probe_transport: list[str] = []
+
+    def observe_probe_transport(request: Any) -> None:
+        if urlparse(str(request.url)).path == GAMEPLAY_NETWORK_PROBE_PATH:
+            observed_probe_transport.append(str(request.url))
+
+    page.on("request", observe_probe_transport)
+    try:
+        interaction = page.evaluate(
+            """
+        async ({ attemptPath, websocketProbeUrl }) => {
           const runtime = await import(
             '/src/features/game-flight-sim/flightSimRuntime.ts'
           )
@@ -79,28 +105,78 @@ def verify_flight_deadline_contracts(page: Page) -> dict[str, Any]:
             return state
           }
           const beforeNetwork = runtime.readFlightSimSnapshot()
-          let networkExecutorInvoked = false
-          const blocked = runtime.rejectFlightSimGameplayNetworkAttempt(
-            'fetch:browser-deadline-proof',
-            () => {
-              networkExecutorInvoked = true
-            },
-          )
+          let blockedError = null
+          try {
+            await window.fetch(attemptPath)
+          } catch (error) {
+            blockedError = {
+              name: String(error?.name || ''),
+              code: String(error?.code || ''),
+              operation: String(error?.operation || ''),
+              synchronous: error?.synchronous === true,
+              message: String(error?.message || error || ''),
+            }
+          }
           const afterNetwork = runtime.readFlightSimSnapshot()
           const network = deadlines
             .readFlightSimDeadlineSnapshot()
             .gameplayNetworkBlock
           if (
-            networkExecutorInvoked
+            blockedError?.code !== 'FLIGHT_SIM_GAMEPLAY_NETWORK_BLOCKED'
+            || blockedError?.operation !== `fetch:GET:${attemptPath}`
+            || blockedError?.synchronous !== true
             || JSON.stringify(missionState(beforeNetwork))
               !== JSON.stringify(missionState(afterNetwork))
-            || blocked.runtimeError
-              !== 'Flight Sim blocked gameplay network operation: fetch:browser-deadline-proof'
+            || afterNetwork.runtimeError
+              !== `Flight Sim blocked gameplay network operation: fetch:GET:${attemptPath}`
           ) {
             throw new Error('Flight network rejection changed mission state')
           }
 
-          const restarted = runtime.restartFlightSim()
+          const restartedAfterFetch = runtime.restartFlightSim()
+          const beforeWebSocket = runtime.readFlightSimSnapshot()
+          if (beforeWebSocket.active !== true) {
+            throw new Error(
+              'Flight was not active for the WebSocket rejection proof',
+            )
+          }
+          let blockedWebSocketError = null
+          let unexpectedWebSocket = null
+          try {
+            unexpectedWebSocket = new window.WebSocket(websocketProbeUrl)
+          } catch (error) {
+            blockedWebSocketError = {
+              name: String(error?.name || ''),
+              code: String(error?.code || ''),
+              operation: String(error?.operation || ''),
+              synchronous: error?.synchronous === true,
+              message: String(error?.message || error || ''),
+            }
+          }
+          if (unexpectedWebSocket) {
+            unexpectedWebSocket.close()
+          }
+          const afterWebSocket = runtime.readFlightSimSnapshot()
+          const websocketNetwork = deadlines
+            .readFlightSimDeadlineSnapshot()
+            .gameplayNetworkBlock
+          if (
+            blockedWebSocketError?.code
+              !== 'FLIGHT_SIM_GAMEPLAY_NETWORK_BLOCKED'
+            || blockedWebSocketError?.operation
+              !== `websocket:${websocketProbeUrl}`
+            || blockedWebSocketError?.synchronous !== true
+            || JSON.stringify(missionState(beforeWebSocket))
+              !== JSON.stringify(missionState(afterWebSocket))
+            || afterWebSocket.runtimeError
+              !== `Flight Sim blocked gameplay network operation: websocket:${websocketProbeUrl}`
+          ) {
+            throw new Error(
+              'Flight WebSocket rejection changed mission state',
+            )
+          }
+
+          runtime.restartFlightSim()
           const waitForHud = (accepted, limitMs) => new Promise(
             (resolve, reject) => {
               const startedAtMs = performance.now()
@@ -150,10 +226,23 @@ def verify_flight_deadline_contracts(page: Page) -> dict[str, Any]:
             webgl: deadlines.readFlightSimDeadlineSnapshot().webglAdmission,
             ready: deadlines.readFlightSimDeadlineSnapshot().readyFrame,
             network,
-            networkExecutorInvoked,
+            blockedError,
+            websocketNetwork,
+            blockedWebSocketError,
             networkMissionStateRetained:
               JSON.stringify(missionState(beforeNetwork))
               === JSON.stringify(missionState(afterNetwork)),
+            websocketMissionStateRetained:
+              JSON.stringify(missionState(beforeWebSocket))
+              === JSON.stringify(missionState(afterWebSocket)),
+            websocketFlightActive: beforeWebSocket.active === true,
+            restartedAfterFetch: {
+              active: restartedAfterFetch.active,
+              phase: restartedAfterFetch.phase,
+              tick: restartedAfterFetch.tick,
+              waypointIndex: restartedAfterFetch.waypointIndex,
+              runtimeError: restartedAfterFetch.runtimeError,
+            },
             hud: {
               ...hudUpdate,
               browserElapsedMs,
@@ -168,24 +257,77 @@ def verify_flight_deadline_contracts(page: Page) -> dict[str, Any]:
             },
           }
         }
-        """
+        """,
+            {
+                "attemptPath": GAMEPLAY_NETWORK_PROBE_PATH,
+                "websocketProbeUrl": websocket_probe_url,
+            },
+        )
+    finally:
+        page.remove_listener("request", observe_probe_transport)
+    websocket_events = [
+        url
+        for url in websocket_probe_events
+        if url == websocket_probe_url
+    ]
+    websocket_route_hits = [
+        url
+        for url in websocket_probe_route_hits
+        if url == websocket_probe_url
+    ]
+    interaction["transportObserved"] = bool(observed_probe_transport)
+    interaction["transportRequests"] = observed_probe_transport
+    interaction["websocketFenceEscapeObserved"] = bool(
+        websocket_events or websocket_route_hits
     )
+    # The exact Playwright route never calls connect_to_server(), so even a
+    # regressed constructor cannot establish transport during this proof.
+    interaction["websocketTransportObserved"] = False
+    interaction["websocketEvents"] = websocket_events
+    interaction["websocketRouteHits"] = websocket_route_hits
     network = interaction["network"]
+    websocket_network = interaction["websocketNetwork"]
     hud = interaction["hud"]
     restored = interaction["restored"]
     if (
         network.get("source") != "flight-runtime-network-guard"
         or network.get("synchronous") is not True
-        or network.get("operation") != "fetch:browser-deadline-proof"
+        or network.get("operation") != GAMEPLAY_NETWORK_PROBE_OPERATION
         or network.get("withinLimit") is not True
         or float(network.get("elapsedMs", float("inf")))
         > float(network.get("limitMs", 1_000))
         or float(network.get("limitMs", 0)) != 1_000
-        or interaction.get("networkExecutorInvoked") is not False
+        or interaction.get("transportObserved") is not False
+        or interaction.get("blockedError", {}).get("code")
+        != "FLIGHT_SIM_GAMEPLAY_NETWORK_BLOCKED"
+        or interaction.get("blockedError", {}).get("operation")
+        != GAMEPLAY_NETWORK_PROBE_OPERATION
         or interaction.get("networkMissionStateRetained") is not True
     ):
         raise AssertionError(
             f"Flight gameplay network attempt was not blocked within 1 s: {interaction}"
+        )
+    if (
+        websocket_network.get("source") != "flight-runtime-network-guard"
+        or websocket_network.get("synchronous") is not True
+        or websocket_network.get("operation")
+        != f"websocket:{websocket_probe_url}"
+        or websocket_network.get("withinLimit") is not True
+        or float(websocket_network.get("elapsedMs", float("inf")))
+        > float(websocket_network.get("limitMs", 1_000))
+        or float(websocket_network.get("limitMs", 0)) != 1_000
+        or interaction.get("websocketTransportObserved") is not False
+        or interaction.get("websocketFenceEscapeObserved") is not False
+        or interaction.get("blockedWebSocketError", {}).get("code")
+        != "FLIGHT_SIM_GAMEPLAY_NETWORK_BLOCKED"
+        or interaction.get("blockedWebSocketError", {}).get("operation")
+        != f"websocket:{websocket_probe_url}"
+        or interaction.get("websocketMissionStateRetained") is not True
+        or interaction.get("websocketFlightActive") is not True
+    ):
+        raise AssertionError(
+            "Flight WebSocket attempt was not synchronously blocked before "
+            f"transport within 1 s: {interaction}"
         )
     if (
         hud.get("source") != "runtime-publish-to-hud-layout"
@@ -213,6 +355,21 @@ def verify_flight_deadline_contracts(page: Page) -> dict[str, Any]:
         "webglAdmission": webgl,
         "readyFrame": ready,
         "gameplayNetworkBlock": network,
+        "gameplayNetworkBlockedError": interaction["blockedError"],
+        "gameplayNetworkTransportObserved": interaction["transportObserved"],
+        "gameplayWebSocketBlock": websocket_network,
+        "gameplayWebSocketBlockedError":
+            interaction["blockedWebSocketError"],
+        "gameplayWebSocketMissionStateRetained":
+            interaction["websocketMissionStateRetained"],
+        "gameplayWebSocketFlightActive":
+            interaction["websocketFlightActive"],
+        "gameplayWebSocketTransportObserved":
+            interaction["websocketTransportObserved"],
+        "gameplayWebSocketFenceEscapeObserved":
+            interaction["websocketFenceEscapeObserved"],
+        "gameplayWebSocketEvents": interaction["websocketEvents"],
+        "gameplayWebSocketRouteHits": interaction["websocketRouteHits"],
         "hudUpdate": hud,
         "restoredFreshMission": True,
     }

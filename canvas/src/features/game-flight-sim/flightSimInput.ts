@@ -1,7 +1,6 @@
 import {
   FLIGHT_SIM_NEUTRAL_INPUT,
-  clampFlightSimUnit,
-  normalizeFlightSimInput,
+  stageFlightSimInputPatch,
   type FlightSimInputPatch,
   type FlightSimTickInput,
 } from './flightSimModel'
@@ -47,16 +46,19 @@ function digital(positive: boolean, negative: boolean): number {
 }
 
 function deadZone(value: unknown): number {
-  const normalized = clampFlightSimUnit(value, 'Flight Sim gamepad axis')
-  if (Math.abs(normalized) <= GAMEPAD_DEAD_ZONE) return 0
-  const magnitude = (Math.abs(normalized) - GAMEPAD_DEAD_ZONE) / (1 - GAMEPAD_DEAD_ZONE)
-  return Math.sign(normalized) * magnitude
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return numeric
+  if (Math.abs(numeric) <= GAMEPAD_DEAD_ZONE) return 0
+  const magnitude = (Math.abs(numeric) - GAMEPAD_DEAD_ZONE) / (1 - GAMEPAD_DEAD_ZONE)
+  return Math.sign(numeric) * magnitude
 }
 
 function buttonValue(gamepad: StandardGamepadLike, index: number): number {
   const button = gamepad.buttons[index]
   if (!button) return 0
-  return clampFlightSimUnit(button.pressed ? Math.max(button.value, 1) : button.value, 'Flight Sim gamepad button')
+  const numeric = Number(button.value)
+  if (!Number.isFinite(numeric)) return numeric
+  return button.pressed ? Math.max(numeric, 1) : numeric
 }
 
 export function updateFlightSimPressedCode(
@@ -74,7 +76,7 @@ export function updateFlightSimPressedCode(
 }
 
 export function flightSimInputFromPressedCodes(codes: ReadonlySet<string>): FlightSimTickInput {
-  return normalizeFlightSimInput({
+  return stageFlightSimInputPatch(FLIGHT_SIM_NEUTRAL_INPUT, {
     pitch: digital(
       codes.has('KeyW') || codes.has('ArrowUp'),
       codes.has('KeyS') || codes.has('ArrowDown'),
@@ -95,7 +97,7 @@ export function flightSimInputFromHeldTouches(
   heldTouches: ReadonlyMap<number, FlightSimTouchControl>,
 ): FlightSimTickInput {
   const controls = new Set(heldTouches.values())
-  return normalizeFlightSimInput({
+  return stageFlightSimInputPatch(FLIGHT_SIM_NEUTRAL_INPUT, {
     pitch: digital(controls.has('pitch-up'), controls.has('pitch-down')),
     roll: digital(controls.has('roll-right'), controls.has('roll-left')),
     yaw: digital(controls.has('yaw-left'), controls.has('yaw-right')),
@@ -104,7 +106,7 @@ export function flightSimInputFromHeldTouches(
 }
 
 export function setFlightSimTouchInput(value: FlightSimInputPatch): FlightSimTickInput {
-  touchInput = normalizeFlightSimInput(value)
+  touchInput = stageFlightSimInputPatch(FLIGHT_SIM_NEUTRAL_INPUT, value)
   return touchInput
 }
 
@@ -126,8 +128,7 @@ export function flightSimInputFromPointerDelta(
 ): FlightSimTickInput {
   const x = Number(movementX)
   const y = Number(movementY)
-  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('Flight Sim pointer deltas must be finite')
-  return normalizeFlightSimInput({
+  return stageFlightSimInputPatch(FLIGHT_SIM_NEUTRAL_INPUT, {
     pitch: -y * 0.018,
     yaw: -x * 0.014,
   })
@@ -143,7 +144,7 @@ export function flightSimInputFromStandardGamepad(
   const rightShoulder = buttonValue(gamepad, 5)
   const leftTrigger = buttonValue(gamepad, 6)
   const rightTrigger = buttonValue(gamepad, 7)
-  return normalizeFlightSimInput({
+  return stageFlightSimInputPatch(FLIGHT_SIM_NEUTRAL_INPUT, {
     pitch: -deadZone(gamepad.axes[1] ?? 0),
     roll: deadZone(gamepad.axes[0] ?? 0),
     yaw: leftShoulder - rightShoulder,
@@ -162,11 +163,12 @@ export function readStandardFlightSimGamepad(
 export function mergeFlightSimInputs(inputs: readonly FlightSimInputPatch[]): FlightSimTickInput {
   const selectLargestMagnitude = (values: readonly (number | undefined)[]): number => (
     values.reduce((selected, candidateValue) => {
-      const candidate = candidateValue ?? 0
+      const candidate = Number(candidateValue ?? 0)
+      if (Number.isNaN(candidate)) return candidate
       return Math.abs(candidate) > Math.abs(selected) ? candidate : selected
     }, 0)
   )
-  return normalizeFlightSimInput({
+  return stageFlightSimInputPatch(FLIGHT_SIM_NEUTRAL_INPUT, {
     pitch: selectLargestMagnitude(inputs.map(input => input.pitch)),
     roll: selectLargestMagnitude(inputs.map(input => input.roll)),
     yaw: selectLargestMagnitude(inputs.map(input => input.yaw)),

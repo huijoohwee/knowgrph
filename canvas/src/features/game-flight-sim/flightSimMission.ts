@@ -13,6 +13,7 @@ import {
   FLIGHT_SIM_TIMEOUT_COLLIDER_ID,
   FLIGHT_SIM_ZERO_COST_LOG,
   freezeFlightSimAircraftState,
+  normalizeFlightSimInputFrame,
   type FlightSimAircraftState,
   type FlightSimCostLog,
   type FlightSimDecisionRecord,
@@ -277,6 +278,7 @@ export function createFlightSimMission(args: {
   seed?: string
   decisions?: readonly unknown[]
   initialCapture?: FlightSimMissionCapture
+  initialInputFrame?: FlightSimTickInput
   failureInjection?: FlightSimSystemFailureInjection
   inferenceExecutor?: FlightSimInferenceExecutor
 }): FlightSimMission {
@@ -290,6 +292,7 @@ export function createFlightSimMission(args: {
   const replay = args.initialCapture
     ? replayFlightSimCapture(profile, args.initialCapture)
     : replayFlightSimDecisions(profile, args.decisions || [])
+  const initialInputFrame = normalizeFlightSimInputFrame(args.initialInputFrame).input
   let aircraftEntityId = -1
   let missionEntityId = -1
   const systems = createFlightSimSystems({
@@ -361,10 +364,10 @@ export function createFlightSimMission(args: {
       },
       FlightControl: { throttle: replay.aircraft.throttle },
       InputFrame: {
-        pitch: 0,
-        roll: 0,
-        yaw: 0,
-        throttleDelta: 0,
+        pitch: initialInputFrame.pitch,
+        roll: initialInputFrame.roll,
+        yaw: initialInputFrame.yaw,
+        throttleDelta: initialInputFrame.throttleDelta,
         throttleSetpoint: 0,
         hasThrottleSetpoint: 0,
         outOfRange: 0,
@@ -413,11 +416,13 @@ export function createFlightSimMission(args: {
 }
 
 export function cloneFlightSimMission(mission: FlightSimMission): FlightSimMission {
+  const state = captureFlightSimMissionState(mission)
   return createFlightSimMission({
     runId: mission.runId,
     profile: mission.profile,
     seed: mission.seed,
-    initialCapture: captureFlightSimMission(mission),
+    initialCapture: state.capture,
+    initialInputFrame: state.inputFrame,
     inferenceExecutor: inferenceExecutorByMission.get(mission),
   })
 }
@@ -433,7 +438,10 @@ function component(entity: RuntimeEntity, name: string): Record<string, number> 
   return value
 }
 
-export function captureFlightSimMission(mission: FlightSimMission): FlightSimMissionCapture {
+function captureFlightSimMissionState(mission: FlightSimMission): Readonly<{
+  capture: FlightSimMissionCapture
+  inputFrame: FlightSimTickInput
+}> {
   const snapshot = snapshotWorld(mission.world) as { entities: RuntimeEntity[] }
   const byRef = new Map(snapshot.entities.map(entity => [entity.entityRef, entity]))
   const aircraftEntity = byRef.get(FLIGHT_SIM_AIRCRAFT_ENTITY_REF)!
@@ -442,28 +450,41 @@ export function captureFlightSimMission(mission: FlightSimMission): FlightSimMis
   const velocity = component(aircraftEntity, 'Velocity')
   const attitude = component(aircraftEntity, 'Attitude')
   const control = component(aircraftEntity, 'FlightControl')
+  const input = component(aircraftEntity, 'InputFrame')
   const state = component(missionEntity, 'Mission')
   const waypointIndex = state.waypointIndex
   const collisionIndex = state.collisionIndex - 1
   return Object.freeze({
-    phase: phaseName(state.phase),
-    aircraft: freezeFlightSimAircraftState({
-      position: [transform.x, transform.y, transform.z],
-      velocity: [velocity.x, velocity.y, velocity.z],
-      pitch: attitude.pitch,
-      roll: attitude.roll,
-      yaw: attitude.yaw,
-      throttle: control.throttle,
+    capture: Object.freeze({
+      phase: phaseName(state.phase),
+      aircraft: freezeFlightSimAircraftState({
+        position: [transform.x, transform.y, transform.z],
+        velocity: [velocity.x, velocity.y, velocity.z],
+        pitch: attitude.pitch,
+        roll: attitude.roll,
+        yaw: attitude.yaw,
+        throttle: control.throttle,
+      }),
+      waypointIndex,
+      waypointCount: mission.profile.waypoints.length,
+      currentWaypointId: currentObjectiveId(mission.profile, waypointIndex),
+      tick: state.tick,
+      elapsedSeconds: state.elapsed,
+      collisionId: collisionIndex === mission.profile.blockers.length
+        ? FLIGHT_SIM_TIMEOUT_COLLIDER_ID
+        : collisionIndex >= 0 ? mission.profile.blockers[collisionIndex]?.id || null : null,
     }),
-    waypointIndex,
-    waypointCount: mission.profile.waypoints.length,
-    currentWaypointId: currentObjectiveId(mission.profile, waypointIndex),
-    tick: state.tick,
-    elapsedSeconds: state.elapsed,
-    collisionId: collisionIndex === mission.profile.blockers.length
-      ? FLIGHT_SIM_TIMEOUT_COLLIDER_ID
-      : collisionIndex >= 0 ? mission.profile.blockers[collisionIndex]?.id || null : null,
+    inputFrame: Object.freeze({
+      pitch: input.pitch,
+      roll: input.roll,
+      yaw: input.yaw,
+      throttleDelta: input.throttleDelta,
+    }),
   })
+}
+
+export function captureFlightSimMission(mission: FlightSimMission): FlightSimMissionCapture {
+  return captureFlightSimMissionState(mission).capture
 }
 
 function validateFlightSimCostLog(value: unknown, blockedInference: boolean): FlightSimCostLog {

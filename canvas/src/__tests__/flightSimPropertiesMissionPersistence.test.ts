@@ -437,7 +437,7 @@ test('Feature: knowgrph-game-flight-sim, Property 36 - Hydration reconstructs sa
         assert.equal(createdCapture.aircraft.throttle, progress.throttle)
         assert.equal(reconstructed.tick, progress.tick)
         assert.equal(reconstructed.phase, 'flying')
-        assert.equal(reconstructed.runId, progress.runId + 1)
+        assert.equal(reconstructed.runId, progress.runId)
         assert.equal(reconstructed.currentWaypointId, 'route-1')
       } finally {
         runtime.exit()

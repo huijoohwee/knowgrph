@@ -46,6 +46,7 @@ Implement one browser-local, deterministic Flight Sim mission as an overlay on t
 
 - [x] 7. Add source/runtime verification
   - [x] Cover the 45 named properties, focused source tests, dependency/license checks, named no-copy contamination scan, TypeScript check, and production build.
+  - [x] Run runtime and browser verification in child-owned exact local workspaces so failed tracked/untracked mutations are discarded and prior browser evidence is restored transactionally.
   - [x] Attest source-authored provenance; document that the named scanner cannot prove the absence of arbitrary derived code.
   - [x] Require the tracked Kiro authority inventory and hash it during Flight Sim readiness.
   - _Requirements: 3, 4, 22_

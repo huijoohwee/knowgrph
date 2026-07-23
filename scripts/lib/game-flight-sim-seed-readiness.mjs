@@ -163,13 +163,13 @@ export async function assertFlightSimSeedReadiness({
   const runtimeValidation = seed.runtime_validation
   if (
     !runtimeValidation
-    || !exactArray(runtimeValidation.required_states, ['ready', 'running', 'paused'])
+    || !exactArray(runtimeValidation.required_states, ['ready', 'flying', 'stopped'])
     || runtimeValidation.replayable !== true
     || runtimeValidation.local_assets_only !== true
     || runtimeValidation.required_external_calls !== false
     || runtimeValidation.first_playable_frame_limit_ms !== 3000
     || runtimeValidation.property_proof !== '45 named fast-check properties at 100 runs each (4,500 generated cases)'
-    || runtimeValidation.focused_source_tests_minimum !== 126
+    || runtimeValidation.focused_source_tests_minimum !== 127
     || typeof runtimeValidation.browser_proof !== 'string'
     || !runtimeValidation.browser_proof.includes('two fresh serial runs')
     || !runtimeValidation.browser_proof.includes('clean branch, HEAD, tree, authored seed SHA-256, and source path before launch')

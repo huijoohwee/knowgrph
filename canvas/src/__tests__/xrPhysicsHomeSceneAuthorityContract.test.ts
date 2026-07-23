@@ -22,6 +22,34 @@ function requireBootstrapGuardBeforeMount(source: string, mountMarker: string, c
   }
 }
 
+function requireCentralizedBootstrapActivation(
+  viewportSource: string,
+  lifecycleSource: string,
+  mountMarker: string,
+  contract: string,
+): void {
+  const mountIndex = viewportSource.lastIndexOf(mountMarker)
+  if (mountIndex < 0) throw new Error(`${contract}: missing ${mountMarker}`)
+  const enclosingCondition = viewportSource.slice(Math.max(0, mountIndex - 1_200), mountIndex)
+  if (!enclosingCondition.includes('threeCanvasSurface.mounted')) {
+    throw new Error(`${contract}: ${mountMarker} must stay behind centralized mount ownership`)
+  }
+  for (const marker of [
+    'resolveThreeCanvasSurfaceLifecycle({',
+    'sourceFilesBootstrapReady,',
+    'documentSwitchOwnsViewport,',
+  ]) {
+    requireSourceMarker(viewportSource, marker, `${contract} viewport delegation`)
+  }
+  for (const marker of [
+    'export function shouldActivateThreeCanvasSurface',
+    'input.sourceFilesBootstrapReady',
+    '&& !input.documentSwitchOwnsViewport',
+  ]) {
+    requireSourceMarker(lifecycleSource, marker, `${contract} activation owner`)
+  }
+}
+
 export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
   const canonicalProjection = resolveXrCanonicalSceneProjection({ physicsRunReady: true })
   if (canonicalProjection !== 'native-controller') {
@@ -53,6 +81,7 @@ export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
   const bridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
   const startupRuntimesSource = readSource('features', 'canvas', 'CanvasStartupRuntimes.tsx')
   const canvasViewportSource = readSource('components', 'CanvasViewport.tsx')
+  const threeRendererLifecycleSource = readSource('lib', 'three', 'threeRendererLifecycle.ts')
   const canonicalPhysicsStageSource = readSource('features', 'three', 'XrCanonicalPhysicsStage.tsx')
   const motionReferenceGraphStageSource = readSource('features', 'three', 'XrMotionReferenceGraphStage.tsx')
   const xrSceneStageSource = readSource('features', 'three', 'XrSceneStage.tsx')
@@ -124,8 +153,9 @@ export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
     'data-kg-source-authority-phase=',
     'Canvas viewport must expose source authority for runtime proof',
   )
-  requireBootstrapGuardBeforeMount(
+  requireCentralizedBootstrapActivation(
     canvasViewportSource,
+    threeRendererLifecycleSource,
     '<ThreeGraphLazy',
     'ThreeGraph source authority',
   )

@@ -43,6 +43,7 @@ const requiredPaths = [
   'canvas/src/features/three/XrSceneStage.tsx',
   'canvas/src/features/three/useXrStageMotionControlCleanup.ts',
   'canvas/src/components/CanvasViewport.tsx',
+  'canvas/src/lib/three/threeRendererLifecycle.ts',
   'canvas/src/features/workspace-fs/workspaceFsMutationTransaction.ts',
   'canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts',
   'canvas/src/features/three/xrCanonicalSceneSpatialSource.ts',
@@ -413,6 +414,7 @@ const xrRuntimeBridge = await text('canvas/src/features/three/XrMotionReferenceR
 const xrCanonicalPhysicsStage = await text('canvas/src/features/three/XrCanonicalPhysicsStage.tsx')
 const xrMotionReferenceGraphStage = await text('canvas/src/features/three/XrMotionReferenceGraphStage.tsx')
 const canvasViewport = await text('canvas/src/components/CanvasViewport.tsx')
+const threeRendererLifecycle = await text('canvas/src/lib/three/threeRendererLifecycle.ts')
 const deepLinkRuntime = await text('canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx')
 const persistedWorkspaceFs = await text('canvas/src/features/workspace-fs/workspaceFsPersisted.ts')
 const sourceAuthorityLifecycleMarkers = [
@@ -434,7 +436,11 @@ if (missingSourceAuthorityLifecycleMarkers.length > 0
 }
 if (!canvasViewport.includes("const sourceFilesBootstrapReady = sourceFilesBootstrap.phase === 'ready'")
   || !canvasViewport.includes('data-kg-source-authority-phase={sourceFilesBootstrap.phase}')
-  || !canvasViewport.includes('sourceFilesBootstrapReady && !documentSwitchOwnsViewport')
+  || !canvasViewport.includes('resolveThreeCanvasSurfaceLifecycle({')
+  || !canvasViewport.includes('sourceFilesBootstrapReady,')
+  || !canvasViewport.includes('documentSwitchOwnsViewport,')
+  || !threeRendererLifecycle.includes('input.sourceFilesBootstrapReady')
+  || !threeRendererLifecycle.includes('&& !input.documentSwitchOwnsViewport')
   || !canvasViewport.includes('sourceFilesBootstrapReady && xrPhysicsRunReadyDemo')
   || !canvasViewport.includes('const gameFpsHudVisible = gameFpsActive && sourceFilesBootstrapReady')
   || !canvasStartupRuntimes.includes('{sourceFilesBootstrapReady ? <>')

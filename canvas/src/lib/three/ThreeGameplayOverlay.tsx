@@ -1,17 +1,15 @@
 import React from 'react'
 import { GameFpsWebglUnsupportedState } from '@/features/game-fps/GameFpsWebglUnsupportedState'
 import { FlightSimWebglUnsupportedState } from '@/features/game-flight-sim/FlightSimWebglUnsupportedState'
+import { loadFlightSimMissionStage } from './flightSimMissionStageLoader'
 
 const GameFpsMissionStageLazy = React.lazy(() =>
   import('@/features/game-fps/GameFpsMissionStage').then(mod => ({
     default: mod.GameFpsMissionStage,
   })),
 )
-const FlightSimMissionStageLazy = React.lazy(() =>
-  import('@/features/game-flight-sim/FlightSimMissionStage').then(mod => ({
-    default: mod.FlightSimMissionStage,
-  })),
-)
+
+const FlightSimMissionStageLazy = React.lazy(loadFlightSimMissionStage)
 
 export function ThreeGameplayMissionStage(props: Readonly<{
   coordinateScale: number

@@ -36,6 +36,7 @@ const flightSimDecisionStore = createWorkspaceDecisionStore<FlightSimDecisionRec
     'Only validated `EcsDecision` nodes are persisted in this document.',
   ].join('\n'),
   validateDecisions: validateFlightSimDecisions,
+  validatePendingDecisions: validateFlightSimDecisions,
 })
 
 export function readFlightSimDecisionStore(): FlightSimDecisionStoreSnapshot {
@@ -55,19 +56,19 @@ export function queueFlightSimDecisions(decisions: readonly FlightSimDecisionRec
 }
 
 export function loadFlightSimSavedDecisions(
-  options: { workspace?: WorkspaceFs } = {},
+  options: { workspace?: WorkspaceFs; signal?: AbortSignal } = {},
 ): Promise<FlightSimDecisionRecord[]> {
   return flightSimDecisionStore.load(options)
 }
 
 export function resetFlightSimLocalSave(
-  options: { workspace?: WorkspaceFs } = {},
+  options: { workspace?: WorkspaceFs; signal?: AbortSignal } = {},
 ): Promise<FlightSimDecisionStoreSnapshot> {
   return flightSimDecisionStore.reset(options)
 }
 
 export function persistPendingFlightSimDecisions(
-  options: { workspace?: WorkspaceFs } = {},
+  options: { workspace?: WorkspaceFs; signal?: AbortSignal } = {},
 ): Promise<FlightSimDecisionStoreSnapshot> {
   return flightSimDecisionStore.persistPending(options)
 }

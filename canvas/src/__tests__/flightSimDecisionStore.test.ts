@@ -10,6 +10,7 @@ import {
   resolveFlightSimEffectiveSaveStatus,
   resetFlightSimDecisionStoreForTests,
   resetFlightSimLocalSave,
+  subscribeFlightSimDecisionStore,
 } from '../features/game-flight-sim/flightSimDecisionStore'
 import type { FlightSimDecisionRecord } from '../features/game-flight-sim/flightSimModel'
 import type { WorkspaceEntry, WorkspaceFs } from '../features/workspace-fs/types'
@@ -147,6 +148,74 @@ test('Flight Sim Decision persistence admits canonical generic dialogue_outcome 
   assert.deepEqual(await loadFlightSimSavedDecisions({ workspace }), [dialogue])
 })
 
+test('Flight Sim queue rejects invalid feature Decisions before retaining or writing bytes', async () => {
+  resetFlightSimDecisionStoreForTests()
+  const workspace = testWorkspace(PRIOR_SAVE)
+  const invalid = Object.freeze({
+    decisionId: 'foreign:credential-bearing-decision',
+    decisionType: 'quest_flag',
+    entityRef: 'foreign:mission',
+    payload: Object.freeze({
+      event: 'not-a-flight-event',
+      missionId: 'foreign-mission',
+      credentials: 'must-not-persist',
+    }),
+    producedAt: '2026-07-24T00:00:00.000Z',
+  }) as unknown as FlightSimDecisionRecord
+
+  assert.throws(
+    () => queueFlightSimDecisions([invalid]),
+    /Unsupported Flight Sim Decision event/,
+  )
+  assert.equal(readFlightSimDecisionStore().retainedCount, 0)
+  await persistPendingFlightSimDecisions({ workspace })
+  assert.equal(await workspace.readFileText(FLIGHT_SIM_SAVE_PATH), PRIOR_SAVE)
+  assert.doesNotMatch(await workspace.readFileText(FLIGHT_SIM_SAVE_PATH) || '', /must-not-persist/)
+})
+
+test('aborted Decision persistence restores source bytes and never publishes saved state', async () => {
+  resetFlightSimDecisionStoreForTests()
+  const base = testWorkspace(PRIOR_SAVE)
+  let signalWriteStarted!: () => void
+  let releaseWrite!: () => void
+  const writeStarted = new Promise<void>(resolve => {
+    signalWriteStarted = resolve
+  })
+  const writeAllowed = new Promise<void>(resolve => {
+    releaseWrite = resolve
+  })
+  const workspace: WorkspaceFs = {
+    ...base,
+    writeFileText: async (path, text) => {
+      await base.writeFileText(path, text)
+      signalWriteStarted()
+      await writeAllowed
+    },
+  }
+  const observedStatuses: string[] = []
+  queueFlightSimDecisions([DECISION])
+  const before = readFlightSimDecisionStore()
+  const controller = new AbortController()
+  const stopObserving = subscribeFlightSimDecisionStore(() => {
+    observedStatuses.push(readFlightSimDecisionStore().status)
+  })
+
+  const saving = persistPendingFlightSimDecisions({
+    workspace,
+    signal: controller.signal,
+  })
+  await writeStarted
+  controller.abort(new Error('synthetic Flight WebMCP deadline'))
+  assert.deepEqual(readFlightSimDecisionStore(), before)
+  releaseWrite()
+  await assert.rejects(saving, /synthetic Flight WebMCP deadline/)
+  stopObserving()
+
+  assert.equal(await base.readFileText(FLIGHT_SIM_SAVE_PATH), PRIOR_SAVE)
+  assert.deepEqual(readFlightSimDecisionStore(), before)
+  assert.deepEqual(observedStatuses, ['saving', before.status])
+})
+
 test('Flight Sim Decision write failure retains pending state and source bytes', async () => {
   resetFlightSimDecisionStoreForTests()
   const base = testWorkspace(PRIOR_SAVE)
@@ -254,7 +323,7 @@ test('Flight Sim canonical cross-domain save blocks hydration without changing b
 
   await assert.rejects(
     () => loadFlightSimSavedDecisions({ workspace }),
-    /missionId|flight-sim-mission-1/,
+    /Unreadable \/game-flight-sim\/mission-1-decisions\.md: local Decision document is invalid\./,
   )
   const blocked = readFlightSimDecisionStore()
   assert.equal(blocked.status, 'error')
@@ -277,7 +346,7 @@ test('Flight Sim save rejects forbidden payload fields without changing bytes', 
 
   await assert.rejects(
     () => loadFlightSimSavedDecisions({ workspace }),
-    /payload must contain exactly/,
+    /Unreadable \/game-flight-sim\/mission-1-decisions\.md: local Decision document is invalid\./,
   )
   assert.equal(readFlightSimDecisionStore().hydrationBlocked, true)
   assert.equal(await workspace.readFileText(FLIGHT_SIM_SAVE_PATH), invalidSave)

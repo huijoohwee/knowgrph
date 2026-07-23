@@ -185,7 +185,7 @@ const applyLocalDocumentChoiceToVisibleSourceFiles = async (
   const graphSnapshot = graphId
     ? ((await storage.collections.graphSnapshots.findOne(graphId).exec())?.toJSON() as KgGraphSnapshotRecord | undefined) || null
     : null
-  applyPulledKnowgrphStorageChangesToSourceFiles({
+  const result = applyPulledKnowgrphStorageChangesToSourceFiles({
     workspaceId: document.workspaceId,
     changes: {
       documents: [document],
@@ -193,6 +193,7 @@ const applyLocalDocumentChoiceToVisibleSourceFiles = async (
       graphSnapshots: graphSnapshot ? [graphSnapshot] : [],
     },
   })
+  await result.completion
 }
 
 const applyLocalGraphChoiceToVisibleSourceFiles = async (
@@ -201,7 +202,7 @@ const applyLocalGraphChoiceToVisibleSourceFiles = async (
 ): Promise<void> => {
   const documentDoc = await storage.collections.documents.findOne(graphSnapshot.documentId).exec()
   if (!documentDoc) return
-  applyPulledKnowgrphStorageChangesToSourceFiles({
+  const result = applyPulledKnowgrphStorageChangesToSourceFiles({
     workspaceId: graphSnapshot.workspaceId,
     changes: {
       documents: [toKnowgrphRemoteDocumentRecord(documentDoc.toJSON() as KgDocumentLocalRecord)],
@@ -209,6 +210,7 @@ const applyLocalGraphChoiceToVisibleSourceFiles = async (
       graphSnapshots: [graphSnapshot],
     },
   })
+  await result.completion
 }
 
 const resolveKeepLocal = async (workspaceId: string, mutationId: string): Promise<void> => {

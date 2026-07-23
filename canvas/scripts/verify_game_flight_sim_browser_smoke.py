@@ -8,7 +8,18 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
 
-from lib.game_flight_sim_smoke_ledger import BrowserVerificationLedger
+from lib.game_flight_sim_smoke_deadlines import (
+    GAMEPLAY_WEBSOCKET_PROBE_PATH,
+)
+from lib.game_flight_sim_smoke_ledger import (
+    BrowserVerificationLedger,
+    REQUIRED_BROWSER_VERIFICATION_NAMES,
+)
+from lib.game_flight_sim_smoke_network import (
+    assert_zero_network,
+    request_is_proof_local_read,
+    summarize_websocket_attempts,
+)
 from lib.game_flight_sim_smoke_runtime_phases import (
     run_flight_runtime_verifications,
 )
@@ -60,16 +71,27 @@ def request_record(request: Any) -> dict[str, str]:
         "method": str(request.method),
         "url": str(request.url),
         "path": urlparse(request.url).path,
+        "owner": (
+            "service-worker"
+            if request.service_worker is not None
+            else "frame"
+        ),
     }
 
 
-def request_is_proof_local_read(request: Any, local_origin: str) -> bool:
-    parsed = urlparse(request.url)
-    if parsed.netloc != local_origin:
-        return False
-    if request.method in {"GET", "HEAD"}:
-        return not parsed.path.startswith("/__")
-    return request.method == "POST" and parsed.path == "/__kg_fs_list"
+def build_websocket_probe_url(base_url: str) -> str:
+    parsed = urlparse(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise AssertionError(
+            f"Flight browser proof requires an HTTP(S) base URL: {base_url}"
+        )
+    return parsed._replace(
+        scheme="wss" if parsed.scheme == "https" else "ws",
+        path=GAMEPLAY_WEBSOCKET_PROBE_PATH,
+        params="",
+        query="",
+        fragment="",
+    ).geturl()
 
 
 def main() -> None:
@@ -97,6 +119,7 @@ def main() -> None:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     target_url = f"{BASE_URL}/"
+    websocket_probe_url = build_websocket_probe_url(BASE_URL)
     local_origin = urlparse(BASE_URL).netloc
     requests: list[dict[str, str]] = []
     blocked_requests: list[dict[str, str]] = []
@@ -105,6 +128,8 @@ def main() -> None:
     page_errors: list[str] = []
     failed_responses: list[dict[str, Any]] = []
     web_mcp_calls: list[dict[str, Any]] = []
+    websocket_events: list[str] = []
+    websocket_route_hits: list[str] = []
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -112,7 +137,10 @@ def main() -> None:
             executable_path=local_chromium_executable(),
             args=["--enable-webgl", "--use-angle=swiftshader"],
         )
-        page = browser.new_page(viewport={"width": 1280, "height": 800})
+        context = browser.new_context(viewport={"width": 1280, "height": 800})
+
+        def route_websocket(websocket_route: Any) -> None:
+            websocket_route_hits.append(str(websocket_route.url))
 
         def route_request(route: Any, request: Any) -> None:
             if request_is_proof_local_read(request, local_origin):
@@ -120,6 +148,9 @@ def main() -> None:
                 return
             blocked_requests.append(request_record(request))
             route.abort("blockedbyclient")
+
+        def record_websocket(websocket: Any) -> None:
+            websocket_events.append(str(websocket.url))
 
         def record_request(request: Any) -> None:
             requests.append(request_record(request))
@@ -136,21 +167,36 @@ def main() -> None:
                 }
             )
 
+        def record_response(response: Any) -> None:
+            if response.status < 400:
+                return
+            failed_responses.append(
+                {
+                    "status": response.status,
+                    "url": response.url,
+                    "owner": request_record(response.request)["owner"],
+                }
+            )
+
         def reset_observed_errors() -> None:
             console_errors.clear()
             page_errors.clear()
             failed_responses.clear()
 
-        page.route("**/*", route_request)
-        page.on("request", record_request)
-        page.on(
-            "response",
-            lambda response: failed_responses.append(
-                {"status": response.status, "url": response.url}
-            )
-            if response.status >= 400
-            else None,
-        )
+        # Every context-level transport observer and route is installed before
+        # page creation. This includes requests owned by a Service Worker,
+        # whose frame accessor is unavailable by contract.
+        context.route("**/*", route_request)
+        context.on("request", record_request)
+        context.on("response", record_response)
+        # Routed sockets do not reach the server unless the handler calls
+        # connect_to_server(), which this proof never does.
+        context.route_web_socket("**/*", route_websocket)
+
+        page = context.new_page()
+        # The Page observer supplies the WebSocket lifecycle event while the
+        # pre-page context route owns the fail-closed connection boundary.
+        page.on("websocket", record_websocket)
         page.on(
             "console",
             lambda message: console_errors.append(message.text)
@@ -171,6 +217,9 @@ def main() -> None:
                 screenshot_path=SCREENSHOT_PATH,
                 target_url=target_url,
                 web_mcp_calls=web_mcp_calls,
+                websocket_probe_url=websocket_probe_url,
+                websocket_probe_events=websocket_events,
+                websocket_probe_route_hits=websocket_route_hits,
             )
             non_local_requests = sorted(
                 {
@@ -201,14 +250,19 @@ def main() -> None:
                     or Path(request["path"]).resolve() != expected_seed_root
                 )
             ]
+            websocket_attempts = summarize_websocket_attempts(
+                websocket_probe_url,
+                websocket_events,
+                websocket_route_hits,
+            )
 
             def verify_zero_network() -> None:
-                if non_local_requests or blocked_requests:
-                    raise AssertionError(
-                        "Flight runtime attempted non-read-only or non-local "
-                        f"requests: nonLocal={non_local_requests}, "
-                        f"blocked={blocked_requests}"
-                    )
+                assert_zero_network(
+                    non_local_requests=non_local_requests,
+                    blocked_requests=blocked_requests,
+                    websocket_events=websocket_events,
+                    websocket_route_hits=websocket_route_hits,
+                )
 
             def verify_workspace_seed_authority() -> None:
                 if not fs_list_requests or invalid_fs_list_requests:
@@ -235,7 +289,9 @@ def main() -> None:
                 "browser error surface",
                 verify_browser_error_surface,
             )
-            ledger.assert_success()
+            ledger.assert_success(
+                expected_names=REQUIRED_BROWSER_VERIFICATION_NAMES
+            )
 
             source_state = state["source"]
             playable_state = state["playable"]
@@ -292,6 +348,7 @@ def main() -> None:
                         active_scene["atmosphereTerrainSignature"],
                     "actorOnlyMission": True,
                     "authoredSceneStableAcrossLifecycle": True,
+                    "optionalBeacon": active_scene["optionalBeacon"],
                 },
                 "playableFrame": {
                     "firstFrame": True,
@@ -348,6 +405,32 @@ def main() -> None:
                 "verificationLedger": ledger.evidence(),
                 "nonLocalRequests": non_local_requests,
                 "blockedRequests": blocked_requests,
+                "serviceWorkerRequests": [
+                    request
+                    for request in requests
+                    if request["owner"] == "service-worker"
+                ],
+                "webSocketProbe": {
+                    "url": websocket_probe_url,
+                    "events": websocket_attempts["probeEvents"],
+                    "routeHits": websocket_attempts["probeRouteHits"],
+                    "productionFenceEscapeObserved": bool(
+                        websocket_attempts["probeEvents"]
+                        or websocket_attempts["probeRouteHits"]
+                    ),
+                    "serverTransportAllowed": False,
+                    "transportObserved": False,
+                },
+                "webSocketAttempts": {
+                    "routePattern": "**/*",
+                    "events": websocket_events,
+                    "routeHits": websocket_route_hits,
+                    "unexpectedEvents":
+                        websocket_attempts["unexpectedEvents"],
+                    "unexpectedRouteHits":
+                        websocket_attempts["unexpectedRouteHits"],
+                    "serverTransportAllowed": False,
+                },
                 "requests": requests,
                 "localRuntimeRequestPaths": local_runtime_paths,
                 "workspaceSeedListRequests": fs_list_requests,

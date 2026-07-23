@@ -2,7 +2,7 @@
 title: "Knowgrph Flight Sim Seed — Projection Companion Note"
 doc_type: "Projection Companion Note"
 status: "projection-pending"
-runtime_claim: "local-runtime-ready-source"
+runtime_claim: "local-runtime-candidate"
 publish_scope: "local-only"
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
@@ -25,7 +25,7 @@ constraints:
 
 # Knowgrph Flight Sim Seed — Projection Companion Note
 
-This is a **documentation note**, not a workspace seed. It has no `run_ready_demo` activation block and must never be applied as a seed. The authored Knowgrph source is local-runtime-ready; this note records the separate, still-unfulfilled contract for a future Agentic Canvas OS default-storage projection. No projection file currently exists.
+This is a **documentation note**, not a workspace seed. It has no `run_ready_demo` activation block and must never be applied as a seed. The authored Knowgrph source is a local-runtime candidate pending exact-head evidence; this note records the separate, still-unfulfilled contract for a future Agentic Canvas OS default-storage projection. No projection file currently exists.
 
 ## Authority and direction
 
@@ -43,7 +43,7 @@ This is a **documentation note**, not a workspace seed. It has no `run_ready_dem
 
 ## Current status
 
-- **`projection_status`: not-generated.** The Flight Sim source is local-runtime-ready, but that does not grant default-storage or release authority. Generating the byte-identical projection remains deferred to the protected release controller after:
+- **`projection_status`: not-generated.** The Flight Sim source remains a local-runtime candidate until exact-head readiness evidence passes; that evidence does not grant default-storage or release authority. Generating the byte-identical projection remains deferred to the protected release controller after:
   1. the repository-owned runtime-readiness and browser-smoke commands pass on an exact protected integrated SHA, and
   2. an operator explicitly authorizes a protected release from that SHA.
 - Until then this note is the only companion artifact; the projection file is intentionally absent.

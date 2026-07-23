@@ -71,7 +71,7 @@ flight_sim:
 `
 const flightCompanion = `---
 status: "projection-pending"
-runtime_claim: "local-runtime-ready-source"
+runtime_claim: "local-runtime-candidate"
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "flow"
@@ -346,7 +346,7 @@ test('does not accept safe presentation markers from the Markdown body', async t
     [
       '---',
       'status: projection-pending',
-      'runtime_claim: local-runtime-ready-source',
+      'runtime_claim: local-runtime-candidate',
       'activatable_seed: false',
       'note_kind: projection-contract',
       '---',

@@ -166,14 +166,26 @@ function readFallbackReference(
   if (fallback.source !== 'committed-local-file' || fallback.opaque !== true) {
     throw new Error(`Flight Sim asset ${expectedSubjectId} GLB fallback must be opaque committed-local data`)
   }
+  const sourcePath = validateFallbackPath(fallback.path)
+  if (expectedSubjectId !== FLIGHT_SIM_OPTIONAL_BEACON_SUBJECT_ID) {
+    throw new Error(`Flight Sim asset ${expectedSubjectId} has no admitted GLB fallback`)
+  }
+  if (sourcePath !== FLIGHT_SIM_OPTIONAL_BEACON_GLB_SOURCE_PATH) {
+    throw new Error(`Flight Sim asset ${expectedSubjectId} GLB fallback path is not admitted`)
+  }
   if (fallback.license !== FLIGHT_SIM_OPTIONAL_GLB_LICENSE) {
     throw new Error(`Flight Sim asset ${expectedSubjectId} GLB fallback license is not admitted`)
   }
   const sha256 = requiredString(fallback.sha256, 'Flight Sim GLB fallback sha256')
-  if (!/^[0-9a-f]{64}$/.test(sha256)) throw new Error('Flight Sim GLB fallback sha256 must be lowercase hex')
+  if (
+    !/^[0-9a-f]{64}$/.test(sha256)
+    || sha256 !== FLIGHT_SIM_OPTIONAL_BEACON_GLB_SHA256
+  ) {
+    throw new Error('Flight Sim GLB fallback sha256 does not match its admitted local asset')
+  }
   return Object.freeze({
     subjectId: expectedSubjectId,
-    path: validateFallbackPath(fallback.path),
+    path: sourcePath,
     source: 'committed-local-file',
     opaque: true,
     sha256,
@@ -259,6 +271,18 @@ function loadCandidate(
     )
   }
   const ownedBytes = Uint8Array.from(bytes)
+  const admittedBytes = bytesFromHex(FLIGHT_SIM_OPTIONAL_BEACON_GLB_HEX)
+  if (
+    ownedBytes.byteLength !== admittedBytes.byteLength
+    || ownedBytes.some((byte, index) => byte !== admittedBytes[index])
+  ) {
+    return errorResult(
+      subjectId,
+      'invalid-glb-bytes',
+      'committed local fallback bytes do not match the admitted SHA-256 asset',
+      fallback.path,
+    )
+  }
   const inspection = inspectGlbBytes(ownedBytes)
   if (
     !inspection.validContainer

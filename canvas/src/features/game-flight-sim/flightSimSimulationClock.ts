@@ -1,7 +1,27 @@
+import type {
+  FlightSimSnapshot,
+  FlightSimTickInput,
+} from './flightSimModel'
+
 export type FlightSimSimulationClock = Readonly<{
   requestStep: () => void
   dispose: () => void
 }>
+
+export async function runFlightSimStageSimulationStep(options: Readonly<{
+  input: FlightSimTickInput
+  stageInput: (input: FlightSimTickInput) => FlightSimSnapshot
+  advanceFixedStep: () => Promise<FlightSimSnapshot>
+}>): Promise<FlightSimSnapshot> {
+  const staged = options.stageInput(options.input)
+  if (
+    staged.runtimeError
+    || (staged.phase !== 'ready' && staged.phase !== 'flying')
+  ) {
+    return staged
+  }
+  return options.advanceFixedStep()
+}
 
 export function createFlightSimSimulationClock(options: Readonly<{
   runStep: () => Promise<void>

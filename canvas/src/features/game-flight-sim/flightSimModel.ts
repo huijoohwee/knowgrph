@@ -141,6 +141,22 @@ export const FLIGHT_SIM_NEUTRAL_INPUT: FlightSimTickInput = Object.freeze({
   throttleDelta: 0,
 })
 
+export function stageFlightSimInputPatch(
+  previous: FlightSimTickInput,
+  patch: FlightSimInputPatch,
+): FlightSimTickInput {
+  const stagedField = (field: keyof FlightSimTickInput): number => {
+    const candidate = patch[field]
+    return candidate === undefined ? previous[field] : Number(candidate)
+  }
+  return Object.freeze({
+    pitch: stagedField('pitch'),
+    roll: stagedField('roll'),
+    yaw: stagedField('yaw'),
+    throttleDelta: stagedField('throttleDelta'),
+  })
+}
+
 export type FlightSimInputNormalizationResult = Readonly<{
   input: FlightSimTickInput
   outOfRange: boolean
