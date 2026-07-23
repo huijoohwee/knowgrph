@@ -171,6 +171,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
       KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
+      RELEASE_SHA: ${{ github.sha }}
 
     steps:
       - name: Checkout exact candidate
@@ -246,7 +247,9 @@ jobs:
 
       - name: Enforce sole deployment ownership
         working-directory: knowgrph
-        run: npm run --silent runtime:pages:owner-enforce
+        run: |
+          npm run --silent release:main-authority:check -- --source-sha "$RELEASE_SHA"
+          npm run --silent runtime:pages:owner-enforce
 
       - name: Capture current production rollback target
         id: previous
@@ -265,16 +268,20 @@ jobs:
       - name: Deploy verified artifact
         id: deploy_pages
         working-directory: knowgrph
-        run: npx --no-install wrangler pages deploy ../huijoohwee --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=main --commit-hash="${{ github.sha }}" --commit-dirty=true
+        run: |
+          npm run --silent release:main-authority:check -- --source-sha "$RELEASE_SHA"
+          npx --no-install wrangler pages deploy ../huijoohwee --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=main --commit-hash="$RELEASE_SHA" --commit-dirty=true
 
       - name: Capture exact candidate deployment origin
         id: candidate
         working-directory: knowgrph
-        run: npm run --silent runtime:pages:capture-candidate -- --commit-sha "${{ github.sha }}"
+        run: npm run --silent runtime:pages:capture-candidate -- --commit-sha "$RELEASE_SHA"
 
       - name: Reconcile canonical docs into D1
         working-directory: knowgrph
-        run: npm run storage:d1:seed:docs
+        run: |
+          npm run --silent release:main-authority:check -- --source-sha "$RELEASE_SHA"
+          npm run storage:d1:seed:docs
 
       - name: Verify live runtime
         working-directory: knowgrph
@@ -287,7 +294,6 @@ jobs:
           PRODUCTION_MARKER_ORIGIN: ${{ steps.candidate.outputs.deployment_url }}
           PRODUCTION_IMMUTABLE_MANIFEST_DIGEST: ${{ needs.verify.outputs.manifest_digest }}
           PRODUCTION_BROWSER_HEADLESS: 'false'
-          RELEASE_SHA: ${{ github.sha }}
         run: |
           for attempt in 1 2 3; do
             if xvfb-run --auto-servernum npm run production:fidelity:check; then
@@ -306,13 +312,10 @@ jobs:
           PRODUCTION_SW_PROFILE_DIR: ${{ runner.temp }}/knowgrph-production-sw-profile
           PRODUCTION_SW_EVIDENCE_PATH: ${{ runner.temp }}/knowgrph-production-sw-evidence.json
           PRODUCTION_BROWSER_HEADLESS: 'false'
-          RELEASE_SHA: ${{ github.sha }}
         run: xvfb-run --auto-servernum npm run production:sw-upgrade:verify
 
       - name: Publish verified production mirror
         working-directory: huijoohwee
-        env:
-          RELEASE_SHA: ${{ github.sha }}
         run: |
           git config user.name "knowgrph-release[bot]"
           git config user.email "knowgrph-release[bot]@users.noreply.github.com"
@@ -321,6 +324,7 @@ jobs:
             echo "Production mirror already represents $RELEASE_SHA."
           else
             git commit -m "chore(release): promote knowgrph ${RELEASE_SHA:0:12}"
+            npm --prefix ../knowgrph run --silent release:main-authority:check -- --source-sha "$RELEASE_SHA"
             git push origin HEAD:main
           fi
 
