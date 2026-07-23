@@ -57,6 +57,8 @@ Explorer ownership is derived from the shared repository-authority contract, not
 
 No schema field may override the seed owner. Local mirror requests carry the workspace path and must resolve byte-for-byte to `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`; PocketBase room metadata, D1 rows, browser settings, and import payloads cannot select `huijoohwee/docs/workspace-seeds` or another host path.
 
+Seed inventory authority is runtime metadata, not a persisted schema extension. Entries read from the local canonical directory or the Knowgrph GitHub tree carry an authority marker for reconciliation; only a non-empty authority-marked inventory can replace and prune the cached `/docs/workspace-seeds/**` subtree.
+
 ```sql
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,

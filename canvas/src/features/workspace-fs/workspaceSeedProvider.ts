@@ -16,8 +16,16 @@ import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspac
 import { isWorkspaceRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { isKnowgrphWorkspaceSeedsPath } from 'grph-shared/collaboration/documentRepositoryAuthority'
 import { readKnowgrphWorkspaceSeedsAbsRoot, resolveKnowgrphWorkspaceSeedMirrorAbsolutePath } from './workspaceSeedLocalMirrorAuthority'
+import {
+  overlayCanonicalLocalWorkspaceSeedEntries,
+  type WorkspaceDocsMirrorAuthority,
+} from './workspaceSeedInventoryAuthority'
+import {
+  readWorkspaceDocsMirrorEntriesViaNodeFs,
+  WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES,
+  WORKSPACE_DOCS_MIRROR_MAX_FILES,
+} from './workspaceDocsMirrorNodeReader'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
-const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
 const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000, CANONICAL_STORAGE_DOCS_ROOT = 'agentic-canvas-os/docs'
 // #region debug-point A:workspace-mirror-bootstrap
 const WORKSPACE_MIRROR_TRACE_SCOPE = 'workspace-mirror'
@@ -1288,7 +1296,7 @@ export type WorkspaceDocsMirrorEntry = {
   relPath: string
   text: string
   updatedAtMs: number
-  authority?: 'agentic-canvas-os-github' | 'huijoohwee-demo-docs-github' | 'huijoohwee-output-docs-github' | 'knowgrph-workspace-seeds-github'
+  authority?: WorkspaceDocsMirrorAuthority
 }
 
 const readWorkspaceDocsMirrorDatasetScore = (entries: ReadonlyArray<WorkspaceDocsMirrorEntry>): number => {
@@ -1315,6 +1323,21 @@ const chooseBestWorkspaceDocsMirrorDataset = (
     }
   }
   return best
+}
+
+const readCanonicalLocalWorkspaceSeedMirrorEntries = async (): Promise<WorkspaceDocsMirrorEntry[]> => {
+  const absRoot = readKnowgrphWorkspaceSeedsAbsRoot()
+  if (!absRoot) return []
+  const entries = await readWorkspaceMirrorRootEntries({
+    absRoot,
+    workspaceRootName: 'workspace-seeds',
+    readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy,
+    readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs,
+  })
+  return entries.map(entry => ({
+    ...entry,
+    authority: 'knowgrph-workspace-seeds-local',
+  }))
 }
 
 const readWorkspaceDocsMirrorEntriesViaProxy = async (
@@ -1431,61 +1454,6 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
   })
 }
 
-const readWorkspaceDocsMirrorEntriesViaNodeFs = async (
-  docsAbsRoot: string,
-): Promise<WorkspaceDocsMirrorEntry[]> => {
-  try {
-    const fs = await importNodeFsPromises()
-    const path = await importNodePath()
-    const root = normalizeAbsRoot(docsAbsRoot)
-    if (!root) return []
-    const out: WorkspaceDocsMirrorEntry[] = []
-    const queue = [root]
-    while (queue.length > 0 && out.length < WORKSPACE_DOCS_MIRROR_MAX_FILES) {
-      const dir = queue.shift()
-      if (!dir) continue
-      let entries: Array<import('node:fs').Dirent> = []
-      try {
-        entries = await fs.readdir(dir, { withFileTypes: true })
-      } catch {
-        continue
-      }
-      entries.sort((a, b) => a.name.localeCompare(b.name))
-      for (let i = 0; i < entries.length; i += 1) {
-        if (out.length >= WORKSPACE_DOCS_MIRROR_MAX_FILES) break
-        const entry = entries[i]
-        if (!entry) continue
-        const absPath = path.resolve(dir, entry.name)
-        if (entry.isDirectory()) {
-          queue.push(absPath)
-          continue
-        }
-        if (!entry.isFile()) continue
-        if (!isWorkspaceSourceMirrorFileName(entry.name)) continue
-        try {
-          const stat = await fs.stat(absPath)
-          if (!stat.isFile() || stat.size > WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES) continue
-          const text = shouldEncodeWorkspaceSourceMirrorAsBase64(entry.name)
-            ? (await fs.readFile(absPath)).toString('base64')
-            : String(await fs.readFile(absPath, 'utf8'))
-          const relPath = normalizeMirrorRelPath(path.relative(root, absPath))
-          if (!relPath) continue
-          out.push({
-            relPath,
-            text,
-            updatedAtMs: Number.isFinite(stat.mtimeMs) ? Math.floor(stat.mtimeMs) : Date.now(),
-          })
-        } catch {
-          void 0
-        }
-      }
-    }
-    return out
-  } catch {
-    return []
-  }
-}
-
 const readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl = async (
   url: string,
 ): Promise<WorkspaceDocsMirrorEntry[]> => {
@@ -1525,8 +1493,16 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   })
   // #endregion
   if (!repoLocalRunReady) {
-    const canonicalEntries = await readCanonicalPublishedWorkspaceDocsMirrorEntries({ maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES, maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES })
-    if (canonicalEntries.length > 0) return canonicalEntries
+    const [canonicalEntries, localSeedEntries] = await Promise.all([
+      readCanonicalPublishedWorkspaceDocsMirrorEntries({
+        maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES,
+        maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES,
+      }),
+      readCanonicalLocalWorkspaceSeedMirrorEntries(),
+    ])
+    if (canonicalEntries.length > 0) {
+      return overlayCanonicalLocalWorkspaceSeedEntries(canonicalEntries, localSeedEntries)
+    }
     if (defaultSourceUrlIsGitHub) {
       const viaGitHubDefaultSource = await readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
         url: defaultSourceUrl,
@@ -1540,7 +1516,18 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   const knowgrphStorageBaseUrl = readWorkspaceDocsMirrorStorageFallbackEnabled() ? readWorkspaceInitializationKnowgrphStorageBaseUrl() : ''
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
   const localRootRequests = resolveWorkspaceDocsMirrorLocalRootRequests({ docsAbsRoot: readWorkspaceInitializationDocsAbsRoot(), outputDocsAbsRoot: readWorkspaceInitializationOutputDocsAbsRoot(), agenticDocsAbsRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot(), knowgrphWorkspaceSeedsAbsRoot: readKnowgrphWorkspaceSeedsAbsRoot() })
-  const rootMirrorEntries = (await Promise.all(localRootRequests.map(request => readWorkspaceMirrorRootEntries({ ...request, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs })))).flat()
+  const rootMirrorEntries = (await Promise.all(localRootRequests.map(async request => {
+    const entries = await readWorkspaceMirrorRootEntries({
+      ...request,
+      readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy,
+      readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs,
+    })
+    if (request.workspaceRootName !== 'workspace-seeds') return entries
+    return entries.map(entry => ({
+      ...entry,
+      authority: 'knowgrph-workspace-seeds-local' as const,
+    }))
+  }))).flat()
   if (rootMirrorEntries.length > 0) {
     if (!preferCompleteDataset) return rootMirrorEntries
     completeDatasetCandidates.push(rootMirrorEntries)

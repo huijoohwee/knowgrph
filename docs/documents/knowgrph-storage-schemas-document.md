@@ -173,6 +173,8 @@ The path resolver selects `workspaceSeeds` for `/docs/workspace-seeds/**`, rejec
 
 The local filesystem bridge applies the same invariant. A seed mutation is valid only when its workspace key and resolved host path agree on `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`; nested deletes are supported for rename/delete convergence, while deleting the root or omitting the ownership key is forbidden.
 
+`WorkspaceDocsMirrorEntry.authority` distinguishes `knowgrph-workspace-seeds-local` from `knowgrph-workspace-seeds-github`. Either value admits exact subtree reconciliation; absence of both prevents stale-cache pruning. This marker is transient bootstrap metadata and is not added to PocketBase or D1 document rows.
+
 ---
 
 ## Browser-Local Cache Schema
