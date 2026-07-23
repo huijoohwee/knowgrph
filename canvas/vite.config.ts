@@ -32,7 +32,7 @@ import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRa
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
 import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64, enforceCanonicalWorkspaceMutation, parseKgFsMutationRequest } from './viteWorkspaceArtifactBridge'; import { buildVersionedAssetFileNames } from './viteBuildAssetNamespace.mjs'
 import { isWorkspaceMirrorReadPathAllowed, resolveWorkspaceMirrorReadRoots } from './viteWorkspaceMirrorReadRoots'
-import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
+import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'; import { createServiceWorkerRevisionAuthorityPlugin } from './viteServiceWorkerRevisionAuthority.mjs'
 import {
   buildWebpageSandboxCsp,
   stripWebpageInlineEventHandlers,
@@ -7010,7 +7010,7 @@ export default defineConfig(({ command, mode }) => {
     stripMermaidArchitectureDetectorPlugin,
     stripMermaidCoseBilkentLayoutPlugin,
     react(),
-    inlineHtmlStylesheetAssetsPlugin(),
+    inlineHtmlStylesheetAssetsPlugin(), createServiceWorkerRevisionAuthorityPlugin(runtimeIdentity.sourceRevision),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,
@@ -7078,9 +7078,9 @@ export default defineConfig(({ command, mode }) => {
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        navigateFallback: 'index.html',
-        importScripts: ['knowgrph-chat-stream-sw.js'],
-        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/**/*.{js,css,woff,woff2,ttf}'],
+        navigateFallback: null,
+        importScripts: [`knowgrph-service-worker-revision.js?revision=${runtimeIdentity.sourceRevision}`, `knowgrph-chat-stream-sw.js?revision=${runtimeIdentity.sourceRevision}`],
+        globPatterns: ['manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/**/*.{js,css,woff,woff2,ttf}'],
         globIgnores: ['assets/**/monaco-*.js', 'assets/**/mermaid-*.js'],
         runtimeCaching: [
           {

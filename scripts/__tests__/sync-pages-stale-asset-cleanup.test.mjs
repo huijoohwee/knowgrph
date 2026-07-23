@@ -15,7 +15,7 @@ test("publish sync removes stale generated assets from both mirror trees", () =>
   );
   assert.match(
     syncScript,
-    /const isPublicManagedRelativePath = \(rel\) => \{\s+if \(!rel\) return false\s+return rel\.startsWith\('assets\/'\) \|\| publicManagedRootFiles\.has\(rel\)\s+\}/m,
+    /const isPublicManagedRelativePath = rel => Boolean\(rel\) && \(rel\.startsWith\('assets\/'\) \|\| publicManagedRootFiles\.has\(rel\)\)/,
     "expected public-managed publish paths to include hashed asset bundles",
   );
   assert.match(
@@ -76,4 +76,45 @@ test("publish sync includes the motion-control tool contract dependency", () => 
 
 test("publish sync keeps the live canvas hero markdown route in the root-managed file set", () => {
   assert.match(syncScript, /'knowgrph-live-canvas-hero\.md'/);
+});
+
+test("publish sync prevents HTTP caching of every mutable service-worker script", () => {
+  for (const route of [
+    "/content/knowgrph/sw.js",
+    "/knowgrph/sw.js",
+  ]) {
+    assert.match(
+      syncScript,
+      new RegExp(`'${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}',\\s+'  Cache-Control: no-store`),
+      `expected ${route} to bypass the HTTP cache during service-worker revision checks`,
+    );
+  }
+  for (const route of [
+    "/content/knowgrph/knowgrph-chat-stream-sw.js",
+    "/knowgrph/knowgrph-chat-stream-sw.js",
+    "/content/knowgrph/knowgrph-service-worker-revision.js",
+    "/knowgrph/knowgrph-service-worker-revision.js",
+  ]) {
+    assert.match(syncScript, new RegExp(`'${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}'`));
+  }
+  assert.match(
+    syncScript,
+    /flatMap\(route => \[route, '  Cache-Control: no-store, no-cache, must-revalidate, max-age=0'\]\)/,
+    "expected every imported service-worker script route to share the cache-bypass policy",
+  );
+});
+
+test("runtime readiness digest includes every generated service-worker executable", () => {
+  assert.match(
+    syncScript,
+    /const importedServiceWorkerRootFiles = new Set\(\['knowgrph-chat-stream-sw\.js', 'knowgrph-service-worker-revision\.js'\]\)/,
+  );
+  assert.match(
+    syncScript,
+    /const isBrowserRuntimeArtifactRelativePath = rel => isPublicManagedRelativePath\(rel\) \|\| importedServiceWorkerRootFiles\.has\(rel\) \|\| \/\^workbox-/,
+  );
+  assert.match(
+    syncScript,
+    /sourceFiles\s+\.filter\(isBrowserRuntimeArtifactRelativePath\)\s+\.map\(relativePath => \(\{ relativePath, absolutePath: path\.resolve\(distDir, relativePath\) \}\)\)/m,
+  );
 });
