@@ -40,7 +40,7 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
   try {
     const modShowOnCanvas = await import('../__tests__/markdownPreviewShowOnCanvas.test')
     await execTest(results, 'ui.markdown.preview.showOnCanvas', modShowOnCanvas.testMarkdownPreviewShowOnCanvasSelectsExpectedNode)
-    await execTest(results, 'ui.markdown.preview.contextMenuRendersInsideRoot', modShowOnCanvas.testMarkdownPreviewContextMenuRendersInsideRoot)
+    await execTest(results, 'ui.markdown.preview.nativeContextMenuNoLegacyBubble', modShowOnCanvas.testMarkdownPreviewUsesNativeContextMenuWithoutLegacySelectionBubble)
     await execTest(
       results,
       'ui.markdown.preview.tokenCacheDoesNotCrossDocPath',

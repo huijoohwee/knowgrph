@@ -497,7 +497,6 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const widgetRegistryPortsEditorPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'WidgetRegistryPortsEditor.tsx')
   const widgetRegistrySchemaMappingsEditorPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'WidgetRegistrySchemaMappingsEditor.tsx')
   const storyboardWidgetMappingSettingsPanelPath = path.resolve(root, 'src', 'features', 'storyboard-widget-manager', 'StoryboardWidgetMappingSettingsPanel.tsx')
-  const markdownSelectionToolbarPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownSelectionToolbar.tsx')
   const expandCollapseAllButtonPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'ExpandCollapseAllButton.tsx')
   const fileTreePath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownFileTree.tsx')
   const floatingMenuStylesPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'floatingMenuStyles.ts')
@@ -873,7 +872,6 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     kanbanGroup,
     readUtf8(dateCellEditorPath),
     readUtf8(flowMappingRowsTablePath),
-    readUtf8(markdownSelectionToolbarPath),
     readUtf8(expandCollapseAllButtonPath),
   ]
   const flowMappingRowsTable = readUtf8(flowMappingRowsTablePath)
