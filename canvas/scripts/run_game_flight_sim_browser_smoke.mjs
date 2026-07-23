@@ -1,7 +1,9 @@
+import path from 'node:path'
+
 import { runLocalViteBrowserSmoke } from './lib/run-local-vite-browser-smoke.mjs'
 
-process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT ||= `${process.cwd()}/../docs`
-process.env.VITE_KNOWGRPH_WORKSPACE_SEEDS_ABS_ROOT ||= `${process.cwd()}/../docs/workspace-seeds`
+process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT ||= path.resolve(process.cwd(), '../docs')
+process.env.VITE_KNOWGRPH_WORKSPACE_SEEDS_ABS_ROOT ||= path.resolve(process.cwd(), '../docs/workspace-seeds')
 process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL ||= '1'
 // The smoke must prove that applying the authored Source File activates Flight.
 delete process.env.VITE_KNOWGRPH_RUN_READY_DEMO

@@ -74,6 +74,10 @@ test('Flight browser proof activates only after applying the authored source', (
     runner,
     /VITE_KNOWGRPH_RUN_READY_DEMO\s*\|\|=\s*['"]flight-sim['"]/,
   )
+  assert.doesNotMatch(
+    runner,
+    /VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH\s*=/,
+  )
   assert.ok(
     verifier.indexOf(
       'source_application, source = apply_and_verify_exact_authored_source',

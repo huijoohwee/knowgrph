@@ -49,17 +49,15 @@ def _read_source_identity(
           const workspaceModule = await import(
             '/src/features/workspace-fs/workspaceFs.ts'
           )
-          const seedProvider = await import(
-            '/src/features/workspace-fs/workspaceSeedProvider.ts'
+          const seedBundle = await import(
+            '/src/features/workspace-fs/workspaceCanonicalSeedBundle.ts'
           )
           const state = store.useGraphStore.getState()
           const workspace = await workspaceModule.getWorkspaceFs()
           const sourcePath = `/${demos.FLIGHT_SIM_DEMO_REPO_REL_PATH}`
           const sourceText = await workspace.readFileText(sourcePath)
-          const authoredSeeds = await seedProvider
-            .readWorkspaceInitializationDocsMirrorEntries({
-              preferCompleteDataset: true,
-            })
+          const authoredSeeds =
+            await seedBundle.readCanonicalWorkspaceSeedBundleEntries()
           const sourceBasename =
             demos.FLIGHT_SIM_DEMO_WORKSPACE_SEED_BASENAME
           const authoredSeed = authoredSeeds.find(
@@ -104,7 +102,9 @@ def _read_source_identity(
             documentName: state.markdownDocumentName,
             sourcePath,
             authoredSeedPath: authoredSeed?.relPath || null,
-            authoredSeedAuthority: authoredSeed?.authority || null,
+            authoredSeedAuthority: authoredSeed
+              ? 'knowgrph-workspace-seeds-bundled'
+              : null,
             authoredSeedByteIdentical:
               authoredSeed?.text === expectedSourceText,
             authoredSeedHead: String(authoredSeed?.text || '').slice(0, 120),
@@ -177,8 +177,8 @@ def _apply_exact_authored_source(
               const workspaceModule = await import(
                 '/src/features/workspace-fs/workspaceFs.ts'
               )
-              const seedProvider = await import(
-                '/src/features/workspace-fs/workspaceSeedProvider.ts'
+              const seedBundle = await import(
+                '/src/features/workspace-fs/workspaceCanonicalSeedBundle.ts'
               )
               const demos = await import(
                 '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
@@ -187,10 +187,8 @@ def _apply_exact_authored_source(
               await workspace.ensureSeed()
               const sourcePath =
                 `/${demos.FLIGHT_SIM_DEMO_REPO_REL_PATH}`
-              const authoredSeeds = await seedProvider
-                .readWorkspaceInitializationDocsMirrorEntries({
-                  preferCompleteDataset: true,
-                })
+              const authoredSeeds =
+                await seedBundle.readCanonicalWorkspaceSeedBundleEntries()
               const sourceBasename =
                 demos.FLIGHT_SIM_DEMO_WORKSPACE_SEED_BASENAME
               const authored = authoredSeeds.find(
@@ -221,7 +219,9 @@ def _apply_exact_authored_source(
                 activeTextByteIdentical: hasSourceText
                   && state.markdownDocumentText === sourceText,
                 authoredSourcePath: authored?.relPath || null,
-                authoredSourceAuthority: authored?.authority || null,
+                authoredSourceAuthority: authored
+                  ? 'knowgrph-workspace-seeds-bundled'
+                  : null,
                 authoredSourceByteIdentical:
                   authored?.text === expectedSourceText,
                 byteIdentical: hasSourceText
