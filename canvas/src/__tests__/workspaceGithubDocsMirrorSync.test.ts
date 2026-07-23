@@ -141,7 +141,7 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
   const originalFetch = g.fetch
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousDefaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
-  let localMirrorReadCount = 0
+  const localMirrorReadRoots: string[] = []
 
   try {
     useGraphStore.getState().resetAll()
@@ -152,11 +152,15 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
     const routes: MockRoute[] = [
       {
         test: u => u === '/__kg_fs_list',
-        handler: () => {
-          localMirrorReadCount += 1
+        handler: (_url, init) => {
+          const body = JSON.parse(String(init?.body || '{}')) as { path?: unknown }
+          const requestedRoot = String(body.path || '')
+          localMirrorReadRoots.push(requestedRoot)
           return jsonResponse({
             ok: true,
-            files: [{ relPath: 'alpha.md', text: '# stale local\n', updatedAtMs: 1 }],
+            files: requestedRoot === '/workspace/knowgrph/docs/workspace-seeds'
+              ? [{ relPath: 'local-seed.md', text: '# canonical local seed\n', updatedAtMs: 1 }]
+              : [{ relPath: 'alpha.md', text: '# stale local\n', updatedAtMs: 1 }],
           })
         },
       },
@@ -235,8 +239,11 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
     const mirrored = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
     const byPath = new Map(mirrored.map(entry => [entry.relPath, entry.text]))
 
-    if (localMirrorReadCount !== 0) {
-      throw new Error('expected canonical Agentic Canvas OS GitHub docs to win before reading a local docs projection')
+    if (
+      localMirrorReadRoots.length !== 1
+      || localMirrorReadRoots[0] !== '/workspace/knowgrph/docs/workspace-seeds'
+    ) {
+      throw new Error(`expected only the canonical local seed root to overlay GitHub docs, got ${JSON.stringify(localMirrorReadRoots)}`)
     }
     if (byPath.get('demo.md') !== '# canonical demo\n') {
       throw new Error(`expected demo.md to come from the canonical demo repository, got ${String(byPath.get('demo.md') || '')}`)
@@ -256,11 +263,14 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
     if (byPath.get('agentic-canvas-os/docs/model.glb') !== 'AAECAw==') {
       throw new Error('expected GitHub docs mirror to base64-encode GLB source files')
     }
+    if (byPath.get('workspace-seeds/local-seed.md') !== '# canonical local seed\n') {
+      throw new Error('expected the canonical local workspace-seed inventory to overlay the published aggregate')
+    }
     if (byPath.has('agentic-canvas-os/docs/image.png') || byPath.has('content/knowgrph/index.html')) {
       throw new Error('expected GitHub docs mirror to stay within the configured docs tree and Source Files mirror formats')
     }
-    if (!mirrored.some(entry => entry.authority === 'huijoohwee-demo-docs-github') || !mirrored.some(entry => entry.authority === 'huijoohwee-output-docs-github') || !mirrored.some(entry => entry.authority === 'agentic-canvas-os-github')) {
-      throw new Error('expected demo, output, and runtime documents to retain distinct repository authority')
+    if (!mirrored.some(entry => entry.authority === 'huijoohwee-demo-docs-github') || !mirrored.some(entry => entry.authority === 'huijoohwee-output-docs-github') || !mirrored.some(entry => entry.authority === 'agentic-canvas-os-github') || !mirrored.some(entry => entry.authority === 'knowgrph-workspace-seeds-local')) {
+      throw new Error('expected demo, output, runtime, and local seed documents to retain distinct repository authority')
     }
     if (
       normalizeMarkdownWorkspaceDocsSourcePathFromCanonicalPath('agentic-canvas-os/docs/alpha.md')

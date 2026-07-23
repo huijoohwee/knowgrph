@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Sync ADRs"
 id: "md:knowgrph-storage-sync-adrs-document"
-version: "1.1.0"
+version: "1.3.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Architecture Decision Records"
@@ -27,7 +27,7 @@ invocation:
 
 ---
 
-**Version**: 1.1.0
+**Version**: 1.3.0
 **Date**: 2026-07-23
 **Companion index**: `knowgrph-storage-sync-document.companion.md`
 
@@ -44,12 +44,14 @@ invocation:
 | ADR-007 | Accepted | Auto-clear stale outbox conflicts after pull. | `canvas/src/lib/storage/knowgrphStorageClientSync.ts` |
 | ADR-008 | Accepted | Support default workspace initialization source URL. | `canvas/src/features/workspace-fs/workspaceSeedProvider.ts` |
 | ADR-009 | Accepted | Expose a public single-document view endpoint. | `cloudflare/workers/knowgrph-storage/index.ts` |
-| ADR-010 | Accepted | Use PocketBase + Yjs for same-file collaboration, not Git merge. | `canvas/src/features/source-files/sourceFilesPocketBaseYjsRoom.ts` |
+| ADR-010 | Accepted, production-gated | Use PocketBase + Yjs as the small-team same-file collaboration provider, not Git merge or authoring SSOT. | `canvas/src/features/source-files/sourceFilesPocketBaseYjsRoom.ts` |
 | ADR-011 | Accepted | Promote generated chat Markdown through GitHub first, storage second. | `canvas/src/features/source-files/sourceFilesGitHubWrite.ts` |
 | ADR-012 | Accepted | Store generated binary artifacts in R2 with Markdown manifests. | `cloudflare/workers/knowgrph-storage/index.ts` |
 | ADR-013 | Accepted | Persist collaborative AI media through R2, D1, KV, and Durable Objects. | `cloudflare/workers/knowgrph-storage/index.ts` |
 | ADR-014 | Accepted | Use one canonical storage workspace by default across devices. | `canvas/src/features/source-files/sourceFilesStorageSync.ts` |
 | ADR-015 | Accepted | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. | `grph-shared/src/collaboration/documentRepositoryAuthority.ts` |
+| ADR-016 | Accepted | Select one collaboration room provider; replace PocketBase with Durable Objects instead of dual-owning rooms. | `canvas/src/features/source-files/sourceFilesPocketBaseYjsRoom.ts` |
+| ADR-017 | Accepted | Keep one authored workspace-seed root, one byte-identical runtime projection, and no publish-repository duplicate. | `scripts/workspace-seed-authority.mjs` |
 
 ## ADR-001: Minimal Persisted Client Working Store
 
@@ -89,7 +91,9 @@ Workspace settings can provide a default source URL for empty-workspace initiali
 
 ## ADR-010: PocketBase + Yjs Collaboration
 
-Concurrent edits use CRDT ownership: Markdown maps to `Y.Text`, JSON maps to `Y.Map`, and Git merge never reconciles simultaneous minified JSON. Collaborators never receive GitHub credentials, and D1 remains the runtime read/export cache.
+Concurrent edits use CRDT ownership: Markdown maps to `Y.Text`, JSON maps to `Y.Map`, and Git merge never reconciles simultaneous minified JSON. PocketBase owns authenticated membership, room metadata, and realtime fanout only for the selected small-team collaboration provider. It is not the GitHub authoring SSOT, the D1 read cache, or the offline store.
+
+Production is gated on a unique `(workspaceId, documentKey)` room key; server-checked membership; IndexedDB-backed idempotent update delivery with acknowledgement, retry, dedupe, and ordered replay; server-owned snapshot compaction; bounded batching/pruning; compare-and-set GitHub checkpoints; pinned server releases; `pb_migrations`; monitoring; and tested backup/restore. The JavaScript SDK version does not satisfy the PocketBase server version pin. PocketBase runs with persistent storage on a VM/container, not inside a Cloudflare Worker. See [PocketBase production guidance](https://pocketbase.io/docs/going-to-production/) and its [realtime API](https://pocketbase.io/docs/api-realtime/).
 
 ## ADR-011: GitHub First For Generated Chat Markdown
 
@@ -110,3 +114,15 @@ The default Source Files storage workspace is `kgws:canonical-docs` on every ins
 ## ADR-015: Path-Scoped GitHub Repository Authority
 
 The shared authority resolver maps Knowgrph product documents and `/docs/workspace-seeds/**` to `knowgrph-docs`, maps user-created and imported workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths plus the duplicate `huijoohwee/docs/workspace-seeds/**` root as collaboration write targets. Every browser save request carries the resolved target, and the Worker re-derives it before selecting target-specific repository configuration. IndexedDB and the outbox remain available when online transport is disabled or unavailable.
+
+## ADR-016: One Collaboration Room Provider
+
+The collaboration room contract is provider-neutral, but exactly one provider owns a workspace room at a time. PocketBase is the Phase 1 choice for small teams. A per-document Cloudflare Durable Object may replace it when single-server operations, fanout, or Cloudflare-native coordination justify migration. Migration fences new writes, transfers compacted Yjs state and replay position, verifies client convergence, then changes provider authority; PocketBase and Durable Objects never dual-write the same room. See [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/) and its [WebSocket guidance](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
+
+## ADR-017: Workspace-Seed Source And Projection Ownership
+
+`knowgrph/docs/workspace-seeds` is the only authored seed root. The protected `agentic-canvas-os/docs/workspace-seeds` file is a byte-identical default-runtime projection, not an editable copy; it remains until bootstrap no longer requires that projection. `huijoohwee/docs/workspace-seeds` is forbidden. Explorer displays this ownership boundary from shared constants, and the authority check derives sibling repositories through the Git common directory so canonical and linked worktrees validate the same roots.
+
+This ownership is enforced at mutation time, not only displayed: Source Files maps seed reads and writes to the canonical Knowgrph checkout, passes the workspace path to the local bridge for exact host-path validation, mirrors nested deletion after rename/delete, and forbids deleting the seed root. The configurable `workspace-docs` local mirror cannot redirect this subtree.
+
+The same owner governs inventory reconciliation. A readable local canonical seed directory overlays only the published `workspace-seeds/**` dataset during Dev; otherwise the Knowgrph GitHub tree remains authoritative. Reconciliation may replace and prune cached seed entries only when either source returns an authority-marked inventory, preventing both partial one-file projections and destructive pruning during offline or failed reads.

@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Spreadsheet Storage"
 id: "md:knowgrph-spreadsheet-storage-document"
-version: "2.0.0"
+version: "2.2.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Storage Surface Reference"
@@ -40,6 +40,18 @@ invocation:
 There is no dedicated spreadsheet database, route, or independent sync loop. Browser continuity, GitHub save, D1 read-cache publication, collaboration, and offline fallback follow the shared storage contract.
 
 MainPanel `Document Storage & Sync` therefore applies unchanged to spreadsheet-authored source: Online mode uses the owning GitHub docs root plus configured cloud transports, Offline only retains IndexedDB state and queued mutations, and the spreadsheet surface never asks for repository credentials.
+
+## Concurrent Spreadsheet Contract
+
+- Textual spreadsheet sources such as CSV or structured JSON may enter a selected Yjs collaboration room after local persistence and authenticated workspace admission.
+- Concurrent cell/row edits use structured shared types or field-level operations; two clients never overwrite one raw serialized table blob.
+- Binary workbook imports remain local immutable source artifacts until normalized to a collaborative textual model. Saving an unnormalized binary workbook requires an explicit exclusive checkpoint.
+- Failed collaboration updates stay in the IndexedDB update outbox with stable ids until acknowledged, including across Offline only transitions and reloads.
+- PocketBase is the recommended small-team provider only after the shared production gates pass. A Durable Object may replace it, but both providers must never own the same spreadsheet room.
+- GitHub receives explicit or bounded autosave checkpoints with compare-and-set content SHA; D1 remains the read/index projection and never receives per-cell writes.
+- Explorer ownership remains path-derived: ordinary spreadsheet documents target `GitHub/huijoohwee/docs`, while any authored spreadsheet-like workspace seed under `/docs/workspace-seeds/**` targets `GitHub/knowgrph/docs/workspace-seeds`; IndexedDB remains the offline fallback.
+- Source Files local mirroring cannot redirect a spreadsheet seed through the general docs-root setting: seed reads and supported mutations resolve to `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`, and the host bridge rejects mismatched paths and root deletion.
+- Spreadsheet-like seed files participate in the same exact seed inventory reconciliation: a successful canonical local listing overlays the GitHub seed subtree in Dev, GitHub remains the online fallback, and stale cached seed rows are pruned only after an authority-marked inventory is available.
 
 ## Bounded Proof
 

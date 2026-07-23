@@ -1,6 +1,7 @@
 import React from 'react'
 import { Cloud, CloudOff, FolderOpen, HardDrive, RefreshCw } from 'lucide-react'
 import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
+import { DOCUMENT_REPOSITORY_DISPLAY_ROOTS } from 'grph-shared/collaboration/documentRepositoryAuthority'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import { requestMarkdownExplorerSourceFilesOpen } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
@@ -179,9 +180,9 @@ export function DocumentStorageSyncSettingsRows() {
           typeNode={<Cloud className="h-4 w-4" aria-hidden="true" />}
           valueNode={(
             <section className={VALUE_CLASS_NAME}>
-              <ValuePill>Product: GitHub/knowgrph/docs</ValuePill>
-              <ValuePill>Workspace: GitHub/huijoohwee/docs</ValuePill>
-              <ValuePill>workspace-seeds: knowgrph/docs</ValuePill>
+              <ValuePill>Product: {DOCUMENT_REPOSITORY_DISPLAY_ROOTS.knowgrphDocs}</ValuePill>
+              <ValuePill>Workspace: {DOCUMENT_REPOSITORY_DISPLAY_ROOTS.workspaceDocs}</ValuePill>
+              <ValuePill>Seeds: {DOCUMENT_REPOSITORY_DISPLAY_ROOTS.workspaceSeeds}</ValuePill>
             </section>
           )}
           align="start"

@@ -3,6 +3,18 @@ import path from 'node:path'
 
 export const PHYSICS_SEED_RELATIVE_PATH = 'docs/workspace-seeds/knowgrph-physics-playground-demo.md'
 
+export const resolveWorkspaceSeedSiblingRootsFromGitCommonDir = gitCommonDirRaw => {
+  const gitCommonDir = path.resolve(String(gitCommonDirRaw || '').trim())
+  if (path.basename(gitCommonDir) !== '.git') {
+    throw new Error(`expected Knowgrph git common directory to end in .git: ${gitCommonDir}`)
+  }
+  const githubRoot = path.dirname(path.dirname(gitCommonDir))
+  return {
+    agenticDocsRoot: path.join(githubRoot, 'agentic-canvas-os/docs'),
+    publishRoot: path.join(githubRoot, 'huijoohwee'),
+  }
+}
+
 const isFile = async filePath => (await stat(filePath).catch(() => null))?.isFile() === true
 
 const requireCanonicalIdentity = source => {

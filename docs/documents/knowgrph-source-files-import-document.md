@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Source Files Import"
 id: "md:knowgrph-source-files-import-document"
-version: "1.1.0"
+version: "1.3.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Workflow and Runtime Reference"
@@ -40,6 +40,16 @@ invocation:
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
 **Storage And Sync Settings**: MainPanel Settings → `Document Storage & Sync` exposes Online/Offline only mode, the `GitHub/knowgrph/docs` and `GitHub/huijoohwee/docs` roots, offline fallback state, and explicit `Sync now`. Import remains local-first: Offline only never discards imported content, and online publication routes Knowgrph product/workspace-seed paths to `knowgrph-docs`, collaborative workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths as write targets.
+
+**Explorer Ownership Projection**: Explorer → Source Files renders a compact path-derived ownership ledger above the tree: product documents → `GitHub/knowgrph/docs`, workspace documents → `GitHub/huijoohwee/docs`, seeds → `GitHub/knowgrph/docs/workspace-seeds`, and offline fallback → IndexedDB. The canonical `workspace-seeds` folder has a shield marker. The byte-identical Agentic Canvas OS seed remains a protected runtime projection and is never shown as another editable root; `huijoohwee/docs/workspace-seeds` is rejected.
+
+**Seed Mutation Enforcement**: Source Files reads, creates, writes, renames, and nested deletes below `/docs/workspace-seeds/**` resolve only to `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`. The general local docs-mirror preference cannot redirect this subtree. Every local bridge mutation includes the workspace ownership key; mismatched host paths, direct unkeyed seed writes, and deletion of the seed root are rejected. IndexedDB remains the offline fallback and queued cloud saves retain the same `knowgrph-docs` authority.
+
+**Seed Inventory Convergence**: During local Dev, Source Files probes `$GITHUB_ROOT/knowgrph/docs/workspace-seeds` even when the remaining document corpus comes from published GitHub. A successful local listing replaces only the GitHub seed subtree; otherwise the Knowgrph GitHub tree remains the source. Authority-marked reconciliation materializes every canonical seed, refreshes changed bytes, removes stale cached seed paths and source metadata, and never prunes the subtree after a failed or unavailable authority read.
+
+**Collaboration Admission**: Fetching, parsing, and first persistence always complete locally before an import can join a live room. When Online mode, authenticated workspace membership, a canonical document path, and one configured room provider are all available, Source Files may hydrate the Yjs document from a compacted provider snapshot plus ordered updates, then replay its IndexedDB-backed local update outbox. PocketBase is the recommended small-team provider after production gates pass; a Durable Object is a replacement provider, never a simultaneous second owner. Import credentials, local paths, and remote-source authorization headers are never transmitted to the room provider.
+
+**Checkpoint Publication**: Imported collaborative text reaches GitHub only at explicit save or bounded autosave checkpoints through the server bridge with path-derived repository authority and compare-and-set content SHA. D1 projection follows a successful GitHub checkpoint; room updates are never committed per keystroke, and failed online delivery leaves the local import and outbox available offline.
 
 **Initialization-File Bootstrap Contract**: The canonical family contains the three legacy root seeds sourced from `huijoohwee/docs`—`/workspace-readme.md`, `/knowgrph-agentic-video-canvas-demo.md`, and `/knowgrph-maps-places.md`—plus `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, sourced from Knowgrph and published under the same path in Agentic Canvas OS. A cold unselected workspace starts from the physics seed; its frontmatter owns XR/3D and Motion Control initialization. Explicit deep links, imported embeds, persisted non-initialization documents, and a custom validation-seed environment remain authoritative in their declared scopes.
 
@@ -184,7 +194,7 @@ sequenceDiagram
   - `knowgrph/canvas/src/features/source-files/sourceFilesIngestIntegration.ts` implements Source Files import/export/clear + parse/apply helpers used by the markdown workspace toolbar.
   - `knowgrph/canvas/src/features/source-files/workspaceSeedSourceFiles.ts` keeps the canonical source-file aliases for the 3-file initialization family aligned with the root-level workspace paths.
 - **Workspace Seed Bootstrap (Knowgrph)**:
-  - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads initialization-file source text from `huijoohwee/docs`, materializes the canonical files into the workspace root, and keeps seed ordering deterministic.
+  - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads the three legacy initialization files from `huijoohwee/docs`, loads the physics seed from `knowgrph/docs/workspace-seeds`, materializes the canonical family into the workspace root, and keeps seed ordering deterministic.
 - **Source Files Runtime Bootstrap (Knowgrph)**:
   - `knowgrph/canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx` coalesces seed-sync, rematerialization, and storage bridge scheduling through request-owned helpers to keep Source Files, Workspace, and Storage in sync on the same tick.
   - `knowgrph/canvas/src/features/source-files/sourceFilesBootstrapReadiness.ts` owns the base-plus-keyed-document transaction. Stale keyed completions are ignored, terminal bootstrap failures cannot be overwritten, and Canvas/XR consumers read the combined phase.
@@ -208,6 +218,7 @@ sequenceDiagram
 | Workspace Actions | Workflow Step 3 UI | `WorkspaceActionsPanel.tsx` | Built |
 | Source Files | Import/export/clear/parse | `sourceFilesIngestIntegration.ts` | Built |
 | Source Files | Seed aliases (3-file family) | `workspaceSeedSourceFiles.ts` | Built |
+| Source Files | Ownership ledger + seed authority marker | `SourceFilesOwnershipSummary.tsx` + `MarkdownFileTree.tsx` | Built |
 | Workspace FS | Seed bootstrap | `workspaceFs.ts` | Built |
 | Workspace FS | Minimal persisted cache FS | `workspaceFsPersisted.ts` | Built |
 | Workspace FS | In-memory FS | `workspaceFsMemory.ts` | Built |

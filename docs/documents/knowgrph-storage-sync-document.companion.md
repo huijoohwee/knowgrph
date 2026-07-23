@@ -4,7 +4,7 @@ id: "md:knowgrph-storage-sync-document.companion"
 author: "airvio / joohwee"
 date: "2026-06-05"
 updated: "2026-07-23"
-version: "3.2.0"
+version: "3.4.0"
 status: "runtime-ready-dev; production and cloud proof remain release-owned"
 doc_type: "Companion PRD/TAD"
 lang: "en-US"
@@ -54,7 +54,7 @@ traceability:
 
 Continuation of [knowgrph-storage-sync-document.md](knowgrph-storage-sync-document.md). Contains PRD summary, TAD runtime layers, conflict resolution flow, ADR index, deployment phases, quality attributes, token economics, storage comparison, validation summary, and cross-repo documentation contract.
 
-**Version**: 3.2.0
+**Version**: 3.4.0
 **Date**: 2026-07-23
 
 ---
@@ -119,6 +119,9 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | MainPanel document storage mode is `Online` and two users edit the same `*.json` | both edit at the same time | raw JSON editing is blocked; Yjs shared JSON types own the edit; save bridge commits canonical formatted JSON to the owning GitHub docs root | `Verify: sourceFilesPocketBaseYjsCollaboration.test.ts JSON guardrail assertions pass` |
 | A collaborator saves a concurrent document | bridge persists the save | bridge owns the GitHub commit; collaborators never touch Git credentials or Git commands | `Verify: collab save bridge e2e test creates GitHub commit and no browser-side credential is accessed` |
 | A generated image/video/binary artifact exists as a local Blob | runtime storage sync is explicitly enabled and the output owner publishes it | bytes upload to R2 through `/api/storage/blob/`; a sibling manifest document is written to D1; Cloudflare persistence is claimed only after both routes read successfully | `Verify: chat.responseContract.storage.kgcBinaryOutputPublishesR2Manifest, chat.responseContract.storage.richMediaBinaryOutputPublishesR2Manifest, and sourceFiles.storageSync.r2BlobRoute.storesBinaryObject pass` |
+| Explorer → Source Files opens | ownership summary and tree render | product, workspace, seed, and offline roots are visible; `workspace-seeds` is marked as Knowgrph-owned; no editable Agentic or Huijoohwee seed duplicate appears | `Verify: sourceFiles.ownership passes and workspace-seeds:authority reports agenticProjection=true plus publishMirror=true` |
+| Source Files creates, saves, renames, or deletes a nested `/docs/workspace-seeds/**` entry | local mutation is accepted | IndexedDB retains the offline mutation; the host mirror resolves only to `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`; stale rename sources are removed; mismatched or root-delete requests are rejected | `Verify: workspaceFs.seedProvider.enforcesCanonicalWorkspaceSeedsMutations and workspaceFs.artifactBridge.enforcesCanonicalWorkspaceSeedOwnership pass` |
+| Source Files bootstrap reads the canonical seed inventory | local seed root is readable, otherwise GitHub seed tree is readable | the complete authoritative inventory replaces only `/docs/workspace-seeds/**`; missing canonical files are added, stale cached files and their source metadata are removed, and unrelated authored documents remain | `Verify: workspaceFs.seedProvider.projectsCanonicalWorkspaceSeedInventory, workspaceFs.seedProvider.overlaysCanonicalLocalSeedInventory, and workspaceFs.persisted.reconcilesCanonicalWorkspaceSeedInventory pass` |
 
 ### MoSCoW Prioritization
 
@@ -145,7 +148,7 @@ The original gap was a built client-side sync engine with no server-side endpoin
 | Generated artifact replay proof | Local-only path / provider URL | 100% of claimed Cloudflare artifacts have readable R2 blob route plus D1 manifest route | Done for local harness; live claims require route proof |
 | Concurrent same-file merge safety | Destructive Git merge risk | 0 raw JSON simultaneous edits without CRDT | Built in Dev |
 | D1 free-tier utilization | $0/mo | <$5/mo at projected scale | Ongoing |
-| Monthly TCO | $0 | $0 (D1 free tier + FOSS PocketBase) | Ongoing |
+| Monthly TCO | Cloud-only baseline can remain low-cost | Stay within an approved hosting, backup, and egress budget | Ongoing |
 
 ### Out of Scope
 
@@ -218,7 +221,7 @@ Fallback path: on Worker 5xx → retain outbox; on pull failure → keep last cu
 
 ### Generated Binary Artifact Contract
 
-Generated image/video/binary outputs use one storage contract regardless of feature surface:
+Generated image/video/binary outputs use one storage contract regardless of feature surface. Generated image/video artifacts are considered persisted across Dev, Prod, and Cloudflare only when the Worker blob route returns the bytes or metadata and the sibling D1 manifest route returns the Markdown manifest.
 
 | Boundary | Contract |
 |---|---|
@@ -278,6 +281,21 @@ PocketBase owns auth/session state, collaboration room metadata, membership, and
 - Yjs document updates are exchanged through the PocketBase collaboration relay; Yjs update events are applied with `Y.applyUpdate()`.
 - The GitHub save bridge is server-side only. It accepts saved Yjs snapshots at explicit save/autosave boundaries, derives repository authority from the document path, rejects mismatched `repositoryTarget` values, and writes `docs/{path}` to either `knowgrph-docs` or `workspace-docs` through GitHub Contents API or a GitHub App.
 - D1 is not a concurrent edit store. It remains a runtime read/export cache.
+
+### PocketBase Production Gate
+
+PocketBase + Yjs is recommended for small-team Phase 1 collaboration only when every gate below is met. Its FOSS license does not make hosting, persistent storage, backups, monitoring, or recovery cost-free.
+
+| Gate | Required contract |
+|---|---|
+| Room identity | Enforce one unique room per `(workspaceId, documentKey)` and resolve create races by refetching the winner. |
+| Authorization | Require authenticated active workspace membership in PocketBase rules and independently re-check path/repository authority in the GitHub bridge. |
+| Offline durability | Persist each local Yjs update in IndexedDB with a stable update id; retry until acknowledged and deduplicate during replay. Never swallow failed writes. |
+| Join/recovery | Load a compacted snapshot plus an ordered update cursor, then replay unacknowledged local updates before declaring the room synchronized. |
+| Write bounds | Batch update envelopes on a bounded timer/size threshold, compact snapshots server-side, and prune compacted updates plus stale awareness records. |
+| GitHub checkpoint | Commit only at explicit save or bounded autosave checkpoints using a GitHub App/server identity and compare-and-set content SHA. Never commit per keystroke. |
+| Operations | Pin the PocketBase server separately from the JavaScript SDK; ship `pb_migrations`, rate limits, monitoring, backups, and restore tests before Prod. |
+| Topology | Select exactly one collaboration room provider. PocketBase and Durable Objects must never own the same room concurrently. |
 
 ---
 
@@ -346,12 +364,14 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 | ADR-007 | Auto-clear stale outbox conflicts after pull. |
 | ADR-008 | Support default workspace initialization source URL. |
 | ADR-009 | Expose a public single-document view endpoint. |
-| ADR-010 | Use PocketBase + Yjs for same-file collaboration, not Git merge. |
+| ADR-010 | Use production-gated PocketBase + Yjs for small-team same-file collaboration, not Git merge. |
 | ADR-011 | Promote generated chat Markdown through GitHub first, storage second. |
 | ADR-012 | Store generated binary artifacts in R2 with Markdown manifests. |
 | ADR-013 | Persist collaborative AI media through R2, D1, KV, and Durable Objects. |
 | ADR-014 | Use one canonical storage workspace by default across devices. |
 | ADR-015 | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. |
+| ADR-016 | Select one collaboration room provider; replace PocketBase with Durable Objects instead of dual-owning rooms. |
+| ADR-017 | Keep one authored workspace-seed root, one byte-identical runtime projection, and no publish-repository duplicate. |
 
 ---
 
@@ -380,21 +400,25 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 5. Keep D1 export/import as an explicit Worker/runtime path, not the default toolbar Storage Sync path
 6. ~~Add R2-backed `/api/storage/blob/:workspaceId/:canonicalPath*` for generated binary bytes plus D1 Markdown manifests~~ ✅
 7. Update workspace creation flow to detect multi-member workspaces and keep GitHub SSOT while enabling PocketBase/Yjs collaboration rooms
+8. ~~Expose shared repository ownership roots and the Knowgrph seed boundary in Explorer → Source Files~~ ✅
 
-### Phase 3 — PocketBase + Yjs Concurrent Editing (DEV BUILT)
+### Phase 3 — PocketBase + Yjs Concurrent Editing (DEV BUILT; PROD GATED)
 
-1. Add PocketBase collections for collaboration rooms, update envelopes, awareness state, and membership — collection deployment required outside the repo
+1. Add PocketBase collections for uniquely keyed collaboration rooms, idempotent update envelopes, awareness state, and authenticated membership — collection deployment required outside the repo
 2. ~~Add client Yjs room owner for Source Files (`Y.Text` for Markdown, `Y.Map` for JSON)~~ ✅
 3. ~~Add JSON raw-editor guard so multiple active collaborators can only edit JSON through CRDT-backed structured controls~~ ✅
 4. ~~Add GitHub save bridge with server-owned token/App identity, per-file save queue, commit audit metadata, and path-scoped repository targets~~ ✅ — `POST /api/storage/collab/save` validates `repositoryTarget`; target-specific repository deployment values and PocketBase remain operator-owned
 5. Extend conflict UX with richer user identity display and bridge save status beyond status/toast messages
-6. See `knowgrph-multi-user-collaboration-prd.tad.md` for full specification
+6. Add IndexedDB Yjs update outbox acknowledgements/retry/dedupe, ordered join replay, server-owned compaction, bounded batching/pruning, and restore-tested `pb_migrations`
+7. Use GitHub compare-and-set content SHA at explicit or bounded autosave checkpoints; never commit per keystroke
+8. See `knowgrph-multi-user-collaboration-prd.tad.md` for full specification
 
 ### Phase 4 — Realtime Transport Scale-Up (Future)
 
-1. Keep PocketBase/Yjs as the default collaboration path while usage is small-team scale
-2. Introduce Cloudflare Durable Objects only if room fanout, persistence, or deployment topology outgrows PocketBase
+1. Keep PocketBase/Yjs as the selected collaboration provider while usage is small-team scale and its production gates remain green
+2. Replace PocketBase with per-document Cloudflare Durable Objects only if room fanout, persistence, or deployment topology outgrows one PocketBase server
 3. Keep GitHub save bridge unchanged so GitHub remains SSOT across transport changes
+4. Forbid simultaneous PocketBase and Durable Object ownership of one collaboration room
 
 ---
 
@@ -409,7 +433,7 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 | Resilience | Local outbox survives crashes; retry with exponential backoff (max 3); cursor-based pull ensures no missed mutations; auto-clear stale conflicts after pull; persisted-cache conflict retry before FS degradation; Yjs update replay preserves concurrent edits until bridge save succeeds | `knowgrphStorageClientSync.test.ts` retry/conflict assertions |
 | Maintainability | Worker is thin validation + D1 proxy; Yjs owns merge semantics; PocketBase owns collab relay/auth; GitHub save bridge owns commits; settings-driven default source URL | Code review SRP check |
 | Token Cost | No LLM calls in the storage/sync path; token spend is zero per push/pull cycle | Static analysis confirms no LLM harness calls in `knowgrphStorageClientSync.ts` or Worker |
-| TCO | $0/mo at current scale (D1 free tier + FOSS PocketBase + Yjs + CF Worker free tier) | Monthly Cloudflare dashboard cost audit; re-evaluate if D1 write volume exceeds free tier |
+| TCO | Budget includes PocketBase compute, persistent disk, backups, monitoring, and egress even when D1/Worker usage remains in free tiers | Monthly provider cost audit and restore test; re-evaluate when room or D1 volume exceeds the approved envelope |
 | Replayability | Generated image/video/binary artifacts replay from R2 + D1 manifest without provider re-call | Blob route and manifest route return 200 for every claimed persisted artifact |
 
 ---
@@ -432,6 +456,8 @@ Detailed ADRs live in `knowgrph-storage-sync-adrs-document.md` so this companion
 | Minimal persisted cache | Browser-local draft and cache store | Lowest | Strong via local chunk reuse | Required |
 | SQLite / D1 | First shared store | Low | Strong via persisted chunks and revisions | Recommended |
 | R2 | Binary artifact byte store | Low | Strong when paired with Markdown manifests in D1 | Recommended for generated media |
+| PocketBase + Yjs | Optional small-team live collaboration provider | Operator-hosted | Strong when updates are batched, compacted, and replayable | Recommended only after production gates pass |
+| Durable Objects + Yjs | Cloudflare-native alternative room provider | Usage-based | Strong with one object per document and WebSocket hibernation | Replacement path, not a concurrent second owner |
 | PostgreSQL | High-scale shared backend | Highest | Strong for future server retrieval | Deferred |
 
 ---
@@ -449,6 +475,7 @@ Focused tests cover:
 - Inbound pulled-record application into visible source-files state
 - Conflict UX dedupe behavior
 - Shared toast/history action rendering and dispatch
+- Source Files ownership summary, seed authority marker, and sibling-root authority validation
 
 Representative test files:
 
@@ -461,6 +488,8 @@ Representative test files:
 - `canvas/src/__tests__/knowgrphStorageConflictUx.test.ts`
 - `canvas/src/__tests__/sourceFilesPocketBaseYjsCollaboration.test.ts`
 - `canvas/src/__tests__/uiActionSurfaces.testx`
+- `canvas/src/__tests__/sourceFilesOwnershipProjection.test.tsx`
+- `scripts/__tests__/workspace-seed-authority.test.mjs`
 
 ### VCC Traceability
 

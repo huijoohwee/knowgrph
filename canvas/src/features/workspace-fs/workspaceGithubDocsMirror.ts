@@ -18,6 +18,8 @@ export const CANONICAL_HUIJOOHWEE_DEMO_DOCS_GITHUB_URL =
   'https://github.com/huijoohwee/huijoohwee/tree/main/docs'
 export const CANONICAL_HUIJOOHWEE_OUTPUT_DOCS_GITHUB_URL =
   'https://github.com/huijoohwee/huijoohwee/tree/main/docs_'
+export const CANONICAL_KNOWGRPH_WORKSPACE_SEEDS_GITHUB_URL =
+  'https://github.com/huijoohwee/knowgrph/tree/main/docs/workspace-seeds'
 
 let canonicalDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
 let canonicalDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
@@ -25,6 +27,8 @@ let canonicalDemoDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtM
 let canonicalDemoDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 let canonicalOutputDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
 let canonicalOutputDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
+let canonicalWorkspaceSeedsDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
+let canonicalWorkspaceSeedsDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 
 export const resetCanonicalAgenticDocsMirrorCacheForTests = (): void => {
   canonicalDatasetCache = null
@@ -33,6 +37,8 @@ export const resetCanonicalAgenticDocsMirrorCacheForTests = (): void => {
   canonicalDemoDatasetInFlight = null
   canonicalOutputDatasetCache = null
   canonicalOutputDatasetInFlight = null
+  canonicalWorkspaceSeedsDatasetCache = null
+  canonicalWorkspaceSeedsDatasetInFlight = null
 }
 
 const normalizeRepoRelPath = (value: string): string => {
@@ -221,4 +227,57 @@ export const readCanonicalHuijoohweeOutputDocsMirrorEntries = async (args: {
   } finally {
     canonicalOutputDatasetInFlight = null
   }
+}
+
+export const readCanonicalKnowgrphWorkspaceSeedsMirrorEntries = async (args: {
+  maxFiles: number
+  maxFileBytes: number
+}): Promise<WorkspaceDocsMirrorEntry[]> => {
+  if (canonicalWorkspaceSeedsDatasetCache && canonicalWorkspaceSeedsDatasetCache.expiresAtMs > Date.now()) {
+    return canonicalWorkspaceSeedsDatasetCache.entries.map(entry => ({ ...entry }))
+  }
+  if (!canonicalWorkspaceSeedsDatasetInFlight) {
+    canonicalWorkspaceSeedsDatasetInFlight = readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
+      url: CANONICAL_KNOWGRPH_WORKSPACE_SEEDS_GITHUB_URL,
+      maxFiles: args.maxFiles,
+      maxFileBytes: args.maxFileBytes,
+      requireCompleteDataset: true,
+    }).then(entries => entries.map(entry => ({ ...entry, authority: 'knowgrph-workspace-seeds-github' })))
+  }
+  try {
+    const entries = await canonicalWorkspaceSeedsDatasetInFlight
+    canonicalWorkspaceSeedsDatasetCache = {
+      entries: entries.map(entry => ({ ...entry })),
+      expiresAtMs: Date.now() + CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS,
+    }
+    return entries.map(entry => ({ ...entry }))
+  } finally {
+    canonicalWorkspaceSeedsDatasetInFlight = null
+  }
+}
+
+export const readCanonicalPublishedWorkspaceDocsMirrorEntries = async (args: {
+  maxFiles: number
+  maxFileBytes: number
+}): Promise<WorkspaceDocsMirrorEntry[]> => {
+  const [demoEntries, outputEntries, agenticEntries, seedEntries] = await Promise.all([
+    readCanonicalHuijoohweeDemoDocsMirrorEntries(args),
+    readCanonicalHuijoohweeOutputDocsMirrorEntries(args),
+    readCanonicalAgenticCanvasOsDocsMirrorEntries(args),
+    readCanonicalKnowgrphWorkspaceSeedsMirrorEntries(args),
+  ])
+  const workspaceEntries = demoEntries.filter(entry => {
+    const relPath = normalizeRepoRelPath(entry.relPath)
+    return relPath !== 'workspace-seeds' && !relPath.startsWith('workspace-seeds/')
+  })
+  const namespace = (entries: WorkspaceDocsMirrorEntry[], root: string) => entries.map(entry => ({
+    ...entry,
+    relPath: `${root}/${normalizeRepoRelPath(entry.relPath)}`,
+  }))
+  return [
+    ...workspaceEntries,
+    ...namespace(seedEntries, 'workspace-seeds'),
+    ...namespace(outputEntries, 'docs_'),
+    ...namespace(agenticEntries, 'agentic-canvas-os/docs'),
+  ]
 }
