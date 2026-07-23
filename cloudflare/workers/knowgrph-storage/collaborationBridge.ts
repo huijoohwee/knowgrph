@@ -12,7 +12,7 @@ import {
 } from '../../../grph-shared/src/collaboration/yjsSnapshot'
 import {
   DOCUMENT_REPOSITORY_TARGETS,
-  resolveDocumentRepositoryAuthority,
+  resolveDocumentRepositoryAuthorityResult,
   type DocumentRepositoryTarget,
 } from '../../../grph-shared/src/collaboration/documentRepositoryAuthority'
 
@@ -287,9 +287,20 @@ export const handleCollaborationSave = async (request: Request, env: KnowgrphSto
   const workspaceId = normalizeString(body.workspaceId)
   const documentKey = normalizeString(body.documentKey)
   if (!workspaceId || !documentKey) return errorResponse(400, 'bad_request', 'workspaceId and documentKey are required')
-  const authority = resolveDocumentRepositoryAuthority({ documentKey, documentKind: body.documentKind })
-  if (!authority || authority.repositoryTarget !== body.repositoryTarget) {
-    return errorResponse(400, 'bad_request', 'collaboration save path must match its owning GitHub docs root')
+  const authorityResult = resolveDocumentRepositoryAuthorityResult({
+    documentKey,
+    documentKind: body.documentKind,
+  })
+  if (authorityResult.ok === false) {
+    return errorResponse(
+      400,
+      'bad_request',
+      `unsupported collaboration save path: ${authorityResult.path || documentKey}`,
+    )
+  }
+  const authority = authorityResult.authority
+  if (authority.repositoryTarget !== body.repositoryTarget) {
+    return errorResponse(400, 'bad_request', 'collaboration save repository target does not match path authority')
   }
   try {
     const pocketBaseSnapshot = await readPocketBaseCollaborationSnapshot({

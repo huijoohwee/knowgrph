@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Sync ADRs"
 id: "md:knowgrph-storage-sync-adrs-document"
-version: "1.3.0"
+version: "1.4.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Architecture Decision Records"
@@ -27,7 +27,7 @@ invocation:
 
 ---
 
-**Version**: 1.3.0
+**Version**: 1.4.0
 **Date**: 2026-07-23
 **Companion index**: `knowgrph-storage-sync-document.companion.md`
 
@@ -52,6 +52,8 @@ invocation:
 | ADR-015 | Accepted | Route document writes to path-scoped Knowgrph or workspace GitHub docs roots. | `grph-shared/src/collaboration/documentRepositoryAuthority.ts` |
 | ADR-016 | Accepted | Select one collaboration room provider; replace PocketBase with Durable Objects instead of dual-owning rooms. | `canvas/src/features/source-files/sourceFilesPocketBaseYjsRoom.ts` |
 | ADR-017 | Accepted | Keep one authored workspace-seed root, one byte-identical runtime projection, and no publish-repository duplicate. | `scripts/workspace-seed-authority.mjs` |
+| ADR-018 | Accepted | Use Dexie/IndexedDB as the durable local-first working store and expose explicit degraded-memory state. | `canvas/src/lib/storage/indexedDbCollectionStore.ts` |
+| ADR-019 | Accepted | Bound sync retries, preserve unresolved outbox work, and reject non-local mutation origins in this enhancement. | `canvas/src/lib/storage/knowgrphStorageClientSync.ts` |
 
 ## ADR-001: Minimal Persisted Client Working Store
 
@@ -126,3 +128,13 @@ The collaboration room contract is provider-neutral, but exactly one provider ow
 This ownership is enforced at mutation time, not only displayed: Source Files maps seed reads and writes to the canonical Knowgrph checkout, passes the workspace path to the local bridge for exact host-path validation, mirrors nested deletion after rename/delete, and forbids deleting the seed root. The configurable `workspace-docs` local mirror cannot redirect this subtree.
 
 The same owner governs inventory reconciliation. A readable local canonical seed directory overlays only the published `workspace-seeds/**` dataset during Dev; otherwise the Knowgrph GitHub tree remains authoritative. Reconciliation may replace and prune cached seed entries only when either source returns an authority-marked inventory, preventing both partial one-file projections and destructive pruning during offline or failed reads.
+
+The 2026-07-23 filesystem audit confirms that the Huijoohwee duplicate root is absent and the single Agentic projection is byte-identical to its Knowgrph source. The Agentic projection remains read-only until a later bootstrap migration removes the authority-check dependency; collaboration and Source Files writes to that path are rejected now.
+
+## ADR-018: Durable IndexedDB Working Store
+
+Dexie is the browser adapter for the five sync collections, document revision history, and collaboration update outbox. The adapter restores each record type independently, retries one write conflict, reports persistence state to MainPanel, and degrades explicitly to the memory adapter when IndexedDB initialization, quota, or retry fails. The in-memory adapter remains a test and session fallback, not the normal browser authority.
+
+## ADR-019: Bounded Local/Dev Sync
+
+The client completes durable local writes before scheduling transport. Push uses a 30-second request timeout, at most 3 attempts, and 1/2-second retry delays; polling stays at 120 seconds. Conflict and rejection rows are never silently resent, empty pulls do not rewrite cache, and no sync path calls an LLM. Mutating Source Files actions require a configured loopback Worker origin, keeping this enhancement inside local/Dev scope.

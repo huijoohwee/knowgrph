@@ -435,6 +435,10 @@ export async function testSourceFileShareUrlHydratesMetadataOnlyWorkspaceEntryBe
 export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQueueIntegration() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
   const text = readFileSync(bootstrapPath, 'utf8')
+  const settingsText = readFileSync(
+    resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesKnowgrphStorageSettings.ts'),
+    'utf8',
+  )
   if (!text.includes("loadKnowgrphStorageRuntimeDependencies")) {
     throw new Error('expected source-files bootstrap to lazy-load the knowgrph storage runtime dependencies instead of pulling them into the eager bootstrap module graph')
   }
@@ -456,7 +460,10 @@ export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQue
   if (!text.includes("deps.startKnowgrphStorageSyncLoop")) {
     throw new Error('expected source-files bootstrap to keep ownership of the knowgrph storage sync loop for the active workspace through the deferred runtime loader')
   }
-  if (!text.includes("readKnowgrphStorageRuntimeSyncEnabled") || !text.includes("VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED")) {
+  if (
+    !text.includes("readKnowgrphStorageRuntimeSyncEnabled")
+    || !settingsText.includes("VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED")
+  ) {
     throw new Error('expected knowgrph storage runtime sync to stay explicitly opt-in instead of running from the toolbar Storage Sync path by default')
   }
   if (!text.includes('if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceCloudSyncEnabled) return null')) {

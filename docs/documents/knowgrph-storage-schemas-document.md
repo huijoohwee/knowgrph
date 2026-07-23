@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Schemas and Route Contracts"
 id: "md:knowgrph-storage-schemas-document"
-version: "2.4.0"
+version: "2.5.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Schema and Route Reference"
@@ -27,7 +27,7 @@ invocation:
 
 ---
 
-**Version**: 2.4.0
+**Version**: 2.5.0
 **Date**: 2026-07-23
 **Canonical index**: `knowgrph-storage-sync-document.md`
 **See also**: `knowgrph-storage-schemas-extensions-document.md` (deferred auth relay and PostgreSQL extensions), `knowgrph-multi-user-collaboration-prd.tad.md` (auth tables, role-based access extension)
@@ -40,8 +40,27 @@ invocation:
 - Keep stable ids and monotonic revisions.
 - Use hashes for dedupe and bounded prompt reuse.
 - Keep browser-local names stable across the persisted-cache contract.
+- Reject canonical paths longer than 1,024 characters and preserve identity for same-workspace/same-path upserts.
+- Retain `sync_events` at or below 24 hours and prune only records older than that boundary.
+- Skip D1 writes when every persisted field already matches.
 
----
+## Implemented Browser And Sync Bounds
+
+| Contract | Bound |
+|---|---:|
+| Push timeout | 30 seconds |
+| Push attempts | 3 total |
+| Backoff | 1 second, then 2 seconds; 30-second cap |
+| Poll interval | 120 seconds |
+| Local document revisions | Most recent 10 or more |
+| Document version snapshots | Most recent 50 per path |
+| Cloud read-back | At most 3 attempts |
+| Canonical path | 1,024 characters |
+| Import body | 10,485,760 bytes |
+| URL import timeout | 30 seconds |
+| `sync_events` TTL | 24 hours |
+
+The browser implementation maps `documentRevision` to remote `revision` and `isDeleted` to remote `deleted` at the contract boundary. Dexie restores each record type independently and stores a separate durable collaboration update outbox. Equal document/chunk hashes reuse stored artifacts; semantic chunk references with a known hash carry zero markdown bytes. JSON-LD graph export also preserves its canonicalized edge id across repeated parse/print cycles.
 
 ## Shared Contract
 

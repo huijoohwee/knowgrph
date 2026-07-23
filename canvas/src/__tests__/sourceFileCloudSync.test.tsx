@@ -66,14 +66,14 @@ export async function testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndV
     const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = input instanceof Request
         ? input
-        : new Request(new URL(String(input), 'https://storage.example'), init)
+        : new Request(new URL(String(input), 'http://127.0.0.1:8787'), init)
       events.push(`${request.method}:${new URL(request.url).pathname}`)
       return readStorageWorker().fetch(request, env as never)
     }
     const result = await syncWorkspaceEntryToCanonicalCloud({
       entry,
       workspaceId: 'kgws:test-source-file-cloud-sync',
-      baseUrl: 'https://storage.example',
+      baseUrl: 'http://127.0.0.1:8787',
       fetchImpl,
     })
 
@@ -95,7 +95,7 @@ export async function testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndV
     }
     const snapshot = await readCanonicalCloudDocumentSnapshot({
       workspaceId: result.workspaceId,
-      baseUrl: 'https://storage.example',
+      baseUrl: 'http://127.0.0.1:8787',
       fetchImpl,
     })
     if (snapshot.get(result.canonicalPath) !== committedText) {
@@ -106,7 +106,7 @@ export async function testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndV
     await syncWorkspaceEntryToCanonicalCloud({
       entry,
       workspaceId: result.workspaceId,
-      baseUrl: 'https://storage.example',
+      baseUrl: 'http://127.0.0.1:8787',
       fetchImpl,
     })
     if (events.indexOf('POST:/api/storage/collab/save') < 0
@@ -120,12 +120,12 @@ export async function testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndV
     const emptyResult = await syncWorkspaceEntryToCanonicalCloud({
       entry: emptyEntry,
       workspaceId: result.workspaceId,
-      baseUrl: 'https://storage.example',
+      baseUrl: 'http://127.0.0.1:8787',
       fetchImpl,
     })
     const snapshotWithEmptyDocument = await readCanonicalCloudDocumentSnapshot({
       workspaceId: result.workspaceId,
-      baseUrl: 'https://storage.example',
+      baseUrl: 'http://127.0.0.1:8787',
       fetchImpl,
     })
     if (!snapshotWithEmptyDocument.has(emptyResult.canonicalPath)
@@ -179,9 +179,9 @@ export async function testSourceFileCloudUploadReusesMatchingProtectedGitHubCont
     const result = await syncWorkspaceEntryToCanonicalCloud({
       entry,
       workspaceId: 'kgws:test-source-file-protected-noop',
-      baseUrl: 'https://storage.example',
+      baseUrl: 'http://127.0.0.1:8787',
       fetchImpl: async (input, init) => readStorageWorker().fetch(
-        input instanceof Request ? input : new Request(new URL(String(input), 'https://storage.example'), init),
+        input instanceof Request ? input : new Request(new URL(String(input), 'http://127.0.0.1:8787'), init),
         env as never,
       ),
     })
@@ -222,7 +222,7 @@ export async function testSourceFileCloudUploadStopsBeforeCloudflareWhenGitHubBr
       await syncWorkspaceEntryToCanonicalCloud({
         entry,
         workspaceId: 'kgws:test-source-file-cloud-failure',
-        baseUrl: 'https://storage.example',
+        baseUrl: 'http://127.0.0.1:8787',
         fetchImpl: async input => {
           const pathname = new URL(String(input), 'https://storage.example').pathname
           calls.push(pathname)
@@ -235,8 +235,10 @@ export async function testSourceFileCloudUploadStopsBeforeCloudflareWhenGitHubBr
     } catch (error) {
       rejected = String(error).includes('missing GitHub bridge token')
     }
-    if (!rejected || calls.join('|') !== '/api/storage/collab/save') {
-      throw new Error(`expected GitHub failure to keep Cloudflare untouched, got rejected=${rejected} calls=${calls.join(',')}`)
+    if (!rejected
+      || calls.length !== 3
+      || calls.some(pathname => pathname !== '/api/storage/collab/save')) {
+      throw new Error(`expected three bounded GitHub retries to keep D1 untouched, got rejected=${rejected} calls=${calls.join(',')}`)
     }
   } finally {
     await __resetKnowgrphStorageDbForTests()

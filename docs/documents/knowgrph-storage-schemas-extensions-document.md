@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Storage Schema Extensions"
 id: "md:knowgrph-storage-schemas-extensions-document"
-version: "1.3.0"
+version: "1.4.0"
 updated: "2026-07-23"
 status: "spec-complete-deferred"
 doc_type: "Schema Extension Reference"
@@ -27,9 +27,17 @@ invocation:
 
 ---
 
-**Version**: 1.3.0
+**Version**: 1.4.0
 **Date**: 2026-07-23
 **Canonical baseline**: `knowgrph-storage-schemas-document.md`
+
+## Enhancement Readiness Gate
+
+A schema extension is active only when all three inputs are true: a named Worker owner exists, its migration is applied, and its focused test passes. Missing any input leaves the route unexposed and its status deferred. The browser-local Dexie collections, document revision history, and Yjs update outbox are implementation details of the shipped local cache and do not add a D1 extension table.
+
+PocketBase collections remain provider-owned and require version-pinned server deployment, committed `pb_migrations`, authenticated collection rules, update acknowledgement/deduplication, snapshot compaction, and backup/restore proof. PocketBase is recommended for a small-team relay only after those gates pass; it never owns canonical documents, offline fallback, GitHub commits, D1 projection, or Cloudflare resources.
+
+The `serverManaged` relay path remains fail closed: unless the workspace provider policy explicitly enables it, the Worker returns a forbidden response, establishes no relay, and leaves prior policy unchanged. BYOK values are per-request memory inputs and are excluded from IndexedDB, local/session storage, PocketBase rows, and D1.
 
 ## Planned Authenticated Collaboration And Chat Relay Extension
 

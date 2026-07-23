@@ -954,14 +954,12 @@ export function SourceFilesPersistenceBootstrap() {
     sourceFilesSnapshot?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
     storageSyncSignature?: string
   }): KnowgrphStorageQueueRequest | null => {
-    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceCloudSyncEnabled) return null
     const workspaceId = readKnowgrphStorageWorkspaceId({
       workspaceId: args?.workspaceId,
       workspaceState: args?.workspaceState,
     })
     if (!workspaceId) return null
     const sourceFilesSnapshot = readCallerOwnedSourceFilesSnapshot(args?.sourceFilesSnapshot)
-    if (!hasNonWorkspaceSourceFile(sourceFilesSnapshot)) return null
     const storageSyncSignature = readKnowgrphStorageSyncSignature({
       sourceFilesSnapshot,
       storageSyncSignature: args?.storageSyncSignature,
@@ -971,7 +969,7 @@ export function SourceFilesPersistenceBootstrap() {
       sourceFilesSnapshot,
       signature: `${workspaceId}:${storageSyncSignature}`,
     }
-  }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, readKnowgrphStorageWorkspaceId, workspaceCloudSyncEnabled])
+  }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, readKnowgrphStorageWorkspaceId])
 
   const rememberKnowgrphStorageQueuedSnapshot = React.useCallback((request: KnowgrphStorageQueueRequest) => {
     lastQueuedKnowgrphStorageSignatureRef.current = request.signature
@@ -1016,12 +1014,13 @@ export function SourceFilesPersistenceBootstrap() {
   }): KnowgrphStorageQueueSyncFollowUpRequest | null => {
     const { request, queuedMutationCount } = args
     if (queuedMutationCount <= 0) return null
+    if (!readKnowgrphStorageRuntimeSyncEnabled() || !workspaceCloudSyncEnabled) return null
     return {
       workspaceId: request.workspaceId,
       delayMs: 0,
       signature: `${request.signature}:${queuedMutationCount}`,
     }
-  }, [])
+  }, [workspaceCloudSyncEnabled])
 
   const runKnowgrphStorageQueueSyncFollowUpRequest = React.useCallback((request: KnowgrphStorageQueueSyncFollowUpRequest) => {
     void ensureKnowgrphStorageRuntimeDependencies().then(deps => {
@@ -1062,7 +1061,6 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   const runKnowgrphStorageQueueRequest = React.useCallback((request: KnowgrphStorageQueueRequest) => {
-    if (!readKnowgrphStorageRuntimeSyncEnabled()) return
     if (!request.workspaceId) return
     if (activeKnowgrphWorkspaceIdRef.current && activeKnowgrphWorkspaceIdRef.current !== request.workspaceId) return
     if (lastQueuedKnowgrphStorageSignatureRef.current === request.signature) return
@@ -1128,10 +1126,9 @@ export function SourceFilesPersistenceBootstrap() {
   }, [readCallerOwnedSourceFilesSnapshot, readKnowgrphStorageSyncSignature, resolveKnowgrphStorageQueueRequest, resolveSourceFilesComposeRequest])
 
   const applySourceFilesPersistenceStorageRequest = React.useCallback((request: SourceFilesPersistenceEffectRequest) => {
-    if (!workspaceCloudSyncEnabled) return
     if (knowgrphInboundApplyInFlightRef.current) return
     scheduleKnowgrphStorageQueueRequest(request.knowgrphStorageQueueRequest)
-  }, [scheduleKnowgrphStorageQueueRequest, workspaceCloudSyncEnabled])
+  }, [scheduleKnowgrphStorageQueueRequest])
 
   const applySuppressedSourceFilesPersistenceComposeRequest = React.useCallback((compositionSignature: string): boolean => {
     if (Date.now() >= suppressComposeUntilMsRef.current) return false

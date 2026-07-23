@@ -1,7 +1,7 @@
 ---
 title: "Knowgrph Source Files Import"
 id: "md:knowgrph-source-files-import-document"
-version: "1.3.0"
+version: "1.4.0"
 updated: "2026-07-23"
 status: "active"
 doc_type: "Workflow and Runtime Reference"
@@ -39,6 +39,8 @@ invocation:
 
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
+**Durable Cache Contract**: Source Files document, chunk, graph-snapshot, sync-outbox, and cursor records restore independently through the shared Dexie adapter. Local writes and collaboration updates enter IndexedDB before transport. Initialization/quota or write-conflict failure retries once, then reports degraded in-memory persistence through MainPanel instead of silently claiming durable storage.
+
 **Storage And Sync Settings**: MainPanel Settings → `Document Storage & Sync` exposes Online/Offline only mode, the `GitHub/knowgrph/docs` and `GitHub/huijoohwee/docs` roots, offline fallback state, and explicit `Sync now`. Import remains local-first: Offline only never discards imported content, and online publication routes Knowgrph product/workspace-seed paths to `knowgrph-docs`, collaborative workspace documents to `workspace-docs`, and rejects Agentic Canvas OS paths as write targets.
 
 **Explorer Ownership Projection**: Explorer → Source Files renders a compact path-derived ownership ledger above the tree: product documents → `GitHub/knowgrph/docs`, workspace documents → `GitHub/huijoohwee/docs`, seeds → `GitHub/knowgrph/docs/workspace-seeds`, and offline fallback → IndexedDB. The canonical `workspace-seeds` folder has a shield marker. The byte-identical Agentic Canvas OS seed remains a protected runtime projection and is never shown as another editable root; `huijoohwee/docs/workspace-seeds` is rejected.
@@ -46,6 +48,8 @@ invocation:
 **Seed Mutation Enforcement**: Source Files reads, creates, writes, renames, and nested deletes below `/docs/workspace-seeds/**` resolve only to `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`. The general local docs-mirror preference cannot redirect this subtree. Every local bridge mutation includes the workspace ownership key; mismatched host paths, direct unkeyed seed writes, and deletion of the seed root are rejected. IndexedDB remains the offline fallback and queued cloud saves retain the same `knowgrph-docs` authority.
 
 **Seed Inventory Convergence**: During local Dev, Source Files probes `$GITHUB_ROOT/knowgrph/docs/workspace-seeds` even when the remaining document corpus comes from published GitHub. A successful local listing replaces only the GitHub seed subtree; otherwise the Knowgrph GitHub tree remains the source. Authority-marked reconciliation materializes every canonical seed, refreshes changed bytes, removes stale cached seed paths and source metadata, and never prunes the subtree after a failed or unavailable authority read.
+
+**Seed Filesystem Audit**: The canonical Knowgrph root currently contains six authored files. `huijoohwee/docs/workspace-seeds` is absent. One tracked Agentic Canvas OS physics file remains as an exact-byte, read-only runtime projection because the bootstrap authority gate still requires it; Source Files does not display it as writable and the save bridge rejects its path. Physical removal is gated on migrating that bootstrap dependency.
 
 **Collaboration Admission**: Fetching, parsing, and first persistence always complete locally before an import can join a live room. When Online mode, authenticated workspace membership, a canonical document path, and one configured room provider are all available, Source Files may hydrate the Yjs document from a compacted provider snapshot plus ordered updates, then replay its IndexedDB-backed local update outbox. PocketBase is the recommended small-team provider after production gates pass; a Durable Object is a replacement provider, never a simultaneous second owner. Import credentials, local paths, and remote-source authorization headers are never transmitted to the room provider.
 
@@ -60,6 +64,8 @@ invocation:
 **Composition Invariant**: Any change to `sourceFiles` (add/remove/clear/toggle/parsed hash updates) must trigger a recomposition via `applyComposedGraphFromSourceFiles()` so the active `graphData` and all graph-tied touchpoints (canvas, Graph Data Table) stay consistent. When Source Files becomes empty, the composed `graphData` must become empty as well (no stale rows).
 
 **Document Versioning Rule**: Editor Workspace saves, Source Files writeback, and GitGraph CRUD must record bounded local document snapshots via the shared document-versioning utility. Source Files exposes per-file version counts, Editor Workspace `[ ] diff` opens the shared Timeline bottom panel in GitGraph view after `[ ] Markdown`, and that bottom panel exposes the GitGraph icon immediately to the right of the Timeline icon. MainPanel History does not own a document-version Docs surface.
+
+**Bounded Import And Identity Rule**: Local and URL text imports stop at 10,485,760 bytes; URL fetches also stop after 30 seconds. Batch hydration isolates malformed, oversize, slow, and unreachable sources so earlier imports remain and later sources continue. Re-importing the same case-insensitive filename updates the existing Source Files id. Valid JSON, JSON-LD, and CSV parse/print/reparse cycles preserve normalized structure and ordering.
 
 **Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
 
