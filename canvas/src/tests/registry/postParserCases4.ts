@@ -147,6 +147,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["storyboardWidget.actions.convertToLoop.idempotentAndSetsKind","@/__tests__/flowWidgetActions.test","testStoryboardWidgetConvertToLoopSetsTypeAndKind"],
   ["storyboardWidget.actions.nodeDraftRunRef.updatesBeforeStoreWriteback","@/__tests__/storyboardWidgetNodeDraftRunRefRegression.test","testStoryboardWidgetNodeDraftUpdatesRefBeforeRunStoreWriteback"],
   ["storyboardWidget.actions.nodeDraftRunRef.propertyPatchesPreferLiveDraft","@/__tests__/storyboardWidgetNodeDraftRunRefRegression.test","testStoryboardWidgetPropertyPatchesPreferLiveDraftBeforeStoreGraph"],
+  ["storyboardWidget.actions.nodeDraft.propertyCommitPersistsAcrossDocumentSwitch","@/__tests__/storyboardWidgetNodeDraftRunRefRegression.test","testStoryboardWidgetCommittedNodePropertiesPersistBeforeDocumentSwitch"],
   ["storyboardWidget.actions.autoRun.afterWidgetPropertyCommit","@/__tests__/storyboardWidgetNodeDraftRunRefRegression.test","testStoryboardWidgetAutoRunSchedulesAfterWidgetPropertyCommit"],
   ["storyboardWidget.actions.run.resolvesDownstreamRunnableTarget","@/__tests__/storyboardWidgetNodeDraftRunRefRegression.test","testStoryboardWidgetRunTargetResolverPrefersDownstreamRunnableTargets"],
   ["storyboardWidget.actions.run.commitsSharedInlineEditor","@/__tests__/storyboardWidgetNodeDraftRunRefRegression.test","testStoryboardWidgetRunCommitsActiveSharedInlineEditorBeforeRun"],

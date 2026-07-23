@@ -41,6 +41,18 @@ export function testStoryboardWidgetPropertyPatchesPreferLiveDraftBeforeStoreGra
   }
 }
 
+export function testStoryboardWidgetCommittedNodePropertiesPersistBeforeDocumentSwitch() {
+  const actionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetNodeDraftActions.ts'), 'utf8')
+  const runtimeText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const callbackProp = 'persistCommittedNodeProperties?: (graphData: GraphData) => void'
+  const patchPublish = 'if (nextDraft && changedPropertyKeys.length > 0) args.persistCommittedNodeProperties?.(nextDraft)'
+  const runtimeBinding = 'persistCommittedNodeProperties: persistPublishedStoryboardCardMediaGraphForSurface'
+
+  if (!actionsText.includes(callbackProp) || actionsText.split(patchPublish).length !== 3 || !runtimeText.includes(runtimeBinding)) {
+    throw new Error('expected committed Storyboard Widget property edits to persist their revisioned draft to the semantic markdown source before a document switch can discard local draft state')
+  }
+}
+
 export function testStoryboardWidgetAutoRunSchedulesAfterWidgetPropertyCommit() {
   const actionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetNodeDraftActions.ts'), 'utf8')
   const runtimeText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
