@@ -32,6 +32,7 @@ from lib.game_flight_sim_smoke_web_mcp import (
     verify_flight_exit,
     verify_flight_web_mcp,
 )
+from lib.game_flight_sim_smoke_vite import prepare_stable_candidate_page
 
 
 BASE_URL = os.environ.get(
@@ -206,7 +207,10 @@ def main() -> None:
         )
         page.on("pageerror", lambda error: page_errors.append(str(error)))
         try:
-            page.goto(target_url, wait_until="domcontentloaded")
+            prepare_stable_candidate_page(page, target_url)
+            console_errors.clear()
+            page_errors.clear()
+            failed_responses.clear()
             physics_baseline = prepare_authored_physics_surface(page)
             source_application, source = apply_and_verify_exact_authored_source(
                 page
