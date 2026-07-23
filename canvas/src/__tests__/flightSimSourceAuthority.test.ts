@@ -238,6 +238,13 @@ test('Flight Sim reuses shared fixed-follow and free-orbit camera ownership', ()
     ),
     'utf8',
   )
+  const physicsRuntime = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/src/features/canvas/XrPhysicsRunReadyDemoRuntime.tsx',
+    ),
+    'utf8',
+  )
   assert.match(
     controls,
     /from '\.\/useXrNativeControllerDemoCamera'/,
@@ -251,6 +258,12 @@ test('Flight Sim reuses shared fixed-follow and free-orbit camera ownership', ()
   assert.match(controllerCamera, /flightSimActive\s*\?\s*readFlightFollowTarget\(true,/)
   assert.match(controllerCamera, /renderer\.xr\.isPresenting/)
   assert.match(flightTarget, /resolveFlightSimFollowTarget/)
+  assert.match(
+    physicsRuntime,
+    /const active = isNativeXrRunReadyDemoActive\(markdownDocumentName, markdownDocumentText\)/,
+  )
+  assert.match(physicsRuntime, /pauseXrNativeControllerDemo\(\)/)
+  assert.match(physicsRuntime, /resumeXrNativeControllerDemo\(\)/)
   assert.doesNotMatch(
     flightTarget,
     /\b(?:camera|controls)\.(?:position|target|enablePan|enableRotate|enableZoom)/,
