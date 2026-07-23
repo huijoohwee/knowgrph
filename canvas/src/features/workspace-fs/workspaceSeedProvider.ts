@@ -1322,7 +1322,7 @@ const chooseBestWorkspaceDocsMirrorDataset = (
   return best
 }
 
-const readCanonicalLocalWorkspaceSeedMirrorEntries = async (): Promise<WorkspaceDocsMirrorEntry[]> => {
+export const readCanonicalLocalWorkspaceSeedMirrorEntries = async (): Promise<WorkspaceDocsMirrorEntry[]> => {
   const absRoot = readKnowgrphWorkspaceSeedsAbsRoot()
   if (!absRoot) return []
   const entries = await readWorkspaceMirrorRootEntries({
