@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { assertFlightSimCameraReadiness } from './game-flight-sim-camera-readiness.mjs'
 import { assertFlightSimAssetReadiness } from './lib/game-flight-sim-asset-readiness.mjs'
 import { assertFlightSimPropertyReadiness } from './lib/game-flight-sim-property-readiness.mjs'
+import { assertFlightSimSeedReadiness } from './lib/game-flight-sim-seed-readiness.mjs'
 import {
   parseYamlFrontmatter as parseFrontmatter,
   requireOrderedSourceMarkers as requireOrderedMarkers,
@@ -40,6 +41,9 @@ const requiredPaths = [
   `${flightFeatureRoot}/flightSimSimulationClock.ts`,
   `${flightFeatureRoot}/flightSimSpatialProfile.ts`,
   `${flightFeatureRoot}/index.ts`,
+  'canvas/src/App.tsx',
+  'canvas/src/features/agentic-os/agenticOsRemoteGrammarClient.ts',
+  'canvas/src/features/agentic-os/useAgenticOsRemoteGrammarAutoHydration.tsx',
   'canvas/src/features/agent-ready/flightSimAgentReadyContract.mjs',
   'canvas/src/features/agent-ready/flightSimWebMcpTools.ts',
   'canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs',
@@ -67,6 +71,7 @@ const requiredPaths = [
   'scripts/generate-game-flight-sim-optional-prop-glb.mjs',
   'scripts/lib/game-flight-sim-asset-readiness.mjs',
   'scripts/lib/game-flight-sim-boundary.mjs',
+  'scripts/lib/game-flight-sim-seed-readiness.mjs',
   'scripts/__tests__/game-flight-sim-boundary.test.mjs',
   'scripts/workspace-seed-authority.mjs',
   'package.json',
@@ -368,69 +373,12 @@ requireMarkers(cameraPanelSource, [
   'if (state.floatingPanelOpen) return true',
 ], 'shared Camera companion continuity')
 
-const runReadyDemo = seed.run_ready_demo
-const sharedScene = seed.shared_xr_scene
-const assetPipeline = seed.asset_pipeline
-const flightSim = seed.flight_sim
-if (
-  seed.status !== 'runtime-ready'
-  || seed.runtime_status !== 'runtime-ready'
-  || seed.runtime_claim !== 'local-runtime-ready'
-  || seed.publish_scope !== 'local-only'
-  || seed.kgCanvasSurfaceMode !== 'xr'
-  || seed.kgCanvasRenderMode !== '3d'
-  || seed.kgCanvas3dMode !== 'xr'
-  || !runReadyDemo
-  || runReadyDemo.id !== 'flight-sim'
-  || runReadyDemo.activation !== 'applied-source-document'
-  || runReadyDemo.identity_conflict !== 'fail closed when path and source identity disagree'
-  || runReadyDemo.canonical_source_file !== `/${flightSeedPath}`
-  || runReadyDemo.presentation !== 'shared-xr-gameplay-overlay'
-  || !Array.isArray(runReadyDemo.external_dependencies)
-  || runReadyDemo.external_dependencies.length !== 0
-  || !sharedScene
-  || sharedScene.source_authority !== `/${physicsSeedPath}`
-  || sharedScene.world_ownership !== 'overlay-only'
-  || sharedScene.surface_owner !== 'XR Mode'
-  || sharedScene.renderer_owner !== 'canvas/src/lib/three/ThreeGraph.impl.tsx'
-  || sharedScene.collider_owner !== 'canvas/src/features/three/xrCanonicalSceneSpatialSource.ts'
-  || sharedScene.camera_owner !== 'canvas/src/features/three/useXrNativeControllerDemoCamera.ts'
-  || sharedScene.second_canvas_forbidden !== true
-  || !flightSim
-  || flightSim.invocation !== '/flight.sim @canvas #flight operation=open'
-  || flightSim.inspect_tool !== 'knowgrph.inspect_local_flight_sim'
-  || flightSim.control_tool !== 'knowgrph.control_local_flight_sim'
-) {
-  throw new Error('Flight Sim seed must remain a source-authored overlay on the canonical XR world')
-}
-if (
-  !assetPipeline
-  || !String(assetPipeline.primary || '').includes('TypeScript + JSON')
-  || !String(assetPipeline.admission || '').includes('only the exact TypeScript+JSON')
-  || !String(assetPipeline.opaque_binary_fallback || '').includes('not admitted')
-  || assetPipeline.glb_fallback_count !== 0
-  || assetPipeline.runtime_model_calls !== 0
-  || assetPipeline.runtime_network_calls !== 0
-) {
-  throw new Error('Flight Sim seed must retain TypeScript+JSON-only, zero-fallback asset authority')
-}
-
-const runReadySource = await readText('canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts')
-requireMarkers(runReadySource, [
-  "export const FLIGHT_SIM_RUN_READY_DEMO_ID = 'flight-sim'",
-  'export const diagnoseWorkspaceRunReadyDemoActivation = (',
-  'export const resolveWorkspaceRunReadyDemoIdForDocument = (',
-  "'RUN_READY_IDENTITY_CONFLICT'",
-  "'RUN_READY_IDENTITY_UNREGISTERED'",
-  "return diagnostic.ok ? diagnostic.id : ''",
-  'readWorkspaceRunReadyDemoId(documentPath, documentText) === FLIGHT_SIM_RUN_READY_DEMO_ID',
-], 'source-authored Flight Sim activation')
-const activationSource = await readText('canvas/src/features/canvas/FlightSimRunReadyDemoRuntime.tsx')
-requireMarkers(activationSource, [
-  'isFlightSimRunReadyDemoActive(markdownDocumentName, markdownDocumentText)',
-  'ownsDocumentLaunchRef',
-  'exitFlightSimSurface({ restorePreviousSurface: false })',
-], 'Flight Sim source activation runtime')
+await assertFlightSimSeedReadiness({
+  seed,
+  flightSeedPath,
+  physicsSeedPath,
+  readText,
+})
 
 const seedAuthoritySource = await readText('scripts/workspace-seed-authority.mjs')
 const projectionStart = seedAuthoritySource.indexOf('AGENTIC_WORKSPACE_SEED_PROJECTION_INVENTORY')

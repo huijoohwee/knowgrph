@@ -48,8 +48,12 @@ native_flight_demo:
   runtime_owner: "Flight Sim surface on the shared XR Canvas"
   default_aircraft: "vehicle-airplane"
   deterministic_step: true
+  fixed_step: "exactly 1/60 second (approximately 16.667 ms); the Kiro 16 ms / 60 Hz wording is resolved in favor of mathematically exact 60 Hz"
+  max_catch_up_ticks_per_advance: 5
+  mission_meter_transform: "20 meters per authored Singapore scene unit"
+  spatial_profile_scale_id: "flight-meters-20"
   flight_model: "in-repo thrust/pitch/roll/yaw with bounded lift/drag/gravity approximation; no external physics engine"
-  collision: "authored XR AABB slab catalog (shared canonical spatial source); no mesh colliders or navmesh"
+  collision: "swept authored XR AABB slab catalog plus perimeter, ground, and ceiling; earliest hit with stable id tie-break; at least 0.001 meter separation; no mesh colliders or navmesh"
   camera_mode: "fixed-follow"
   camera:
     default: "fixed-follow"
@@ -66,8 +70,12 @@ native_flight_demo:
     default: "singapore"
     selector: "XR Terrain / Environment catalog"
     available: ["singapore", "tropical-playground"]
-  objective: "complete the bounded waypoint route"
-  interactive_props: ["waypoint rings"]
+  objective: "capture exactly three ordered waypoints, then the marked landing pad"
+  waypoint_count: 3
+  landing_pad_count: 1
+  capture_radius_meters: 50
+  out_of_order_waypoint_behavior: "no route progression"
+  interactive_props: ["three waypoint rings", "marked landing pad", "optional beacon"]
   input:
     keyboard:
       pitch_roll: ["W", "A", "S", "D", "ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"]
@@ -79,19 +87,30 @@ native_flight_demo:
       pitch_roll: "standard left stick"
       yaw: "standard shoulder axes"
       throttle: "standard triggers"
+    multi_device_conflict: "select the largest absolute value independently per axis"
   lifecycle: ["develop-and-run", "pause", "resume", "reset", "exit"]
 asset_pipeline:
   primary: "img2threejs-style TypeScript + JSON Must-aircraft scene spec (small, diffable, committed in-repo, offline-loadable)"
-  admission: "only the exact TypeScript+JSON vehicle-airplane spec is admitted in Must scope"
-  opaque_binary_fallback: "not admitted in Must scope; non-null fallback metadata fails closed"
-  glb_fallback_count: 0
+  admission: "the required vehicle-airplane is admitted only through the exact TypeScript+JSON Asset_Spec; the optional beacon has no Asset_Spec and is the only admitted opaque fallback"
+  required_aircraft_asset_spec_count: 1
+  required_aircraft_glb_fallback_count: 0
+  opaque_binary_fallback: "one committed-local optional-beacon GLB is admitted, marked opaque, and never substitutes for the required aircraft"
+  optional_prop_glb_fallback_count: 1
+  glb_fallback_count: 1
+  optional_glb_path: "canvas/src/features/game-flight-sim/assetSpec/fallbacks/optional-beacon.glb"
+  optional_glb_sha256: "be41f87bb745ba35c439336d932dd69c34223d26e117443a3c8556e44fce70cd"
+  optional_glb_license: "CC0-1.0"
+  fallback_rejection: "remote, absolute, traversal, missing, unreadable, invalid, or unlicensed GLB references fail closed without fetch"
   runtime_model_calls: 0
   runtime_network_calls: 0
   authoring_step: "offline only; no image-to-3D model, network fetch, or Cloudflare resource is invoked at runtime to obtain any asset"
-  diffability: "the Must aircraft is TypeScript+JSON; GLB fallback count is exactly zero"
+  diffability: "the required aircraft is TypeScript+JSON; the single optional opaque GLB is generated deterministically and pinned by exact bytes and SHA-256"
+  text_gate: "every committed Asset_Spec is strict UTF-8 and at most 1 MB"
+  dependency_license_gate: "fixed 21-package Flight runtime closure; OSI-approved licenses only"
   native_in_repo: true
   forbid_external_copy_or_dependency: true
-  inspiration_reference_only: "flight-simulator (inspiration only; no source copy, no dependency)"
+  inspiration_reference_only: ["FlightGear", "Arnie016/flight-simulator-fable5"]
+  no_copy_scan_scope: "all tracked repository files; concepts and architecture only, with zero copied source, binary, asset, or dependency"
 motion_control:
   runtime: "browser-local LiteRT.js"
   model: "Google BlazePose GHUM Full"
@@ -117,14 +136,28 @@ flight_sim:
   web_mcp_schema: "knowgrph-flight-sim-mcp/v1"
   inspect_tool: "knowgrph.inspect_local_flight_sim"
   control_tool: "knowgrph.control_local_flight_sim"
+  web_mcp_deadline_ms: 2000
+  web_mcp_failure_envelopes: ["timeout", "state unavailable", "execution error", "unsupported operation"]
+  native_invocation_diagnostics: "named error code plus the offending required token, duplicate sigil, unknown key, mixed-input field, or unsupported operation"
   lifecycle: "retain the authored XR scene while suspending its controller input and simulation; restore both on exit"
+  exit_world_behavior: "dispose and discard the ECS World, pending state, and unsaved mission progress"
+  entry_failure: "leave the existing Canvas, scene graph, and prior controller unchanged; surface a local error"
+  restoration_failure: "retain the existing single Canvas without a second renderer; surface a local error"
   controller_handoff: "supply a pure aircraft follow/framing descriptor to the shared Physics controller camera; never mount a Flight-owned camera"
   renderer_owner: "the existing React Three Fiber Canvas in shared XR Mode; never a second Canvas"
   scene_composition: "authored XR atmosphere, terrain, and props plus Flight aircraft and waypoint/objective actors with the HUD overlay; no fallback arena or Flight-owned camera"
-  simulation_clock: "ready at tick zero until normalized desktop, pointer, touch, gamepad, Motion Control, or MCP input"
+  simulation_clock: "exact 1/60-second fixed ticks, at most five catch-up ticks per advance, ready at tick zero until normalized desktop, pointer, touch, gamepad, Motion Control, or MCP input"
+  replay_guard: "validate source, seed, input count/order/bytes; halt on the first byte divergence and preserve the last byte-equivalent committed World"
+  transactional_system_order: ["InputIntegrationSystem", "FlightModelSystem", "CollisionResolverSystem", "ObjectiveSystem"]
+  cost_log_owner: "AgenticECS.worldTick:post-systems"
+  projection_owner: "captureFlightSimMission:post-commit"
+  system_contract_reconciliation: "four meaningful journaled systems; Cost_Log is harness-owned after systems and render/HUD projection is captured only after commit"
+  normal_cost_log: {model: "none", tokens: 0, estimated_cost_usd: 0, incomplete: false}
+  blocked_inference_cost_log: {model: "none", prompt_tokens: "unknown", completion_tokens: "unknown", estimated_cost_usd: 0, incomplete: true, error: "blocked_inference"}
   webgl_gate: "synchronous probe; fail closed on the local fallback surface"
   stop_start: "resume the exact in-memory mission tick and state"
   decision_persistence: "browser-local WorkspaceFs; terminal Decisions remain pending until explicit Save and are never auto-saved"
+  admitted_decision_types: ["dialogue_outcome", "quest_flag", "world_tick_result"]
   malformed_hydration: "preserve bytes and block Start and Restart until explicit Reset"
   validation_input_forbid_hardcode_in_repo: true
 runtime_validation:
@@ -134,9 +167,17 @@ runtime_validation:
   replayable: true
   local_assets_only: true
   required_external_calls: false
+  automatic_remote_grammar_hydration: "deferred until Source Files identity is ready and disabled for active Flight/Physics offline XR sources"
   asset_spec_primary: true
-  glb_fallback_count: 0
-  glb_fallback_runtime: "not admitted in Must scope"
+  required_aircraft_glb_fallback_count: 0
+  optional_prop_glb_fallback_count: 1
+  glb_fallback_count: 1
+  glb_fallback_runtime: "one committed-local, CC0-1.0, SHA-pinned optional beacon; remote or unavailable fallbacks fail closed"
+  first_playable_frame_limit_ms: 3000
+  property_proof: "45 named fast-check properties at 100 runs each (4,500 generated cases)"
+  focused_source_tests: 122
+  browser_proof: "two fresh serial runs; each evidence record binds clean branch, HEAD, tree, authored seed SHA-256, and source path before launch"
+  browser_evidence: ["data/outputs/game-flight-sim-browser-smoke-run-1.json", "data/outputs/game-flight-sim-browser-smoke-run-2.json"]
   editor_chrome: true
   status: "repository-owned source/runtime proof passed; protected integration pending"
 mcp_control:
@@ -174,7 +215,7 @@ flow:
       position: {key: position, type: object, value: {"x":0,"y":120}}
       "flow:widgetFormId": {key: "flow:widgetFormId", type: string, value: "fm:flight_asset_spec"}
       "frontmatter:primitive": {key: "frontmatter:primitive", type: string, value: "node"}
-      output: {key: output, type: string, value: "Load the committed diffable TypeScript+JSON aircraft spec; no opaque fallback is needed for this mission."}
+      output: {key: output, type: string, value: "Load the committed diffable TypeScript+JSON aircraft spec; the optional beacon alone uses one committed-local, SHA-pinned opaque GLB."}
       role: {key: role, type: string, value: "asset"}
     - id: {key: id, type: string, value: "flight_runtime_gate"}
       type: {key: type, type: string, value: "FlightDemoValidation"}
@@ -205,23 +246,30 @@ From the repository root, run `npm run dev`. In Knowgrph, open **Explorer → So
 | Throttle up / down | Shift / Control | Throttle slider | Triggers |
 | Pause / Resume / Reset | HUD or FloatingPanel controls | HUD or FloatingPanel controls | HUD or FloatingPanel controls |
 
-The browser-local control contract uses `knowgrph.control_local_flight_sim` and strict `/flight.sim @canvas #flight`, with schema `knowgrph-flight-sim-mcp/v1`. Throttle is explicit: `/flight.sim @canvas #flight operation=throttle throttle=0.75`. Duplicate sigils, unknown keys, mixed native/structured input, and invalid lifecycle operations fail closed.
+The browser-local control contract uses `knowgrph.control_local_flight_sim` and strict `/flight.sim @canvas #flight`, with schema `knowgrph-flight-sim-mcp/v1`. Throttle is explicit: `/flight.sim @canvas #flight operation=throttle throttle=0.75`. Duplicate sigils, unknown keys, mixed native/structured input, missing tokens, and invalid lifecycle operations fail closed with a named diagnostic and offending token or field. Inspect and control return deterministic timeout, unavailable, execution, or validation envelopes within a hard 2,000 ms deadline.
 
 **FloatingPanel → Flight Sim** controls Open, Start, Stop, Restart, Throttle, Save, and Exit. The panel projects runtime state only; the aircraft stage remains actor-only inside the shared renderer.
 
-Camera source is independent of aircraft selection. In **FloatingPanel Camera → SHOOT**, choose **Fixed Follow** for stage-aware aircraft tracking or **Free Orbit** for direct pan, rotate, and zoom. The same shared catalog is invocable through `knowgrph.control_local_camera` with `/camera.select @camera #camera camera=fixed-follow` or `camera=free-orbit`. Flight supplies a pure aircraft follow/framing descriptor; the Physics controller hook alone mutates the camera and OrbitControls. Timeline camera-mark playback temporarily takes framing ownership, then returns to the selected source. Motion Control is optional normalized player input only and never becomes flight policy.
+Camera source is independent of aircraft selection. In **FloatingPanel Camera → SHOOT**, choose the catalog's only two modes: **Fixed Follow** for stage-aware aircraft tracking or **Free Orbit** for direct pan, rotate, and zoom. The same shared catalog is invocable through `knowgrph.control_local_camera` with `/camera.select @camera #camera camera=fixed-follow` or `camera=free-orbit`. Flight supplies a pure aircraft follow/framing descriptor; the Physics controller hook alone mutates the camera and OrbitControls. Timeline camera-mark playback temporarily takes framing ownership, then returns to the selected source. Motion Control is optional normalized player input only and never becomes flight policy. Conflicting device commands resolve independently per axis to the value with the largest absolute magnitude.
 
 Terminal results remain pending and never auto-save. **Save** is the only operation that persists validated Decisions through browser-local WorkspaceFs at `/game-flight-sim/mission-1-decisions.md`. Malformed bytes remain intact and block Start and Restart until **Reset local save** succeeds.
 
+The mission uses the fixed `flight-meters-20` transform: one authored Singapore scene unit equals 20 mission meters, while Flight rendering and camera framing apply the inverse scale on the retained authored XR world. The simulation advances at exactly `1/60` second (approximately 16.667 ms), never the mathematically inconsistent literal pairing of 16 ms with 60 Hz, and executes at most five catch-up ticks per advance. Capture exactly three waypoints in authored order and then the marked landing pad; all four objective radii are 50 m, and an out-of-order waypoint cannot advance progress.
+
+Four meaningful systems run in stable transactional order: `InputIntegrationSystem`, `FlightModelSystem`, `CollisionResolverSystem`, and `ObjectiveSystem`. The Agentic ECS harness emits the one post-systems Cost_Log, and immutable render/HUD projection is captured only after the World commits. A failing system rolls back itself while retaining prior same-tick commits. Replay validates source, mission seed, input count/order/bytes, halts on the first divergence, and retains the last byte-equivalent committed World. Exit disposes the ECS World and unsaved in-memory mission state.
+
 ## Asset pipeline
 
-The aircraft loads from committed img2threejs-style TypeScript plus `vehicle-airplane.scene.json`: small, diffable, human-auditable, and offline. The Must scope admits only that exact spec, rejects non-null opaque fallback metadata, and has GLB fallback count zero. A future local GLB exception would require separate implementation and proof. Runtime code performs no image-to-3D model call, asset fetch, or Cloudflare request. The feature framing takes inspiration from an external flight-sim project but copies none of its source and has no dependency on it.
+The required aircraft loads from committed img2threejs-style TypeScript plus `vehicle-airplane.scene.json`: small, diffable, human-auditable, strict UTF-8, at most 1 MB, and offline. Its GLB fallback count is exactly zero. One optional beacon without an Asset_Spec uses the committed-local opaque `optional-beacon.glb`, licensed CC0-1.0 and pinned to SHA-256 `be41f87bb745ba35c439336d932dd69c34223d26e117443a3c8556e44fce70cd`, so the complete default load has one fallback. Remote, absolute, traversal, missing, unreadable, invalid, or unlicensed fallback references fail closed without fetching. Runtime code performs no image-to-3D model call, asset fetch, automatic grammar hydration, or Cloudflare request during Flight/Physics core play. The fixed 21-package Flight runtime closure is license-gated. FlightGear and `Arnie016/flight-simulator-fable5` are concepts-and-architecture inspiration only: for each reference, this scope copies none of its source and takes no dependency on it; the all-tracked-file build scan also forbids their binaries and assets.
 
 ## Runtime-readiness gates
 
 - [x] Source identity is `flight-sim`, independent of import path, with conflict rejection.
 - [x] Flight is an XR Mode overlay on the Physics source-authored world; it owns no second rendered XR world, scene owner, or Canvas.
 - [x] Fixed Follow and Free Orbit come from the shared Camera catalog, and the Physics controller hook is the sole camera/OrbitControls mutator for the pure Flight framing descriptor.
+- [x] The default load is spec-primary for the required aircraft and contains exactly one committed-local optional opaque GLB; remote and unavailable fallbacks fail closed.
+- [x] Exactly 45 named fast-check properties run at least 100 cases each (4,500 generated cases), alongside 122 focused source checks.
+- [x] Browser proof enforces a clean exact branch/HEAD/tree and authored-seed SHA-256 before each of two fresh serial runs, including the ≤3 s first-frame, 375×812 HUD, lifecycle, camera, persistence-failure, pointer-lock contract, and zero-network fences.
 - [x] `npm run game-flight-sim:runtime-ready` passes on the final candidate.
 - [x] `npm run game-flight-sim:browser-smoke` passes serially on the same exact candidate revision.
 - [ ] The protected PR integrates the verified candidate.
