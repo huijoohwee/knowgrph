@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -69,6 +70,13 @@ def _read_source_identity(
                 || relPath === `docs/workspace-seeds/${sourceBasename}`
             },
           )
+          const sha256Text = async text => {
+            const bytes = new TextEncoder().encode(String(text || ''))
+            const digest = await crypto.subtle.digest('SHA-256', bytes)
+            return Array.from(new Uint8Array(digest))
+              .map(value => value.toString(16).padStart(2, '0'))
+              .join('')
+          }
           const graphMetadata = state.graphData?.metadata
             && typeof state.graphData.metadata === 'object'
             ? state.graphData.metadata
@@ -107,6 +115,7 @@ def _read_source_identity(
               : null,
             authoredSeedByteIdentical:
               authoredSeed?.text === expectedSourceText,
+            authoredSeedSha256: await sha256Text(authoredSeed?.text),
             authoredSeedHead: String(authoredSeed?.text || '').slice(0, 120),
             demoId: demos.resolveWorkspaceRunReadyDemoIdForDocument(
               state.markdownDocumentName,
@@ -122,6 +131,8 @@ def _read_source_identity(
               && sourceText.length > 0,
             workspaceSourceByteIdentical:
               sourceText === expectedSourceText,
+            workspaceSourceSha256: await sha256Text(sourceText),
+            expectedSourceSha256: await sha256Text(expectedSourceText),
             graphDocumentName:
               String(graphMetadata.markdownDocumentName || ''),
             graphNodeIds,
@@ -167,6 +178,40 @@ def _apply_exact_authored_source(
         lambda: page.evaluate(
             """
             async expectedSourceText => {
+              if (!window.__kgFlightSimFirstFrameProof) {
+                const proof = {
+                  startedAtMs: performance.now(),
+                  firstFrameAtMs: null,
+                  preExisting: Boolean(document.querySelector(
+                    'canvas[data-kg-flight-sim-first-frame="1"]',
+                  )),
+                }
+                const captureFirstFrame = () => {
+                  if (
+                    proof.firstFrameAtMs === null
+                    && document.querySelector(
+                      'canvas[data-kg-flight-sim-first-frame="1"]',
+                    )
+                  ) {
+                    proof.firstFrameAtMs = performance.now()
+                    window.__kgFlightSimFirstFrameObserver?.disconnect()
+                  }
+                }
+                window.__kgFlightSimFirstFrameProof = proof
+                window.__kgFlightSimFirstFrameObserver = new MutationObserver(
+                  captureFirstFrame,
+                )
+                window.__kgFlightSimFirstFrameObserver.observe(
+                  document.documentElement,
+                  {
+                    attributes: true,
+                    attributeFilter: ['data-kg-flight-sim-first-frame'],
+                    childList: true,
+                    subtree: true,
+                  },
+                )
+                captureFirstFrame()
+              }
               const explorer = await import(
                 '/src/features/markdown-explorer/store.ts'
               )
@@ -179,6 +224,9 @@ def _apply_exact_authored_source(
               )
               const seedBundle = await import(
                 '/src/features/workspace-fs/workspaceCanonicalSeedBundle.ts'
+              )
+              const physics = await import(
+                '/src/features/three/xrPhysicsRuntime.ts'
               )
               const demos = await import(
                 '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
@@ -203,6 +251,16 @@ def _apply_exact_authored_source(
               const sourceText = await workspace.readFileText(sourcePath)
               const hasSourceText = typeof sourceText === 'string'
                 && sourceText.length > 0
+              const priorState = store.useGraphStore.getState()
+              const priorSurface = {
+                canvasRenderMode: priorState.canvasRenderMode,
+                canvas3dMode: priorState.canvas3dMode,
+                floatingPanelOpen: priorState.floatingPanelOpen,
+                floatingPanelView: priorState.floatingPanelView,
+                timelinePlaying: priorState.timelineTransportPlaying === true,
+                physicsPhase: physics.readXrPhysicsRuntime().phase,
+                canvasCount: document.querySelectorAll('canvas').length,
+              }
               let applied = false
               if (hasSourceText) {
                 explorer.useMarkdownExplorerStore.getState()
@@ -229,6 +287,7 @@ def _apply_exact_authored_source(
                 documentName: state.markdownDocumentName,
                 sourcePath,
                 sourceTextLength: String(sourceText || '').length,
+                priorSurface,
               }
             }
             """,
@@ -259,6 +318,9 @@ def apply_and_verify_exact_authored_source(
     expected_source_text = source_path.read_text(encoding="utf-8")
     if not expected_source_text:
         raise AssertionError(f"authored Flight seed is empty: {source_path}")
+    expected_source_sha256 = hashlib.sha256(
+        expected_source_text.encode("utf-8")
+    ).hexdigest()
 
     application = _apply_exact_authored_source(page, expected_source_text)
     source = _poll(
@@ -271,8 +333,11 @@ def apply_and_verify_exact_authored_source(
             and value.get("active") is True
             and value.get("sourceDeclaration") is True
             and value.get("authoredSeedByteIdentical") is True
+            and value.get("authoredSeedSha256") == expected_source_sha256
             and value.get("workspaceSourceMaterialized") is True
             and value.get("workspaceSourceByteIdentical") is True
+            and value.get("workspaceSourceSha256") == expected_source_sha256
+            and value.get("expectedSourceSha256") == expected_source_sha256
             and value.get("graphOwnedByDocument") is True
             and all((value.get("sourceContract") or {}).values())
             and str(value.get("graphDocumentName") or "").endswith(
@@ -287,4 +352,6 @@ def apply_and_verify_exact_authored_source(
         ),
         label="exact authored Flight seed materialization",
     )
+    source["path"] = str(source_path)
+    source["sha256"] = expected_source_sha256
     return application, source

@@ -103,6 +103,7 @@
     "ecs:test": "node --test --test-concurrency=1 ecs/__tests__/*.test.mjs ecs/__pbt__/*.pbt.test.mjs",
     "workspace-seeds:authority": "node ./scripts/check-workspace-seed-authority.mjs",
     "game-mode:source-authority": "node ./scripts/check-game-fps-readiness.mjs",
+    "game-flight-sim:boundary": "node --test ./scripts/__tests__/game-flight-sim-boundary.test.mjs && node ./scripts/check-game-flight-sim-boundary.mjs",
     "game-flight-sim:source-authority": "node ./scripts/check-game-flight-sim-readiness.mjs",
     "native-physics:check": "npm run smoke:prepare && npm -C canvas run test:native-physics && npm -C canvas run test:ci:unit -- canvas.xrMode.physics && node --test scripts/__tests__/native-physics-independence-boundary.test.mjs",
     "game-fps:runtime-ready": "node ./scripts/check-game-fps-readiness.mjs && npm run ecs:test && npm -C canvas run test:smoke:game-fps:source && npm -C canvas run check && KG_SKIP_DOCS_UPDATE=1 npm -C canvas run build",

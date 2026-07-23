@@ -1,20 +1,14 @@
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { readWebglSupport } from '@/lib/three/webglSupport'
 import {
   activateXrSceneSurface,
-  isXrGameplaySurfaceView,
   registerXrSceneGameplayExitHandler,
 } from '@/features/three/xrSceneSurfaceRuntime'
-import {
-  pauseXrPhysicsRuntime,
-  playXrPhysicsRuntime,
-  readXrPhysicsRuntime,
-} from '@/features/three/xrPhysicsRuntime'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   captureFlightSimMission,
   cloneFlightSimMission,
   createFlightSimMission,
+  disposeFlightSimMission,
   tickFlightSimMission,
   type FlightSimMission,
   type FlightSimMissionCapture,
@@ -22,7 +16,7 @@ import {
 import { validateFlightSimMissionDecisions } from './flightSimDecisionAdmission'
 import {
   FLIGHT_SIM_FIXED_STEP_SECONDS,
-  FLIGHT_SIM_MAX_FRAME_SECONDS,
+  FLIGHT_SIM_MAX_CATCH_UP_TICKS,
   FLIGHT_SIM_MAX_RUN_ID,
   FLIGHT_SIM_NEUTRAL_INPUT,
   FLIGHT_SIM_ZERO_COST_LOG,
@@ -36,6 +30,7 @@ import {
   type FlightSimSpatialProfile,
   type FlightSimTickInput,
 } from './flightSimModel'
+import { mergeFlightSimInputs } from './flightSimInput'
 import { readFlightSimXrSpatialProfile } from './flightSimSpatialProfile'
 import {
   loadFlightSimSavedDecisions,
@@ -53,82 +48,45 @@ import {
   readFlightSimHydrationPending,
 } from './flightSimHydrationGate'
 import { createFlightSimPendingDecisionIndex } from './flightSimPendingDecisions'
+import {
+  boundedFlightSimDeltaSeconds,
+  createIdleFlightSimSnapshot,
+  flightSimRuntimeErrorMessage,
+  freezeFlightSimDecision,
+  maximumFlightSimDecisionRunId,
+  type FlightSimAdvanceRequest,
+  type FlightSimRuntime,
+} from './flightSimRuntimeState'
+import {
+  captureFlightSimAuthoredRuntimeOwnership,
+  captureFlightSimPreviousCanvasSurface,
+  restoreFlightSimAuthoredRuntime,
+  restoreFlightSimPreviousCanvasSurface,
+  suspendFlightSimAuthoredRuntime,
+  type FlightSimAuthoredRuntimeOwnership,
+  type FlightSimPreviousCanvasSurface,
+} from './flightSimSurfaceOwnershipRuntime'
+import {
+  clearFlightSimSurfaceOwnershipFailure,
+  reportFlightSimSurfaceEntryFailure,
+  reportFlightSimSurfaceRestorationFailure,
+  resetFlightSimSurfaceOwnershipStatusForTests,
+} from './flightSimSurfaceOwnershipStatus'
+
+export type { FlightSimRuntime } from './flightSimRuntimeState'
+
 type Listener = () => void
-type AdvanceRequest = Readonly<{
-  deltaSeconds: number
-  generation: number
-  input: FlightSimTickInput
-  throttleSetpoint: number | null
-}>
-export type FlightSimRuntime = Readonly<{
-  profile: () => FlightSimSpatialProfile
-  read: () => FlightSimSnapshot
-  subscribe: (listener: Listener) => () => void
-  open: (webglSupported?: boolean) => FlightSimSnapshot
-  start: () => FlightSimSnapshot
-  stop: () => FlightSimSnapshot
-  restart: () => FlightSimSnapshot
-  exit: () => FlightSimSnapshot
-  setProfile: (profile: FlightSimSpatialProfile) => FlightSimSnapshot
-  setInput: (patch: FlightSimInputPatch) => FlightSimSnapshot
-  queueInput: (patch: FlightSimInputPatch) => FlightSimSnapshot
-  setThrottle: (value: number) => FlightSimSnapshot
-  advanceBy: (deltaSeconds: number) => Promise<FlightSimSnapshot>
-  acknowledgeDecisions: (ids: readonly string[]) => FlightSimSnapshot
-  hydrate: (decisions: readonly unknown[]) => FlightSimSnapshot
-  resetPersistence: () => FlightSimSnapshot
-  fail: (error: unknown) => FlightSimSnapshot
-}>
-function freezeDecision(value: FlightSimDecisionRecord): FlightSimDecisionRecord {
-  return Object.freeze({ ...value, payload: Object.freeze({ ...value.payload }) })
-}
-function runtimeErrorMessage(error: unknown): string {
-  return error instanceof Error && error.message
-    ? error.message
-    : String(error || 'Flight Sim runtime failed')
-}
-function idleSnapshot(profile: FlightSimSpatialProfile, active: boolean, webglSupported: boolean): FlightSimSnapshot {
-  return Object.freeze({
-    active,
-    surfaceMode: 'xr',
-    webglSupported,
-    phase: 'stopped',
-    runId: 0,
-    aircraft: profile.spawn,
-    waypointIndex: 0,
-    waypointCount: profile.waypoints.length,
-    currentWaypointId: profile.waypoints[0]?.id || null,
-    tick: 0,
-    elapsedSeconds: 0,
-    collisionId: null,
-    pendingDecisions: Object.freeze([]),
-    lastCostLog: FLIGHT_SIM_ZERO_COST_LOG,
-    runtimeError: null,
-    revision: 0,
-  })
-}
-function boundedDeltaSeconds(value: number): number {
-  if (!Number.isFinite(value) || value < 0) throw new Error('Flight Sim delta must be a non-negative finite number')
-  return Math.min(value, FLIGHT_SIM_MAX_FRAME_SECONDS)
-}
 function mergedInput(left: FlightSimTickInput, right: FlightSimInputPatch): FlightSimTickInput {
-  return normalizeFlightSimInput({
-    pitch: left.pitch + (right.pitch ?? 0),
-    roll: left.roll + (right.roll ?? 0),
-    yaw: left.yaw + (right.yaw ?? 0),
-    throttleDelta: left.throttleDelta + (right.throttleDelta ?? 0),
-  })
-}
-function maximumDecisionRunId(decisions: readonly FlightSimDecisionRecord[]): number {
-  return decisions.reduce((maximum, item) => Math.max(maximum, Number(item.payload.runId)), 0)
+  return mergeFlightSimInputs([left, right])
 }
 export function createFlightSimRuntime(options: Readonly<{
   profile: FlightSimSpatialProfile
   active?: boolean
   webglSupported?: boolean
+  onMissionCreated?: (mission: FlightSimMission) => void
 }>): FlightSimRuntime {
   const listeners = new Set<Listener>()
-  const pendingDecisions = createFlightSimPendingDecisionIndex(freezeDecision)
+  const pendingDecisions = createFlightSimPendingDecisionIndex(freezeFlightSimDecision)
   let profile = options.profile
   let mission: FlightSimMission | null = null
   let runId = 0
@@ -140,7 +98,11 @@ export function createFlightSimRuntime(options: Readonly<{
   let hydratedDecisions: readonly FlightSimDecisionRecord[] = Object.freeze([])
   let resumePhase: Exclude<FlightSimPhase, 'stopped'> = 'ready'
   let tickQueue: Promise<void> = Promise.resolve()
-  let snapshot = idleSnapshot(profile, options.active ?? true, options.webglSupported ?? true)
+  let snapshot = createIdleFlightSimSnapshot(
+    profile,
+    options.active ?? true,
+    options.webglSupported ?? true,
+  )
   const notify = () => {
     for (const listener of [...listeners]) listener()
   }
@@ -166,8 +128,10 @@ export function createFlightSimRuntime(options: Readonly<{
     lastCostLog: costLog,
     runtimeError: clearError ? null : snapshot.runtimeError,
   })
-  const resetMission = () => {
+  const resetMission = (active = snapshot.active) => {
+    const discardedMission = mission
     mission = null
+    if (discardedMission) disposeFlightSimMission(discardedMission)
     pendingDecisions.clear()
     hydratedDecisions = Object.freeze([])
     runId = 0
@@ -178,7 +142,7 @@ export function createFlightSimRuntime(options: Readonly<{
     throttleTarget = null
     resumePhase = 'ready'
     snapshot = Object.freeze({
-      ...idleSnapshot(profile, snapshot.active, snapshot.webglSupported),
+      ...createIdleFlightSimSnapshot(profile, active, snapshot.webglSupported),
       revision: snapshot.revision + 1,
     })
     notify()
@@ -189,19 +153,29 @@ export function createFlightSimRuntime(options: Readonly<{
       phase: 'stopped',
       runtimeError: 'Flight Sim exhausted its bounded run range; reset the local save.',
     })
-    runId += 1
-    generation += 1
-    mission = createFlightSimMission({
-      runId,
+    const nextRunId = runId + 1
+    const previousMission = mission
+    const nextMission = createFlightSimMission({
+      runId: nextRunId,
       profile,
       decisions: replayHydratedDecisions ? hydratedDecisions : [],
     })
+    try {
+      options.onMissionCreated?.(nextMission)
+    } catch (error) {
+      disposeFlightSimMission(nextMission)
+      throw error
+    }
+    generation += 1
+    runId = nextRunId
+    mission = nextMission
+    if (previousMission) disposeFlightSimMission(previousMission)
     hydratedDecisions = Object.freeze([])
     accumulatorSeconds = 0
     input = FLIGHT_SIM_NEUTRAL_INPUT
     pendingInput = FLIGHT_SIM_NEUTRAL_INPUT
     throttleTarget = null
-    const capture = captureFlightSimMission(mission)
+    const capture = captureFlightSimMission(nextMission)
     resumePhase = capture.phase
     return publishCapture(capture, FLIGHT_SIM_ZERO_COST_LOG, capture.phase, true)
   }
@@ -216,42 +190,56 @@ export function createFlightSimRuntime(options: Readonly<{
     const throttleSetpoint = throttleTarget
     return Object.freeze({ input: combined, throttleSetpoint })
   }
-  const advanceCurrentMission = async (request: AdvanceRequest): Promise<FlightSimSnapshot> => {
+  const advanceCurrentMission = async (
+    request: FlightSimAdvanceRequest,
+  ): Promise<FlightSimSnapshot> => {
     if (!mission || request.generation !== generation || snapshot.phase !== 'flying' || snapshot.runtimeError) {
       return snapshot
     }
     const activeMission = mission
     const workingMission = cloneFlightSimMission(activeMission)
-    const producedDecisions = new Map<string, FlightSimDecisionRecord>()
-    accumulatorSeconds += request.deltaSeconds
-    let stepped = false
-    let capture = captureFlightSimMission(workingMission)
-    let costLog = snapshot.lastCostLog
-    while (accumulatorSeconds + 1e-10 >= FLIGHT_SIM_FIXED_STEP_SECONDS) {
-      accumulatorSeconds = Math.max(0, accumulatorSeconds - FLIGHT_SIM_FIXED_STEP_SECONDS)
-      const result = await tickFlightSimMission(
-        workingMission,
-        request.input,
-        request.throttleSetpoint,
-      )
-      if (mission !== activeMission || generation !== request.generation) return snapshot
-      stepped = true
-      capture = result.capture
-      costLog = result.costLog
-      for (const item of result.decisions) {
-        producedDecisions.set(item.decisionId, item)
+    let adoptedWorkingMission = false
+    try {
+      const producedDecisions = new Map<string, FlightSimDecisionRecord>()
+      accumulatorSeconds += request.deltaSeconds
+      let stepped = false
+      let catchUpTicks = 0
+      let capture = captureFlightSimMission(workingMission)
+      let costLog = snapshot.lastCostLog
+      while (
+        accumulatorSeconds + 1e-10 >= FLIGHT_SIM_FIXED_STEP_SECONDS
+        && catchUpTicks < FLIGHT_SIM_MAX_CATCH_UP_TICKS
+      ) {
+        accumulatorSeconds = Math.max(0, accumulatorSeconds - FLIGHT_SIM_FIXED_STEP_SECONDS)
+        catchUpTicks += 1
+        const result = await tickFlightSimMission(
+          workingMission,
+          request.input,
+          request.throttleSetpoint,
+        )
+        if (mission !== activeMission || generation !== request.generation) return snapshot
+        stepped = true
+        capture = result.capture
+        costLog = result.costLog
+        for (const item of result.decisions) {
+          producedDecisions.set(item.decisionId, item)
+        }
+        if (capture.phase === 'completed' || capture.phase === 'crashed') {
+          accumulatorSeconds = 0
+          break
+        }
       }
-      if (capture.phase === 'completed' || capture.phase === 'crashed') {
-        accumulatorSeconds = 0
-        break
-      }
+      if (!stepped || mission !== activeMission || generation !== request.generation) return snapshot
+      mission = workingMission
+      adoptedWorkingMission = true
+      disposeFlightSimMission(activeMission)
+      for (const item of producedDecisions.values()) pendingDecisions.retain(item)
+      if (throttleTarget === request.throttleSetpoint) throttleTarget = null
+      resumePhase = capture.phase
+      return publishCapture(capture, costLog)
+    } finally {
+      if (!adoptedWorkingMission) disposeFlightSimMission(workingMission)
     }
-    if (!stepped || mission !== activeMission || generation !== request.generation) return snapshot
-    mission = workingMission
-    for (const item of producedDecisions.values()) pendingDecisions.retain(item)
-    if (throttleTarget === request.throttleSetpoint) throttleTarget = null
-    resumePhase = capture.phase
-    return publishCapture(capture, costLog)
   }
   return Object.freeze({
     profile: () => profile,
@@ -292,12 +280,7 @@ export function createFlightSimRuntime(options: Readonly<{
       return replaceMission()
     },
     exit() {
-      generation += 1
-      accumulatorSeconds = 0
-      input = FLIGHT_SIM_NEUTRAL_INPUT
-      pendingInput = FLIGHT_SIM_NEUTRAL_INPUT
-      throttleTarget = null
-      return publish({ active: false, phase: 'stopped' })
+      return resetMission(false)
     },
     setProfile(nextProfile) {
       if (profile.sourceKey === nextProfile.sourceKey) return snapshot
@@ -332,7 +315,7 @@ export function createFlightSimRuntime(options: Readonly<{
     advanceBy(deltaSeconds) {
       const captured = capturedInput()
       const request = Object.freeze({
-        deltaSeconds: boundedDeltaSeconds(deltaSeconds),
+        deltaSeconds: boundedFlightSimDeltaSeconds(deltaSeconds),
         generation,
         input: captured.input,
         throttleSetpoint: captured.throttleSetpoint,
@@ -340,7 +323,9 @@ export function createFlightSimRuntime(options: Readonly<{
       const queued = tickQueue.then(() => advanceCurrentMission(request))
       tickQueue = queued.then(() => undefined, () => undefined)
       return queued.catch(error => {
-        if (request.generation === generation) publish({ runtimeError: runtimeErrorMessage(error) })
+        if (request.generation === generation) {
+          publish({ runtimeError: flightSimRuntimeErrorMessage(error) })
+        }
         throw error
       })
     },
@@ -353,27 +338,18 @@ export function createFlightSimRuntime(options: Readonly<{
       try {
         const decisions = validateFlightSimMissionDecisions(profile, values)
         hydratedDecisions = decisions
-        runId = Math.max(runId, maximumDecisionRunId(decisions))
+        runId = Math.max(runId, maximumFlightSimDecisionRunId(decisions))
         return publish({ runtimeError: null })
       } catch (error) {
-        return publish({ phase: 'stopped', runtimeError: runtimeErrorMessage(error) })
+        return publish({ phase: 'stopped', runtimeError: flightSimRuntimeErrorMessage(error) })
       }
     },
     resetPersistence: resetMission,
     fail(error) {
-      return publish({ phase: 'stopped', runtimeError: runtimeErrorMessage(error) })
+      return publish({ phase: 'stopped', runtimeError: flightSimRuntimeErrorMessage(error) })
     },
   })
 }
-type GraphStoreState = ReturnType<typeof useGraphStore.getState>
-type PreviousCanvasSurface = Readonly<Pick<
-  GraphStoreState,
-  'canvasRenderMode' | 'canvas3dMode' | 'floatingPanelOpen' | 'floatingPanelView'
->>
-type AuthoredRuntimeOwnership = Readonly<{
-  physicsWasPlaying: boolean
-  timelineWasPlaying: boolean
-}>
 type FlightSimSurfaceOpenOptions = Readonly<{
   openPanel?: boolean
   webglSupported?: boolean
@@ -384,27 +360,19 @@ let defaultRuntime = createFlightSimRuntime({
   active: false,
   webglSupported: false,
 })
-let previousCanvasSurface: PreviousCanvasSurface | null = null
-let authoredRuntimeOwnership: AuthoredRuntimeOwnership | null = null
+let previousCanvasSurface: FlightSimPreviousCanvasSurface | null = null
+let authoredRuntimeOwnership: FlightSimAuthoredRuntimeOwnership | null = null
 let flightSimSurfaceOpenTail: Promise<void> | null = null
 function suspendAuthoredRuntime(): void {
   if (!authoredRuntimeOwnership) {
-    const state = useGraphStore.getState()
-    authoredRuntimeOwnership = Object.freeze({
-      physicsWasPlaying: readXrPhysicsRuntime().phase === 'playing',
-      timelineWasPlaying: state.timelineTransportPlaying === true,
-    })
+    authoredRuntimeOwnership = captureFlightSimAuthoredRuntimeOwnership()
   }
-  pauseXrPhysicsRuntime()
-  useGraphStore.getState().setTimelineTransportState({ playing: false })
+  suspendFlightSimAuthoredRuntime()
 }
 function restoreAuthoredRuntime(): void {
   const ownership = authoredRuntimeOwnership
   authoredRuntimeOwnership = null
-  if (!ownership) return
-  if (ownership.physicsWasPlaying) playXrPhysicsRuntime()
-  else pauseXrPhysicsRuntime()
-  useGraphStore.getState().setTimelineTransportState({ playing: ownership.timelineWasPlaying })
+  restoreFlightSimAuthoredRuntime(ownership)
 }
 export function readFlightSimSnapshot(): FlightSimSnapshot {
   return defaultRuntime.read()
@@ -418,65 +386,93 @@ export function subscribeFlightSimSnapshot(listener: Listener): () => void {
 export function isFlightSimHydrationPending(): boolean {
   return readFlightSimHydrationPending()
 }
+function restoreSurfaceOwnership(
+  previous: FlightSimPreviousCanvasSurface | null,
+  restorePreviousSurface: boolean,
+): string[] {
+  const failures: string[] = []
+  try {
+    restoreAuthoredRuntime()
+  } catch (error) {
+    failures.push(flightSimRuntimeErrorMessage(error))
+  }
+  if (restorePreviousSurface && previous) {
+    try {
+      restoreFlightSimPreviousCanvasSurface(previous)
+    } catch (error) {
+      failures.push(flightSimRuntimeErrorMessage(error))
+    }
+  }
+  return failures
+}
+function failFlightSimSurfaceEntry(
+  error: unknown,
+  entering: boolean,
+  surfaceActivated: boolean,
+): FlightSimSnapshot {
+  const failures = [flightSimRuntimeErrorMessage(error)]
+  if (entering) {
+    defaultRuntime.exit()
+    if (surfaceActivated) {
+      failures.push(...restoreSurfaceOwnership(previousCanvasSurface, true))
+    }
+    previousCanvasSurface = null
+  }
+  const message = `Flight Sim surface entry did not complete: ${failures.join('; ')}`
+  reportFlightSimSurfaceEntryFailure(message)
+  return defaultRuntime.fail(message)
+}
 async function performFlightSimSurfaceOpen(
   options: FlightSimSurfaceOpenOptions,
 ): Promise<FlightSimSnapshot> {
   const hydrationToken = beginFlightSimHydration()
   const entering = !defaultRuntime.read().active
-  const state = useGraphStore.getState()
-  if (entering) {
-    previousCanvasSurface = Object.freeze({
-      canvasRenderMode: state.canvasRenderMode,
-      canvas3dMode: state.canvas3dMode,
-      floatingPanelOpen: state.floatingPanelOpen,
-      floatingPanelView: isXrGameplaySurfaceView(state.floatingPanelView)
-        ? 'motionControl'
-        : state.floatingPanelView,
-    })
-  }
+  if (entering) previousCanvasSurface = captureFlightSimPreviousCanvasSurface()
+  clearFlightSimSurfaceOwnershipFailure()
+  let hydrationFinished = false
+  let surfaceActivated = false
   try {
-    const activated = activateXrSceneSurface({
-      ...(options.openPanel === false ? {} : { panelView: 'flightSim', openPanel: true }),
-      beforePanelCommit: () => {
-        defaultRuntime.setProfile(readFlightSimXrSpatialProfile())
-      },
-    })
-    if (!activated) {
+    if (!(options.webglSupported ?? readWebglSupport())) {
+      hydrationFinished = true
       finishFlightSimHydration(hydrationToken)
-      if (entering) previousCanvasSurface = null
-      return defaultRuntime.open(false)
+      return failFlightSimSurfaceEntry('WebGL is unavailable.', entering, false)
+    }
+    defaultRuntime.setProfile(readFlightSimXrSpatialProfile())
+    const decisions = await loadFlightSimSavedDecisions(
+      options.workspace ? { workspace: options.workspace } : {},
+    )
+    hydrationFinished = true
+    if (!finishFlightSimHydration(hydrationToken)) return defaultRuntime.read()
+    if (readFlightSimDecisionStore().hydrationBlocked) {
+      return failFlightSimSurfaceEntry(
+        readFlightSimDecisionStore().error
+        || 'Flight Sim Decisions remain blocked until Reset local save succeeds.',
+        entering,
+        false,
+      )
+    }
+    const hydrated = defaultRuntime.hydrate(decisions)
+    if (hydrated.runtimeError) {
+      return failFlightSimSurfaceEntry(
+        reportFlightSimDecisionLoadFailure(hydrated.runtimeError).error,
+        entering,
+        false,
+      )
+    }
+    surfaceActivated = activateXrSceneSurface({
+      ...(options.openPanel === false ? {} : { panelView: 'flightSim', openPanel: true }),
+    })
+    if (!surfaceActivated) {
+      return failFlightSimSurfaceEntry('The shared XR Canvas is unavailable.', entering, false)
     }
     suspendAuthoredRuntime()
-    const admitted = defaultRuntime.open(options.webglSupported ?? readWebglSupport())
-    if (!admitted.webglSupported) {
-      finishFlightSimHydration(hydrationToken)
-      return admitted
-    }
-    try {
-      const decisions = await loadFlightSimSavedDecisions(
-        options.workspace ? { workspace: options.workspace } : {},
-      )
-      if (!finishFlightSimHydration(hydrationToken)) return defaultRuntime.read()
-      if (readFlightSimDecisionStore().hydrationBlocked) {
-        return defaultRuntime.fail(
-          readFlightSimDecisionStore().error
-          || 'Flight Sim Decisions remain blocked until Reset local save succeeds.',
-        )
-      }
-      const hydrated = defaultRuntime.hydrate(decisions)
-      if (!hydrated.runtimeError) return hydrated
-      return defaultRuntime.fail(reportFlightSimDecisionLoadFailure(hydrated.runtimeError).error)
-    } catch {
-      if (!finishFlightSimHydration(hydrationToken)) return defaultRuntime.read()
-      return defaultRuntime.fail(
-        readFlightSimDecisionStore().error
-        || 'Flight Sim Decisions are unreadable; reset the local save before starting.',
-      )
-    }
+    return defaultRuntime.open(true)
   } catch (error) {
-    if (!finishFlightSimHydration(hydrationToken)) return defaultRuntime.read()
-    if (entering) previousCanvasSurface = null
-    return defaultRuntime.fail(error)
+    if (!hydrationFinished && !finishFlightSimHydration(hydrationToken)) {
+      return defaultRuntime.read()
+    }
+    const localError = readFlightSimDecisionStore().error || error
+    return failFlightSimSurfaceEntry(localError, entering, surfaceActivated)
   }
 }
 export function openFlightSimSurface(
@@ -571,14 +567,16 @@ export function exitFlightSimSurface(
   const previous = previousCanvasSurface
   previousCanvasSurface = null
   const next = defaultRuntime.exit()
-  restoreAuthoredRuntime()
-  if (options.restorePreviousSurface !== false && previous) {
-    const state = useGraphStore.getState()
-    state.setCanvas3dMode(previous.canvas3dMode)
-    state.setCanvasRenderMode(previous.canvasRenderMode)
-    state.setFloatingPanelView(previous.floatingPanelView)
-    state.setFloatingPanelOpen(previous.floatingPanelOpen)
+  const failures = restoreSurfaceOwnership(
+    previous,
+    options.restorePreviousSurface !== false,
+  )
+  if (failures.length > 0) {
+    const message = `Flight Sim surface restoration did not complete: ${failures.join('; ')}`
+    reportFlightSimSurfaceRestorationFailure(message)
+    return defaultRuntime.fail(message)
   }
+  clearFlightSimSurfaceOwnershipFailure()
   return next
 }
 export const exitFlightSim = exitFlightSimSurface
@@ -594,6 +592,7 @@ export function resetFlightSimRuntimeForTests(
   flightSimSurfaceOpenTail = null
   previousCanvasSurface = null
   restoreAuthoredRuntime()
+  resetFlightSimSurfaceOwnershipStatusForTests()
   defaultRuntime = createFlightSimRuntime({ profile, active: false, webglSupported: false })
   return defaultRuntime.read()
 }

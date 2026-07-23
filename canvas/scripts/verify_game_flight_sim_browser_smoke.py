@@ -20,6 +20,11 @@ from lib.game_flight_sim_smoke_source import (
     SOURCE_BASENAME,
     apply_and_verify_exact_authored_source,
 )
+from lib.game_flight_sim_smoke_web_mcp import (
+    control_flight_via_web_mcp,
+    verify_flight_exit,
+    verify_flight_web_mcp,
+)
 
 
 BASE_URL = os.environ.get(
@@ -27,12 +32,21 @@ BASE_URL = os.environ.get(
     "http://localhost:4187",
 ).rstrip("/")
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
-SCREENSHOT_PATH = OUTPUT_DIR / "game-flight-sim-browser-smoke.png"
-EVIDENCE_PATH = OUTPUT_DIR / "game-flight-sim-browser-smoke.json"
-FLIGHT_TOOL_NAMES = {
-    "knowgrph.inspect_local_flight_sim",
-    "knowgrph.control_local_flight_sim",
-}
+RUN_INDEX = int(os.environ.get("KG_GAME_FLIGHT_SIM_SMOKE_RUN_INDEX", "1"))
+RUN_COUNT = int(os.environ.get("KG_GAME_FLIGHT_SIM_SMOKE_RUN_COUNT", "1"))
+EXPECTED_HEAD = os.environ.get("KG_GAME_FLIGHT_SIM_EXPECTED_HEAD", "").strip()
+EXPECTED_BRANCH = os.environ.get(
+    "KG_GAME_FLIGHT_SIM_EXPECTED_BRANCH",
+    "",
+).strip()
+EXPECTED_SOURCE_SHA256 = os.environ.get(
+    "KG_GAME_FLIGHT_SIM_EXPECTED_SOURCE_SHA256",
+    "",
+).strip()
+OUTPUT_STEM = f"game-flight-sim-browser-smoke-run-{RUN_INDEX}"
+SCREENSHOT_PATH = OUTPUT_DIR / f"{OUTPUT_STEM}.png"
+EVIDENCE_PATH = OUTPUT_DIR / f"{OUTPUT_STEM}.json"
+FIRST_PLAYABLE_FRAME_LIMIT_MS = 3_000
 
 
 def local_chromium_executable() -> str | None:
@@ -81,22 +95,6 @@ def read_runtime(page: Page) -> dict[str, Any]:
     )
 
 
-def web_mcp_control(page: Page, invocation: str) -> dict[str, Any]:
-    return page.evaluate(
-        """
-        async invocation => {
-          const tools = Array.from(navigator.modelContext?.tools || [])
-          const control = tools.find(
-            tool => tool.name === 'knowgrph.control_local_flight_sim',
-          )
-          if (!control) return { ok: false, missingTool: true }
-          return control.execute({ invocation })
-        }
-        """,
-        invocation,
-    )
-
-
 def position_distance(
     left: list[float],
     right: list[float],
@@ -105,6 +103,23 @@ def position_distance(
 
 
 def main() -> None:
+    if RUN_INDEX < 1 or RUN_INDEX > RUN_COUNT:
+        raise AssertionError(
+            f"invalid serial run identity: {RUN_INDEX}/{RUN_COUNT}"
+        )
+    if len(EXPECTED_HEAD) != 40 or any(
+        character not in "0123456789abcdef" for character in EXPECTED_HEAD
+    ):
+        raise AssertionError(f"invalid expected candidate HEAD: {EXPECTED_HEAD}")
+    if not EXPECTED_BRANCH:
+        raise AssertionError("missing expected candidate branch")
+    if len(EXPECTED_SOURCE_SHA256) != 64 or any(
+        character not in "0123456789abcdef"
+        for character in EXPECTED_SOURCE_SHA256
+    ):
+        raise AssertionError(
+            f"invalid expected source SHA-256: {EXPECTED_SOURCE_SHA256}"
+        )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     target_url = f"{BASE_URL}/"
     local_origin = urlparse(BASE_URL).netloc
@@ -113,6 +128,7 @@ def main() -> None:
     console_errors: list[str] = []
     page_errors: list[str] = []
     failed_responses: list[dict[str, Any]] = []
+    web_mcp_calls: list[dict[str, Any]] = []
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -163,6 +179,64 @@ def main() -> None:
                 'canvas[data-kg-flight-sim-first-frame="1"]',
                 timeout=120_000,
             )
+            first_playable_frame = page.evaluate(
+                """
+                () => {
+                  const proof = window.__kgFlightSimFirstFrameProof
+                  if (!proof) return null
+                  const end = Number(proof.firstFrameAtMs)
+                  const start = Number(proof.startedAtMs)
+                  return {
+                    startMs: start,
+                    endMs: end,
+                    durationMs: end - start,
+                    preExisting: Boolean(proof.preExisting),
+                  }
+                }
+                """
+            )
+            if (
+                not isinstance(first_playable_frame, dict)
+                or first_playable_frame.get("durationMs") is None
+                or first_playable_frame["durationMs"] < 0
+                or first_playable_frame["durationMs"] != first_playable_frame["durationMs"]
+                or first_playable_frame["durationMs"] > FIRST_PLAYABLE_FRAME_LIMIT_MS
+                or first_playable_frame.get("preExisting") is True
+            ):
+                raise AssertionError(
+                    "Flight first playable frame was not newly produced within "
+                    f"the source-apply deadline: {first_playable_frame}"
+                )
+            runtime_identity = page.evaluate(
+                """
+                async () => {
+                  const identity = await import(
+                    '/src/features/runtime-identity/knowgrphRuntimeIdentity.ts'
+                  )
+                  return identity.getKnowgrphRuntimeIdentity()
+                }
+                """
+            )
+            if (
+                runtime_identity.get("knowgrphRevision") != EXPECTED_HEAD
+                or runtime_identity.get("branch") != EXPECTED_BRANCH
+            ):
+                raise AssertionError(
+                    "browser runtime identity does not match candidate checkout: "
+                    f"expected={EXPECTED_BRANCH}@{EXPECTED_HEAD}, "
+                    f"actual={runtime_identity}"
+                )
+            if (
+                source.get("sha256") != EXPECTED_SOURCE_SHA256
+                or source.get("authoredSeedSha256")
+                != EXPECTED_SOURCE_SHA256
+                or source.get("workspaceSourceSha256")
+                != EXPECTED_SOURCE_SHA256
+            ):
+                raise AssertionError(
+                    "disk, bundled, and WorkspaceFs source identities diverged: "
+                    f"{source}"
+                )
             page.evaluate(
                 """
                 () => {
@@ -183,6 +257,14 @@ def main() -> None:
                 label="source-backed Flight Sim activation",
                 timeout_ms=120_000,
             )
+            if (
+                initial["aircraft"]["position"][1] <= 0
+                or initial["aircraft"]["airspeed"] <= 0
+            ):
+                raise AssertionError(
+                    "Flight first playable frame is not airborne-capable: "
+                    f"{initial['aircraft']}"
+                )
             active_scene = poll(
                 page,
                 lambda: read_flight_scene(page),
@@ -192,57 +274,8 @@ def main() -> None:
             )
             assert_active_flight_scene(active_scene)
 
-            web_mcp = page.evaluate(
-                """
-                async () => {
-                  const tools = Array.from(navigator.modelContext?.tools || [])
-                  const flightTools = tools
-                    .filter(tool => tool.name.includes('local_flight_sim'))
-                    .map(tool => tool.name)
-                    .sort()
-                  const inspect = tools.find(
-                    tool => tool.name === 'knowgrph.inspect_local_flight_sim',
-                  )
-                  const control = tools.find(
-                    tool => tool.name === 'knowgrph.control_local_flight_sim',
-                  )
-                  if (!inspect || !control) {
-                    return { flightTools, registered: false }
-                  }
-                  const snapshot = await inspect.execute()
-                  const rejected = await control.execute({
-                    invocation: '/flight.sim @canvas @canvas #flight operation=inspect',
-                  })
-                  return {
-                    registered: true,
-                    flightTools,
-                    schema: snapshot.schema,
-                    active: snapshot.flightSim.active,
-                    phase: snapshot.flightSim.phase,
-                    rendererOwner: snapshot.runtime.rendererOwner,
-                    sceneOwner: snapshot.runtime.sceneOwner,
-                    simulationOwner: snapshot.runtime.simulationOwner,
-                    runtimeNetworkCalls: snapshot.runtime.runtimeNetworkCalls,
-                    runtimeModelCalls: snapshot.runtime.runtimeModelCalls,
-                    rejectedDuplicateBinding: rejected.ok === false,
-                  }
-                }
-                """
-            )
-            if web_mcp != {
-                "registered": True,
-                "flightTools": sorted(FLIGHT_TOOL_NAMES),
-                "schema": "knowgrph-flight-sim-mcp/v1",
-                "active": True,
-                "phase": initial["phase"],
-                "rendererOwner": "existing-r3f-canvas",
-                "sceneOwner": "authored-xr-terrain",
-                "simulationOwner": "native-agentic-ecs",
-                "runtimeNetworkCalls": 0,
-                "runtimeModelCalls": 0,
-                "rejectedDuplicateBinding": True,
-            }:
-                raise AssertionError(f"strict Flight WebMCP was not ready: {web_mcp}")
+            web_mcp = verify_flight_web_mcp(page, initial)
+            web_mcp_calls.extend(web_mcp["calls"])
 
             page.keyboard.down("KeyW")
             page.keyboard.down("KeyD")
@@ -295,9 +328,10 @@ def main() -> None:
                 raise AssertionError(
                     f"window blur did not freeze Flight ticks: {blur_frozen}"
                 )
-            blur_resume_result = web_mcp_control(
+            blur_resume_result = control_flight_via_web_mcp(
                 page,
                 "/flight.sim @canvas #flight operation=start",
+                web_mcp_calls,
             )
             blur_resumed = blur_resume_result["flight"]["flightSim"]
             if (
@@ -321,9 +355,10 @@ def main() -> None:
             )
             page.keyboard.up("KeyD")
 
-            throttle_result = web_mcp_control(
+            throttle_result = control_flight_via_web_mcp(
                 page,
                 "/flight.sim @canvas #flight operation=throttle throttle=0.75",
+                web_mcp_calls,
             )
             if (
                 throttle_result.get("ok") is not True
@@ -336,9 +371,10 @@ def main() -> None:
                     f"strict absolute throttle control failed: {throttle_result}"
                 )
 
-            stopped_result = web_mcp_control(
+            stopped_result = control_flight_via_web_mcp(
                 page,
                 "/flight.sim @canvas #flight operation=stop",
+                web_mcp_calls,
             )
             stopped = stopped_result["flight"]["flightSim"]
             if stopped_result.get("ok") is not True or stopped["phase"] != "stopped":
@@ -348,9 +384,10 @@ def main() -> None:
             if frozen["tick"] != stopped["tick"] or frozen["phase"] != "stopped":
                 raise AssertionError(f"Flight stop did not freeze simulation: {frozen}")
 
-            resumed_result = web_mcp_control(
+            resumed_result = control_flight_via_web_mcp(
                 page,
                 "/flight.sim @canvas #flight operation=start",
+                web_mcp_calls,
             )
             resumed = resumed_result["flight"]["flightSim"]
             if (
@@ -368,9 +405,10 @@ def main() -> None:
                 label="resumed Flight ticks",
             )
 
-            restarted_result = web_mcp_control(
+            restarted_result = control_flight_via_web_mcp(
                 page,
                 "/flight.sim @canvas #flight operation=restart",
+                web_mcp_calls,
             )
             restarted = restarted_result["flight"]["flightSim"]
             if (
@@ -423,6 +461,10 @@ def main() -> None:
                 )
             mobile_layout = verify_mobile_flight_hud(page)
             page.screenshot(path=str(SCREENSHOT_PATH), full_page=False)
+            _, inactive_inspection, post_exit = verify_flight_exit(
+                page,
+                web_mcp_calls,
+            )
 
             non_local_requests = sorted(
                 {
@@ -469,6 +511,15 @@ def main() -> None:
                 )
 
             evidence = {
+                "schema": "knowgrph-flight-sim-browser-run/v2",
+                "runIndex": RUN_INDEX,
+                "runCount": RUN_COUNT,
+                "candidate": {
+                    "head": EXPECTED_HEAD,
+                    "branch": EXPECTED_BRANCH,
+                    "runtimeRevision": runtime_identity["knowgrphRevision"],
+                    "runtimeBranch": runtime_identity["branch"],
+                },
                 "targetUrl": target_url,
                 "source": source,
                 "sourceApplication": source_application,
@@ -485,6 +536,14 @@ def main() -> None:
                 },
                 "playableFrame": {
                     "firstFrame": True,
+                    **first_playable_frame,
+                    "limitMs": FIRST_PLAYABLE_FRAME_LIMIT_MS,
+                    "airborneCapable": (
+                        initial["aircraft"]["airspeed"] > 0
+                        and initial["aircraft"]["position"][1] > 0
+                    ),
+                    "initialAltitude": initial["aircraft"]["position"][1],
+                    "initialAirspeed": initial["aircraft"]["airspeed"],
                     "tickBefore": initial["tick"],
                     "tickAfterInput": moved["tick"],
                     "positionBefore": initial["aircraft"]["position"],
@@ -492,7 +551,11 @@ def main() -> None:
                     "hudPitch": hud_pitch,
                     "hudRoll": hud_roll,
                 },
-                "webMcp": web_mcp,
+                "webMcp": {
+                    **web_mcp,
+                    "calls": web_mcp_calls,
+                    "inactiveInspect": inactive_inspection["result"],
+                },
                 "lifecycle": {
                     "blurStoppedTick": blur_stopped["tick"],
                     "blurFrozenTick": blur_frozen["tick"],
@@ -504,6 +567,8 @@ def main() -> None:
                     "resumedAdvancedTick": resumed_advanced["tick"],
                     "restartRunId": restarted["runId"],
                     "postRestartTick": replayed["tick"],
+                    "exitStateDiscarded": True,
+                    "postExit": post_exit,
                 },
                 "camera": {
                     **camera,

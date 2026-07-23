@@ -17,8 +17,7 @@ export const FLIGHT_SIM_INVOCATION_BINDINGS = Object.freeze({
   canvas: '@canvas',
 })
 
-export const FLIGHT_SIM_OPERATIONS = Object.freeze([
-  'inspect',
+export const FLIGHT_SIM_CONTROL_OPERATIONS = Object.freeze([
   'open',
   'start',
   'stop',

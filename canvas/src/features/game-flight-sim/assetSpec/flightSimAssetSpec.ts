@@ -101,4 +101,6 @@ export function readFlightSimAircraftAssetSpec(value: unknown): FlightSimAircraf
 }
 
 export const FLIGHT_SIM_AIRCRAFT_ASSET_SPEC = readFlightSimAircraftAssetSpec(sourceSpec)
-export const FLIGHT_SIM_OPAQUE_BINARY_FALLBACK_COUNT = 0
+export const FLIGHT_SIM_REQUIRED_AIRCRAFT_GLB_FALLBACK_COUNT = 0
+export const FLIGHT_SIM_OPAQUE_BINARY_FALLBACK_COUNT =
+  FLIGHT_SIM_REQUIRED_AIRCRAFT_GLB_FALLBACK_COUNT

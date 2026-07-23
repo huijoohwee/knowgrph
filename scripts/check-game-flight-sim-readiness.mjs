@@ -1,9 +1,15 @@
-import { readFile, readdir, stat } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
-import { load as loadYaml } from 'js-yaml'
 import { assertFlightSimCameraReadiness } from './game-flight-sim-camera-readiness.mjs'
+import { assertFlightSimAssetReadiness } from './lib/game-flight-sim-asset-readiness.mjs'
+import { assertFlightSimPropertyReadiness } from './lib/game-flight-sim-property-readiness.mjs'
+import {
+  parseYamlFrontmatter as parseFrontmatter,
+  requireOrderedSourceMarkers as requireOrderedMarkers,
+  requireSourceMarkers as requireMarkers,
+} from './lib/source-readiness-assertions.mjs'
 const repositoryRoot = process.cwd()
 const flightFeatureRoot = 'canvas/src/features/game-flight-sim'
 const flightSeedPath = 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'
@@ -13,6 +19,8 @@ const requiredPaths = [
   `${flightFeatureRoot}/FlightSimHud.tsx`,
   `${flightFeatureRoot}/FlightSimMissionStage.tsx`,
   `${flightFeatureRoot}/FlightSimWebglUnsupportedState.tsx`,
+  `${flightFeatureRoot}/assetSpec/fallbacks/optionalBeaconGlb.generated.ts`,
+  `${flightFeatureRoot}/assetSpec/flightSimAssetLoader.ts`,
   `${flightFeatureRoot}/assetSpec/flightSimAssetSpec.ts`,
   `${flightFeatureRoot}/assetSpec/vehicle-airplane.scene.json`,
   `${flightFeatureRoot}/flightModel.ts`,
@@ -28,6 +36,7 @@ const requiredPaths = [
   `${flightFeatureRoot}/flightSimMotionControlAdapter.ts`,
   `${flightFeatureRoot}/flightSimPendingDecisions.ts`,
   `${flightFeatureRoot}/flightSimRuntime.ts`,
+  `${flightFeatureRoot}/flightSimRuntimeState.ts`,
   `${flightFeatureRoot}/flightSimSimulationClock.ts`,
   `${flightFeatureRoot}/flightSimSpatialProfile.ts`,
   `${flightFeatureRoot}/index.ts`,
@@ -54,6 +63,11 @@ const requiredPaths = [
   flightSeedPath,
   physicsSeedPath,
   'scripts/game-flight-sim-camera-readiness.mjs',
+  'scripts/check-game-flight-sim-boundary.mjs',
+  'scripts/generate-game-flight-sim-optional-prop-glb.mjs',
+  'scripts/lib/game-flight-sim-asset-readiness.mjs',
+  'scripts/lib/game-flight-sim-boundary.mjs',
+  'scripts/__tests__/game-flight-sim-boundary.test.mjs',
   'scripts/workspace-seed-authority.mjs',
   'package.json',
   'canvas/package.json',
@@ -80,9 +94,7 @@ const forbiddenFeaturePatterns = [
   [/\bXMLHttpRequest\b/, 'XMLHttpRequest'],
   [/navigator\.credentials/, 'credentials access'],
   [/\bgetUserMedia\s*\(/, 'camera access'],
-  [/\brequestReasoning\s*\(/, 'reasoning'],
   [/\b(?:OpenAI|Anthropic)\b/, 'a model SDK'],
-  [/\b(?:Arnie016|flight-simulator-fable5)\b/i, 'the inspiration-only external project'],
 ]
 async function readText(relativePath) {
   return readFile(path.join(repositoryRoot, relativePath), 'utf8')
@@ -100,35 +112,6 @@ async function listFiles(relativeDirectory) {
   }))
   return nested.flat().sort()
 }
-function requireMarkers(source, markers, label) {
-  const missing = markers.filter(marker => !source.includes(marker))
-  if (missing.length > 0) {
-    throw new Error(`${label} is missing required source markers: ${missing.join(', ')}`)
-  }
-}
-function parseFrontmatter(source, relativePath) {
-  const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
-  if (!match) throw new Error(`${relativePath} must begin with YAML frontmatter`)
-  let value
-  try {
-    value = loadYaml(match[1])
-  } catch (error) {
-    throw new Error(`${relativePath} has invalid YAML frontmatter: ${error.message}`)
-  }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${relativePath} frontmatter must be an object`)
-  }
-  return value
-}
-function requireOrderedMarkers(source, markers, label) {
-  let cursor = -1
-  for (const marker of markers) {
-    const next = source.indexOf(marker, cursor + 1)
-    if (next < 0) throw new Error(`${label} must contain ${marker} after the preceding readiness step`)
-    cursor = next
-  }
-}
-
 for (const relativePath of requiredPaths) {
   try {
     await readText(relativePath)
@@ -140,8 +123,7 @@ for (const relativePath of requiredPaths) {
   }
 }
 
-const allFeaturePaths = await listFiles(flightFeatureRoot)
-const featurePaths = allFeaturePaths
+const featurePaths = (await listFiles(flightFeatureRoot))
   .filter(relativePath => /\.(?:tsx?|mjs|json)$/.test(relativePath))
 const featureSources = await Promise.all(featurePaths.map(async relativePath => ({
   relativePath,
@@ -162,6 +144,17 @@ for (const { relativePath, source } of featureSources) {
     }
   }
 }
+const reasoningAttemptOwners = featureSources
+  .filter(({ source }) => /\brequestReasoning\s*\(/.test(source))
+  .map(({ relativePath }) => relativePath)
+if (
+  reasoningAttemptOwners.length !== 1
+  || reasoningAttemptOwners[0] !== `${flightFeatureRoot}/flightSimSystems.ts`
+) {
+  throw new Error(
+    'Flight Sim may expose its fail-closed inference-attempt seam only in flightSimSystems.ts',
+  )
+}
 
 const featureIndexSource = await readText(`${flightFeatureRoot}/index.ts`)
 requireMarkers(featureIndexSource, [
@@ -171,6 +164,7 @@ requireMarkers(featureIndexSource, [
   "export * from './flightSimInput'",
   "export * from './flightSimRuntime'",
   "export * from './assetSpec/flightSimAssetSpec'",
+  "export * from './assetSpec/flightSimAssetLoader'",
   "export { FlightSimMissionStage } from './FlightSimMissionStage'",
   "export { FlightSimHud } from './FlightSimHud'",
 ], 'Flight Sim public feature surface')
@@ -246,13 +240,26 @@ const seed = parseFrontmatter(seedSource, flightSeedPath)
 const physicsSeed = parseFrontmatter(await readText(physicsSeedPath), physicsSeedPath)
 await assertFlightSimCameraReadiness({ flightSeed: seed, physicsSeed, readText })
 
-const missionSource = await readText(`${flightFeatureRoot}/flightSimMission.ts`) + await readText(`${flightFeatureRoot}/flightSimDecisionAdmission.ts`)
+const missionSource = await readText(`${flightFeatureRoot}/flightSimMission.ts`)
+  + await readText(`${flightFeatureRoot}/flightSimSystems.ts`)
+  + await readText(`${flightFeatureRoot}/flightSimDecisionAdmission.ts`)
 requireMarkers(missionSource, [
   "from '../../../../ecs/index.js'",
-  'createWorld({ systems: [flightSystem] })',
-  'worldTick(mission.world, Object.freeze({',
-  'controls: normalizeFlightSimInput(input),',
-  'result.deferred_decisions.length !== 0 || result.cost_logs.length !== 1',
+  'createFlightSimSystems({',
+  "reasoningPolicy: 'forbid'",
+  "'InputIntegrationSystem'",
+  "'FlightModelSystem'",
+  "'CollisionResolverSystem'",
+  "'ObjectiveSystem'",
+  "costLogOwner: 'AgenticECS.worldTick:post-systems'",
+  "projectionOwner: 'captureFlightSimMission:post-commit'",
+  'worldTick(tickMission.world, Object.freeze({',
+  'controls: input,',
+  'normalizeFlightSimInputFrame(tickInput.controls',
+  'const tickMission = blockedInference ? cloneFlightSimMission(mission) : mission',
+  'if (blockedInference) disposeFlightSimMission(tickMission)',
+  'result.cost_logs.length !== 1',
+  "result.deferred_decisions[0]?.deferred_reason !== 'inference_blocked'",
   'FLIGHT_SIM_MAX_MISSION_TICKS',
   'FLIGHT_SIM_TIMEOUT_COLLIDER_ID',
   'export function cloneFlightSimMission',
@@ -263,6 +270,9 @@ requireMarkers(missionSource, [
   'cost.cache_hits !== 0',
   'cost.estimated_cost_usd !== 0',
   'cost.incomplete !== false',
+  "cost.prompt_tokens !== 'unknown'",
+  "cost.completion_tokens !== 'unknown'",
+  "cost.error !== 'blocked_inference'",
   'return FLIGHT_SIM_ZERO_COST_LOG',
 ], 'native Flight Sim ECS mission')
 
@@ -283,8 +293,9 @@ requireMarkers(modelSource, [
   'Flight Sim Decision decisionId is not canonical', 'Flight Sim Decision producedAt is not canonical',
 ], 'immutable Flight Sim model')
 const runtimeSource = await readText(`${flightFeatureRoot}/flightSimRuntime.ts`)
+  + await readText(`${flightFeatureRoot}/flightSimRuntimeState.ts`)
 requireMarkers(runtimeSource, [
-  'type AdvanceRequest = Readonly<{',
+  'export type FlightSimAdvanceRequest = Readonly<{',
   'input: FlightSimTickInput',
   'const captured = capturedInput()',
   'const request = Object.freeze({',
@@ -294,7 +305,7 @@ requireMarkers(runtimeSource, [
   'tickFlightSimMission(',
   'mission !== activeMission || generation !== request.generation',
   'mission = workingMission',
-  'createFlightSimPendingDecisionIndex(freezeDecision)',
+  'createFlightSimPendingDecisionIndex(freezeFlightSimDecision)',
   'pendingDecisions.discardRun(runId)',
   'tickQueue.then(() => advanceCurrentMission(request))',
   'flightSimSurfaceOpenTail.then(() => performFlightSimSurfaceOpen(options))',
@@ -407,8 +418,11 @@ if (
 const runReadySource = await readText('canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts')
 requireMarkers(runReadySource, [
   "export const FLIGHT_SIM_RUN_READY_DEMO_ID = 'flight-sim'",
+  'export const diagnoseWorkspaceRunReadyDemoActivation = (',
   'export const resolveWorkspaceRunReadyDemoIdForDocument = (',
-  "if (!sourceId || (pathId && pathId !== sourceId)) return ''",
+  "'RUN_READY_IDENTITY_CONFLICT'",
+  "'RUN_READY_IDENTITY_UNREGISTERED'",
+  "return diagnostic.ok ? diagnostic.id : ''",
   'readWorkspaceRunReadyDemoId(documentPath, documentText) === FLIGHT_SIM_RUN_READY_DEMO_ID',
 ], 'source-authored Flight Sim activation')
 const activationSource = await readText('canvas/src/features/canvas/FlightSimRunReadyDemoRuntime.tsx')
@@ -430,32 +444,7 @@ if (
   throw new Error('Flight Sim must remain local-only until a separate protected Agentic projection')
 }
 
-const assetSpecPath = `${flightFeatureRoot}/assetSpec/vehicle-airplane.scene.json`
-const assetSpec = JSON.parse(await readText(assetSpecPath))
-if (
-  assetSpec.schema !== 'knowgrph.img2threejs-scene/v1'
-  || assetSpec.id !== 'vehicle-airplane'
-  || assetSpec.representation !== 'typescript-json'
-  || assetSpec.renderer !== 'xr-procedural-vehicle'
-  || assetSpec.opaqueBinaryFallback !== null
-  || assetSpec.runtimeModelCalls !== 0
-  || assetSpec.runtimeNetworkCalls !== 0
-) {
-  throw new Error('Flight Sim aircraft must use the committed local TypeScript+JSON spec as primary')
-}
-const assetLoaderSource = await readText(`${flightFeatureRoot}/assetSpec/flightSimAssetSpec.ts`)
-requireMarkers(assetLoaderSource, [
-  "source.representation !== 'typescript-json'",
-  'source.opaqueBinaryFallback !== null',
-  'source.runtimeModelCalls !== 0 || source.runtimeNetworkCalls !== 0',
-  'export const FLIGHT_SIM_OPAQUE_BINARY_FALLBACK_COUNT = 0',
-], 'Flight Sim asset-spec loader')
-const unexpectedGlbFiles = allFeaturePaths.filter(relativePath => /\.glb$/i.test(relativePath))
-if (unexpectedGlbFiles.length > 0) {
-  throw new Error(
-    `Flight Sim Must scope has a TypeScript+JSON spec and must not ship an opaque GLB: ${unexpectedGlbFiles.join(', ')}`,
-  )
-}
+const assetReadiness = await assertFlightSimAssetReadiness({ repositoryRoot })
 
 const decisionStoreSource = await readText(`${flightFeatureRoot}/flightSimDecisionStore.ts`)
 requireMarkers(decisionStoreSource, [
@@ -553,6 +542,15 @@ for (const relativePath of serverSourcePaths) {
 
 const rootPackage = JSON.parse(await readText('package.json'))
 const canvasPackage = JSON.parse(await readText('canvas/package.json'))
+const boundaryCommand = rootPackage.scripts?.['game-flight-sim:boundary'] || ''
+requireOrderedMarkers(boundaryCommand, [
+  'node --test ./scripts/__tests__/game-flight-sim-boundary.test.mjs',
+  'node ./scripts/check-game-flight-sim-boundary.mjs',
+], 'Flight Sim tracked no-copy boundary command')
+const prebuildCommand = canvasPackage.scripts?.prebuild || ''
+if (!prebuildCommand.startsWith('npm --prefix .. run game-flight-sim:boundary && ')) {
+  throw new Error('Canvas builds must begin with the tracked Flight Sim no-copy boundary')
+}
 const dependencies = {
   ...rootPackage.dependencies,
   ...rootPackage.devDependencies,
@@ -593,7 +591,8 @@ const sourceTestPaths = (await listFiles('canvas/src/__tests__'))
 if (sourceTestPaths.length < 3) {
   throw new Error('Flight Sim requires focused source tests for runtime, persistence, and invocation authority')
 }
+const propertyReadiness = await assertFlightSimPropertyReadiness({ readText, listFiles })
 
 console.log(
-  `OK flight-sim source readiness (${featurePaths.length} feature files, ${sourceTestPaths.length} focused test files, browser-only MCP pair)`,
+  `OK flight-sim source readiness (${featurePaths.length} feature files, ${sourceTestPaths.length} focused test files, ${propertyReadiness.propertyCount} properties/${propertyReadiness.generatedCaseCount} generated cases, ${assetReadiness.dependencies.externalClosureCount} licensed Flight dependencies, 1 optional local GLB, browser-only MCP pair)`,
 )

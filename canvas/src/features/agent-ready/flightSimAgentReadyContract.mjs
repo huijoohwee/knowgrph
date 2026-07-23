@@ -1,5 +1,5 @@
 import {
-  FLIGHT_SIM_OPERATIONS,
+  FLIGHT_SIM_CONTROL_OPERATIONS,
   FLIGHT_SIM_WEB_MCP_TOOL_IDS,
 } from '../game-flight-sim/flightSimMcpContract.mjs'
 
@@ -35,7 +35,7 @@ const FLIGHT_SIM_INPUT_SCHEMA = Object.freeze({
         },
       },
     },
-    ...FLIGHT_SIM_OPERATIONS.map(buildStructuredOperationSchema),
+    ...FLIGHT_SIM_CONTROL_OPERATIONS.map(buildStructuredOperationSchema),
   ],
 })
 
@@ -51,16 +51,27 @@ export function buildFlightSimAgentReadyToolContracts({
     description: 'Inspect the browser-local Flight Sim lifecycle, deterministic native Agentic ECS aircraft state, authored XR terrain ownership, input capability, pending Decision persistence, and strict /flight.sim @canvas #flight grammar.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {} },
     outputSchema: {
-      type: 'object',
-      additionalProperties: true,
-      required: ['schema', 'webMcpTools', 'invocationGrammar', 'flightSim', 'decisions', 'runtime'],
+      oneOf: [{
+        type: 'object',
+        additionalProperties: true,
+        required: ['schema', 'webMcpTools', 'invocationGrammar', 'flightSim', 'decisions', 'runtime'],
+      }, {
+        type: 'object',
+        additionalProperties: true,
+        required: ['ok', 'errorCode', 'message'],
+        properties: {
+          ok: { const: false },
+          errorCode: { type: 'string' },
+          message: { type: 'string' },
+        },
+      }],
     },
     annotations: readOnlyAnnotations,
   }, {
     name: FLIGHT_SIM_AGENT_READY_TOOL_IDS.controlLocalFlightSim,
     webName: buildWebName(FLIGHT_SIM_AGENT_READY_TOOL_IDS.controlLocalFlightSim),
     title: 'Control Local Flight Sim',
-    description: 'Inspect, open, start, stop, restart, set throttle, save terminal Decisions, or exit the browser-local deterministic Flight Sim through structured fields or /flight.sim @canvas #flight without creating another Canvas, ECS world, persistence owner, network route, or deployment surface.',
+    description: 'Open, start, stop, restart, set throttle, save terminal Decisions, or exit the browser-local deterministic Flight Sim through structured fields or /flight.sim @canvas #flight without creating another Canvas, ECS world, persistence owner, network route, or deployment surface. Read-only inspection remains a separate tool.',
     inputSchema: FLIGHT_SIM_INPUT_SCHEMA,
     outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
     annotations: mutationAnnotations,

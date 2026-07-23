@@ -17,21 +17,25 @@ export function validateFlightSimMissionDecisions(
   profile: FlightSimSpatialProfile,
   values: readonly unknown[],
 ): readonly FlightSimDecisionRecord[] {
-  const decisions = validateFlightSimDecisions(values)
+  const decisions = validateFlightSimDecisions(values).filter(
+    item => item.decisionType !== 'dialogue_outcome',
+  )
   const decisionsByRun = new Map<number, FlightSimDecisionRecord[]>()
   for (const item of decisions) {
     const itemEvent = event(item)
     if (itemEvent === 'flight_state') {
       const waypointIndex = Number(item.payload.waypointIndex)
-      const phase = String(item.payload.phase)
-      if (waypointIndex > profile.waypoints.length
-        || (phase === 'flying' && waypointIndex >= profile.waypoints.length)) {
+      if (waypointIndex > profile.waypoints.length) {
         throw new Error('Flight Sim Decision waypoint progress exceeds the active mission profile')
       }
     } else if (itemEvent === 'waypoint_reached') {
       const waypointIndex = Number(item.payload.waypointIndex)
       if (profile.waypoints[waypointIndex]?.id !== item.payload.waypointId) {
         throw new Error('Flight Sim Decision waypoint identity is outside the active mission profile')
+      }
+    } else if (itemEvent === 'mission_completed') {
+      if (item.payload.landingPadId !== profile.landingPad.id) {
+        throw new Error('Flight Sim completion landing-pad identity is outside the active mission profile')
       }
     } else if (itemEvent === 'mission_crashed') {
       const colliderId = String(item.payload.colliderId)
@@ -83,8 +87,8 @@ export function validateFlightSimMissionDecisions(
     if (completed.length && waypoints.length !== profile.waypoints.length) {
       throw new Error('Flight Sim completion requires the full waypoint history')
     }
-    if (completed.length && lastWaypoint && tick(lastWaypoint) !== tick(completed[0])) {
-      throw new Error('Flight Sim completion must share its tick with the final waypoint')
+    if (completed.length && lastWaypoint && tick(lastWaypoint) >= tick(completed[0])) {
+      throw new Error('Flight Sim completion must follow the final waypoint at the marked landing pad')
     }
     if (latestState && Number(latestState.payload.waypointIndex) !== waypoints.length) {
       throw new Error('Flight Sim flight state does not match its waypoint history')

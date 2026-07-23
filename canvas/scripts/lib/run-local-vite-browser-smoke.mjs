@@ -87,13 +87,23 @@ export async function runLocalViteBrowserSmoke({
   verifierFailureLabel = 'Browser smoke',
   prepareBeforeStart = false,
   devServerStartMode = 'npm-dev',
+  existingServerPolicy = 'reuse',
 }) {
+  if (!['reuse', 'forbid'].includes(existingServerPolicy)) {
+    throw new Error(`Unsupported existingServerPolicy: ${existingServerPolicy}`)
+  }
   const devServerBaseUrl = `http://localhost:${devServerPort}`
   const normalizedPath = devServerPath.startsWith('/') ? devServerPath : `/${devServerPath}`
   const devServerUrl = `${devServerBaseUrl}${normalizedPath}`
   let devServer = null
   const reuseExistingServer = await isServerReady(devServerUrl, 1500)
 
+  if (reuseExistingServer && existingServerPolicy === 'forbid') {
+    throw new Error(
+      `[${logLabel}] refusing responsive pre-existing server at ${devServerUrl}; `
+      + 'this proof requires a fresh server owned by the candidate checkout',
+    )
+  }
   if (!reuseExistingServer) {
     if (prepareBeforeStart) {
       await runCommand(npmCommand, ['run', 'predev'], process.env)

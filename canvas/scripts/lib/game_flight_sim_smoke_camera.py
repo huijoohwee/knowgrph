@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from playwright.sync_api import Page
@@ -57,13 +58,17 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
               await new Promise(resolve => requestAnimationFrame(resolve))
             }
           }
+          const fixedFollowStartedAtMs = performance.now()
           camera.selectXrNativeControllerCameraMode('fixed-follow')
           await waitFrames(3)
+          const fixedFollowSelectionMs =
+            performance.now() - fixedFollowStartedAtMs
           const before = {
             ...source.inspectLocalCameraSource(),
             flight: flight.readFlightSimSnapshot(),
             pose: store.useGraphStore.getState().captureThreeCameraPose(),
           }
+          const freeOrbitStartedAtMs = performance.now()
           camera.selectXrNativeControllerCameraMode('free-orbit')
           const canvas = document.querySelector(
             '[data-kg-xr-scene-media-drop="1"] canvas',
@@ -71,6 +76,8 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
           canvas?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
           await waitFrames(3)
           await new Promise(resolve => window.setTimeout(resolve, 120))
+          const freeOrbitSelectionMs =
+            performance.now() - freeOrbitStartedAtMs
           const during = {
             ...source.inspectLocalCameraSource(),
             flight: flight.readFlightSimSnapshot(),
@@ -78,7 +85,14 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
             panelView: store.useGraphStore.getState().floatingPanelView,
             pose: store.useGraphStore.getState().captureThreeCameraPose(),
           }
-          return { before, during }
+          return {
+            before,
+            during,
+            selectionDurationsMs: {
+              fixedFollow: fixedFollowSelectionMs,
+              freeOrbit: freeOrbitSelectionMs,
+            },
+          }
         }
         """
     )
@@ -87,6 +101,14 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     if not free_orbit_before_drag.get("pose"):
         raise AssertionError(
             f"Free Orbit did not expose a camera pose: {transition_setup}"
+        )
+    if any(
+        duration < 0 or duration > 1_000
+        for duration in transition_setup["selectionDurationsMs"].values()
+    ):
+        raise AssertionError(
+            "Flight camera selection exceeded 1000 ms: "
+            f"{transition_setup['selectionDurationsMs']}"
         )
     canvas = page.locator(
         '[data-kg-xr-scene-media-drop="1"] canvas'
@@ -115,6 +137,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
         ),
         label="Free Orbit camera rotation",
     )
+    restore_started = time.monotonic()
     page.evaluate(
         """
         async () => {
@@ -134,6 +157,43 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
         ),
         label="Fixed Follow camera restoration",
     )
+    restored_selection_ms = (time.monotonic() - restore_started) * 1_000
+    if restored_selection_ms > 1_000:
+        raise AssertionError(
+            "Fixed Follow camera restoration exceeded 1000 ms: "
+            f"{restored_selection_ms}"
+        )
+    invalid_selection = page.evaluate(
+        """
+        async () => {
+          const camera = await import(
+            '/src/features/strybldr/cameraMcpRuntime.ts'
+          )
+          const before = camera.inspectLocalCamera().source
+          const invalidValue = 'cinematic-flight'
+          const result = camera.controlLocalCamera({
+            invocation:
+              `/camera.select @camera #camera-source camera=${invalidValue}`,
+          })
+          const after = camera.inspectLocalCamera().source
+          return { before, after, invalidValue, result }
+        }
+        """
+    )
+    invalid_result = invalid_selection["result"]
+    if (
+        invalid_result.get("ok") is not False
+        or invalid_result.get("errorCode")
+        != "CAMERA_SOURCE_INVALID_VALUE"
+        or invalid_selection["invalidValue"]
+        not in invalid_result.get("message", "")
+        or invalid_selection["after"]["selected"]
+        != invalid_selection["before"]["selected"]
+    ):
+        raise AssertionError(
+            "Invalid Flight camera value did not fail closed: "
+            f"{invalid_selection}"
+        )
     expected_catalog = [
         {"id": "fixed-follow", "label": "Fixed Follow"},
         {"id": "free-orbit", "label": "Free Orbit"},
@@ -439,6 +499,12 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
         "before": before["selected"],
         "during": free_orbit["source"]["selected"],
         "catalog": catalog,
+        "selectionDurationsMs": {
+            **transition_setup["selectionDurationsMs"],
+            "restoredFixedFollow": restored_selection_ms,
+        },
+        "selectionDeadlineMs": 1_000,
+        "invalidValueResult": invalid_selection,
         "pointerLocked": free_orbit_before_drag["pointerLocked"],
         "freeOrbit": {
             "poseBefore": free_orbit_before_drag["pose"],

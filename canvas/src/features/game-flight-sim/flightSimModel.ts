@@ -3,11 +3,16 @@ import type { SpatialVector } from '@/features/physics/spatialPhysicsTypes'
 export const FLIGHT_SIM_MISSION_ID = 'flight-sim-mission-1' as const
 export const FLIGHT_SIM_FIXED_STEP_SECONDS = 1 / 60
 export const FLIGHT_SIM_MAX_FRAME_SECONDS = 0.25
+export const FLIGHT_SIM_MAX_CATCH_UP_TICKS = 5
 export const FLIGHT_SIM_MAX_MISSION_TICKS = 60 * 90
 export const FLIGHT_SIM_MAX_RUN_ID = Number.MAX_SAFE_INTEGER - 1
 export const FLIGHT_SIM_MAX_PERSISTED_RUN_ID = FLIGHT_SIM_MAX_RUN_ID - 1
 export const FLIGHT_SIM_MAX_PERSISTED_POSITION_METERS = 1_000_000
 export const FLIGHT_SIM_MAX_PERSISTED_SPEED_METERS_PER_SECOND = 64
+export const FLIGHT_SIM_ROUTE_WAYPOINT_COUNT = 3
+export const FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS = 50
+export const FLIGHT_SIM_MAX_CAPTURE_RADIUS_METERS = 200
+export const FLIGHT_SIM_COLLISION_SEPARATION_METERS = 0.001
 export const FLIGHT_SIM_TIMEOUT_COLLIDER_ID = 'flight-sim:mission-timeout'
 export const FLIGHT_SIM_AIRCRAFT_ENTITY_REF = 'flight-sim:aircraft'
 export const FLIGHT_SIM_MISSION_ENTITY_REF = `flight-sim:mission:${FLIGHT_SIM_MISSION_ID}`
@@ -59,11 +64,12 @@ export type FlightSimSpatialProfile = Readonly<{
   spawn: FlightSimAircraftState
   blockers: readonly FlightSimBlocker[]
   waypoints: readonly FlightSimWaypoint[]
+  landingPad: FlightSimWaypoint
 }>
 
 export type FlightSimDecisionRecord = Readonly<{
   decisionId: string
-  decisionType: 'quest_flag' | 'world_tick_result'
+  decisionType: 'dialogue_outcome' | 'quest_flag' | 'world_tick_result'
   entityRef: string
   payload: Readonly<Record<string, unknown>>
   producedAt: string
@@ -88,7 +94,7 @@ export function flightSimDecisionProducedAt(
   return new Date(FLIGHT_SIM_DECISION_EPOCH_MS + tick * 20 + eventRank).toISOString()
 }
 
-export type FlightSimCostLog = Readonly<{
+export type FlightSimZeroCostLog = Readonly<{
   model: 'none'
   prompt_tokens: 0
   completion_tokens: 0
@@ -96,6 +102,18 @@ export type FlightSimCostLog = Readonly<{
   estimated_cost_usd: 0
   incomplete: false
 }>
+
+export type FlightSimBlockedInferenceCostLog = Readonly<{
+  model: 'none'
+  prompt_tokens: 'unknown'
+  completion_tokens: 'unknown'
+  cache_hits: 0
+  estimated_cost_usd: 0
+  incomplete: true
+  error: 'blocked_inference'
+}>
+
+export type FlightSimCostLog = FlightSimZeroCostLog | FlightSimBlockedInferenceCostLog
 
 export type FlightSimSnapshot = Readonly<{
   active: boolean
@@ -123,6 +141,45 @@ export const FLIGHT_SIM_NEUTRAL_INPUT: FlightSimTickInput = Object.freeze({
   throttleDelta: 0,
 })
 
+export type FlightSimInputNormalizationResult = Readonly<{
+  input: FlightSimTickInput
+  outOfRange: boolean
+  retainedLastValid: boolean
+}>
+
+export function normalizeFlightSimInputFrame(
+  value: FlightSimInputPatch | null | undefined,
+  lastValid: FlightSimTickInput = FLIGHT_SIM_NEUTRAL_INPUT,
+): FlightSimInputNormalizationResult {
+  const retained = normalizeFlightSimInput(lastValid)
+  let outOfRange = false
+  let retainedLastValid = false
+  const axis = (candidateValue: unknown, fallback: number): number => {
+    const candidate = Number(candidateValue ?? 0)
+    if (Number.isNaN(candidate)) {
+      outOfRange = true
+      retainedLastValid = true
+      return fallback
+    }
+    if (candidate === Number.POSITIVE_INFINITY || candidate === Number.NEGATIVE_INFINITY) {
+      outOfRange = true
+      return Math.sign(candidate)
+    }
+    if (candidate < -1 || candidate > 1) outOfRange = true
+    return Math.max(-1, Math.min(1, candidate))
+  }
+  return Object.freeze({
+    input: Object.freeze({
+      pitch: axis(value?.pitch, retained.pitch),
+      roll: axis(value?.roll, retained.roll),
+      yaw: axis(value?.yaw, retained.yaw),
+      throttleDelta: axis(value?.throttleDelta, retained.throttleDelta),
+    }),
+    outOfRange,
+    retainedLastValid,
+  })
+}
+
 export const FLIGHT_SIM_ZERO_COST_LOG: FlightSimCostLog = Object.freeze({
   model: 'none',
   prompt_tokens: 0,
@@ -130,6 +187,16 @@ export const FLIGHT_SIM_ZERO_COST_LOG: FlightSimCostLog = Object.freeze({
   cache_hits: 0,
   estimated_cost_usd: 0,
   incomplete: false,
+})
+
+export const FLIGHT_SIM_BLOCKED_INFERENCE_COST_LOG: FlightSimCostLog = Object.freeze({
+  model: 'none',
+  prompt_tokens: 'unknown',
+  completion_tokens: 'unknown',
+  cache_hits: 0,
+  estimated_cost_usd: 0,
+  incomplete: true,
+  error: 'blocked_inference',
 })
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -179,6 +246,30 @@ function decisionVector(value: unknown, label: string, maximumAbsolute: number):
   })) as SpatialVector
 }
 
+function canonicalDialogueValue(value: unknown, label: string): unknown {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error(`${label} must be finite`)
+    return Object.is(value, -0) ? 0 : value
+  }
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      if (!(index in value)) throw new Error(`${label} must not be sparse`)
+    }
+    return Object.freeze(value.map((item, index) => canonicalDialogueValue(item, `${label}[${index}]`)))
+  }
+  const source = record(value, label)
+  const prototype = Object.getPrototypeOf(source)
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error(`${label} must be a plain object`)
+  }
+  const canonical: Record<string, unknown> = {}
+  for (const key of Object.keys(source).sort()) {
+    canonical[key] = canonicalDialogueValue(source[key], `${label}.${key}`)
+  }
+  return Object.freeze(canonical)
+}
+
 export function clampFlightSimUnit(value: unknown, label = 'Flight Sim input'): number {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) throw new Error(`${label} must be finite`)
@@ -214,6 +305,15 @@ function validateDecision(value: unknown): FlightSimDecisionRecord {
   const producedAt = requiredString(decision.producedAt, 'Flight Sim Decision producedAt')
   if (Number.isNaN(Date.parse(producedAt))) throw new Error('Flight Sim Decision producedAt must be an ISO timestamp')
   const payload = record(decision.payload, 'Flight Sim Decision payload')
+  if (decision.decisionType === 'dialogue_outcome') {
+    return Object.freeze({
+      decisionId,
+      decisionType: 'dialogue_outcome',
+      entityRef,
+      payload: canonicalDialogueValue(payload, 'Flight Sim dialogue_outcome payload') as Readonly<Record<string, unknown>>,
+      producedAt,
+    })
+  }
   const event = requiredString(payload.event, 'Flight Sim Decision event') as FlightSimDecisionEvent
   if (!FLIGHT_SIM_DECISION_EVENTS.includes(event)) throw new Error(`Unsupported Flight Sim Decision event: ${event}`)
   const eventPayloadKeys = event === 'flight_state'
@@ -222,7 +322,7 @@ function validateDecision(value: unknown): FlightSimDecisionRecord {
       ? ['event', 'missionId', 'runId', 'tick', 'waypointId', 'waypointIndex']
       : event === 'mission_crashed'
         ? ['event', 'missionId', 'runId', 'tick', 'status', 'colliderId', 'impactSpeed']
-        : ['event', 'missionId', 'runId', 'tick', 'status']
+        : ['event', 'missionId', 'runId', 'tick', 'status', 'landingPadId']
   exactKeys(payload, eventPayloadKeys, `Flight Sim Decision ${event} payload`)
   if (payload.missionId !== FLIGHT_SIM_MISSION_ID) throw new Error('Flight Sim Decision missionId is invalid')
   boundedInteger(payload.runId, 'Flight Sim Decision runId', 1, FLIGHT_SIM_MAX_PERSISTED_RUN_ID)
@@ -281,6 +381,9 @@ function validateDecision(value: unknown): FlightSimDecisionRecord {
     if (payload.status !== (event === 'mission_completed' ? 'completed' : 'crashed')) {
       throw new Error(`Flight Sim Decision ${event} has an invalid status`)
     }
+  }
+  if (event === 'mission_completed') {
+    requiredString(payload.landingPadId, 'Flight Sim Decision landingPadId')
   }
   if (event === 'mission_crashed') {
     requiredString(payload.colliderId, 'Flight Sim Decision colliderId')

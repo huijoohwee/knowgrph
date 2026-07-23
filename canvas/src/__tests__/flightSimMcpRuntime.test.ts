@@ -8,6 +8,7 @@ import {
 } from '@/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
 import {
   buildFlightSimWebMcpToolBuilders,
+  FLIGHT_SIM_WEB_MCP_DEADLINE_MS,
 } from '@/features/agent-ready/flightSimWebMcpTools'
 import {
   FLIGHT_SIM_AGENT_READY_TOOL_IDS,
@@ -17,12 +18,14 @@ import {
   FLIGHT_SIM_INVOCATION_COMMANDS,
   FLIGHT_SIM_INVOCATION_SEMANTICS,
   FLIGHT_SIM_MCP_SCHEMA,
-  FLIGHT_SIM_OPERATIONS,
+  FLIGHT_SIM_CONTROL_OPERATIONS,
   FLIGHT_SIM_WEB_MCP_TOOL_IDS,
 } from '@/features/game-flight-sim/flightSimMcpContract.mjs'
 import {
   buildFlightSimInvocation,
   controlLocalFlightSim,
+  diagnoseFlightSimControl,
+  inspectLocalFlightSim,
   normalizeFlightSimControl,
   parseFlightSimInvocation,
 } from '@/features/game-flight-sim/flightSimMcpRuntime'
@@ -68,13 +71,13 @@ test('Flight Sim keeps one canonical invocation tuple and two browser tool ids',
     inspectLocalFlightSim: 'inspect_local_flight_sim',
     controlLocalFlightSim: 'control_local_flight_sim',
   })
-  assert.deepEqual(FLIGHT_SIM_OPERATIONS, [
-    'inspect', 'open', 'start', 'stop', 'restart', 'throttle', 'save', 'exit',
+  assert.deepEqual(FLIGHT_SIM_CONTROL_OPERATIONS, [
+    'open', 'start', 'stop', 'restart', 'throttle', 'save', 'exit',
   ])
 })
 
 test('Flight Sim builds and parses every canonical native operation', () => {
-  for (const operation of FLIGHT_SIM_OPERATIONS) {
+  for (const operation of FLIGHT_SIM_CONTROL_OPERATIONS) {
     const invocation = operation === 'throttle'
       ? buildFlightSimInvocation(operation, 0.75)
       : buildFlightSimInvocation(operation)
@@ -146,6 +149,70 @@ test('Flight Sim structured input rejects mixed, unknown, and invalid throttle f
   assert.equal(normalizeFlightSimControl({ operation: 'open', unknown: true } as never), null)
 })
 
+test('Flight Sim diagnostics name each fail-closed invocation violation and retain state byte-identically', async () => {
+  resetFlightSimRuntimeForTests()
+  const cases = [
+    {
+      input: { invocation: '@canvas #flight operation=open' },
+      errorCode: 'FLIGHT_SIM_INVOCATION_MISSING_COMMAND',
+    },
+    {
+      input: { invocation: '/flight.sim #flight operation=open' },
+      errorCode: 'FLIGHT_SIM_INVOCATION_MISSING_BINDING',
+    },
+    {
+      input: { invocation: '/flight.sim @canvas #wrong operation=open' },
+      errorCode: 'FLIGHT_SIM_INVOCATION_SEMANTIC_MISMATCH',
+    },
+    {
+      input: { invocation: '/flight.sim /flight.sim @canvas #flight operation=open' },
+      errorCode: 'FLIGHT_SIM_INVOCATION_DUPLICATE_SIGIL',
+    },
+    {
+      input: { invocation: '/flight.sim @canvas #flight operation=open operation=start' },
+      errorCode: 'FLIGHT_SIM_INVOCATION_DUPLICATE_KEY',
+    },
+    {
+      input: { invocation: '/flight.sim @canvas #flight operation=open unknown=value' },
+      errorCode: 'FLIGHT_SIM_INVOCATION_UNKNOWN_KEY',
+    },
+    {
+      input: {
+        invocation: '/flight.sim @canvas #flight operation=open',
+        operation: 'open',
+      },
+      errorCode: 'FLIGHT_SIM_CONTROL_MIXED_INPUT',
+    },
+    {
+      input: { invocation: '/flight.sim @canvas #flight operation' },
+      errorCode: 'FLIGHT_SIM_INVOCATION_MALFORMED_PAIR',
+    },
+    {
+      input: { invocation: '/flight.sim @canvas #flight operation=throttle throttle=NaN' },
+      errorCode: 'FLIGHT_SIM_CONTROL_INVALID_THROTTLE',
+    },
+    {
+      input: { invocation: '/flight.sim @canvas #flight operation=inspect' },
+      errorCode: 'FLIGHT_SIM_CONTROL_UNSUPPORTED_OPERATION',
+    },
+  ] as const
+
+  for (const diagnosticCase of cases) {
+    const before = JSON.stringify(readFlightSimSnapshot())
+    const diagnostic = diagnoseFlightSimControl(diagnosticCase.input)
+    assert.equal(diagnostic.ok, false)
+    if (diagnostic.ok) throw new Error('expected a Flight Sim diagnostic failure')
+    assert.equal(diagnostic.errorCode, diagnosticCase.errorCode)
+    assert.ok(diagnostic.field || diagnostic.token)
+
+    const result = await controlLocalFlightSim(diagnosticCase.input)
+    assert.equal(result.ok, false)
+    assert.equal(result.errorCode, diagnostic.errorCode)
+    assert.equal(result.message, diagnostic.message)
+    assert.equal(JSON.stringify(readFlightSimSnapshot()), before)
+  }
+})
+
 test('Flight Sim builder rejects invalid programmatic invocation values', () => {
   assert.throws(
     () => buildFlightSimInvocation('throttle'),
@@ -169,7 +236,8 @@ test('Flight Sim MCP enforces the active tick-zero lifecycle and resumable stop/
   resetFlightSimRuntimeForTests()
   try {
     await openFlightSimSurface({ openPanel: false, webglSupported: true })
-    assert.equal((await controlLocalFlightSim({ operation: 'inspect' })).ok, true)
+    assert.equal(inspectLocalFlightSim().flightSim.active, true)
+    assert.equal((await controlLocalFlightSim({ operation: 'inspect' })).errorCode, 'FLIGHT_SIM_CONTROL_UNSUPPORTED_OPERATION')
     assert.equal((await controlLocalFlightSim({ operation: 'open' })).ok, false)
 
     assert.equal((await controlLocalFlightSim({ operation: 'start' })).ok, true)
@@ -295,6 +363,11 @@ test('Reset local save clears a prior mission hydration error before a fresh Sta
     assert.equal(reset.status, 'saved')
     assert.equal(readFlightSimSnapshot().runtimeError, null)
     assert.equal(readFlightSimSnapshot().runId, 0)
+    await openFlightSimSurface({
+      openPanel: false,
+      webglSupported: true,
+      workspace,
+    })
     const fresh = startFlightSim()
     assert.equal(fresh.phase, 'ready')
     assert.equal(fresh.runId, 1)
@@ -374,7 +447,7 @@ test('Flight Sim publishes exactly two browser-only agent-ready contracts', () =
       throttle?: { type?: string; minimum?: number; maximum?: number }
     }
   }>
-  assert.equal(variants.length, FLIGHT_SIM_OPERATIONS.length + 1)
+  assert.equal(variants.length, FLIGHT_SIM_CONTROL_OPERATIONS.length + 1)
   const throttleVariant = variants.find(variant => variant.properties?.operation?.const === 'throttle')
   assert.deepEqual(throttleVariant?.required, ['operation', 'throttle'])
   assert.deepEqual(throttleVariant?.properties?.throttle, {
@@ -394,20 +467,84 @@ test('Flight Sim WebMCP builders bind the exact two shared contracts', async () 
     assert.ok(contract, name)
     return contract
   }
-  const builders = buildFlightSimWebMcpToolBuilders(findContract)
-  assert.deepEqual(Object.keys(builders), [
-    KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalFlightSim,
-    KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalFlightSim,
-  ])
+  resetFlightSimRuntimeForTests()
+  try {
+    const builders = buildFlightSimWebMcpToolBuilders(findContract)
+    assert.deepEqual(Object.keys(builders), [
+      KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalFlightSim,
+      KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalFlightSim,
+    ])
 
-  const inspectTool = builders[KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalFlightSim]()
-  const controlTool = builders[KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalFlightSim]()
-  assert.equal(inspectTool.name, 'knowgrph.inspect_local_flight_sim')
-  assert.equal(controlTool.name, 'knowgrph.control_local_flight_sim')
-  const inspection = await inspectTool.execute()
-  assert.equal((inspection as { schema?: unknown }).schema, FLIGHT_SIM_MCP_SCHEMA)
-  const invalid = await controlTool.execute({
-    invocation: '/flight.sim @canvas @canvas #flight operation=open',
+    const inspectTool = builders[KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalFlightSim]()
+    const controlTool = builders[KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalFlightSim]()
+    assert.equal(inspectTool.name, 'knowgrph.inspect_local_flight_sim')
+    assert.equal(controlTool.name, 'knowgrph.control_local_flight_sim')
+
+    const inactiveBefore = JSON.stringify(readFlightSimSnapshot())
+    const unavailable = await inspectTool.execute()
+    assert.deepEqual(unavailable, {
+      ok: false,
+      errorCode: 'FLIGHT_SIM_STATE_UNAVAILABLE',
+      message: 'Flight Sim state is unavailable while the surface is inactive.',
+      operation: 'inspect',
+    })
+    assert.equal(JSON.stringify(readFlightSimSnapshot()), inactiveBefore)
+
+    await openFlightSimSurface({ openPanel: false, webglSupported: true })
+    const inspection = await inspectTool.execute()
+    assert.equal((inspection as { schema?: unknown }).schema, FLIGHT_SIM_MCP_SCHEMA)
+    const invalid = await controlTool.execute({
+      invocation: '/flight.sim @canvas @canvas #flight operation=open',
+    })
+    assert.equal((invalid as { ok?: unknown }).ok, false)
+    assert.equal(
+      (invalid as { errorCode?: unknown }).errorCode,
+      'FLIGHT_SIM_INVOCATION_DUPLICATE_SIGIL',
+    )
+  } finally {
+    if (readFlightSimSnapshot().active) exitFlightSimSurface()
+    resetFlightSimRuntimeForTests()
+  }
+})
+
+test('Flight Sim WebMCP deadline returns a deterministic structured timeout envelope', async () => {
+  const contracts = buildKnowgrphAgentReadyToolContracts({
+    includeBrowserOnlyTools: true,
   })
-  assert.equal((invalid as { ok?: unknown }).ok, false)
+  const findContract = (name: string) => {
+    const contract = contracts.find(candidate => candidate.name === name)
+    assert.ok(contract, name)
+    return contract
+  }
+  let observedDeadlineMs = 0
+  let cancelled = false
+  const builders = buildFlightSimWebMcpToolBuilders(findContract, {
+    control: () => new Promise(() => {}),
+    createDeadline: deadlineMs => {
+      observedDeadlineMs = deadlineMs
+      return {
+        expired: Promise.resolve(),
+        cancel: () => {
+          cancelled = true
+        },
+      }
+    },
+  })
+  const controlTool = builders[KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalFlightSim]()
+  const before = JSON.stringify(readFlightSimSnapshot())
+  const timeout = await controlTool.execute({ operation: 'open' }) as {
+    ok?: unknown
+    errorCode?: unknown
+    message?: unknown
+    operation?: unknown
+    deadlineMs?: unknown
+  }
+  assert.equal(timeout.ok, false)
+  assert.equal(timeout.errorCode, 'FLIGHT_SIM_WEB_MCP_TIMEOUT')
+  assert.equal(timeout.operation, 'control')
+  assert.equal(timeout.deadlineMs, FLIGHT_SIM_WEB_MCP_DEADLINE_MS)
+  assert.match(String(timeout.message), /2000 milliseconds/)
+  assert.equal(observedDeadlineMs, FLIGHT_SIM_WEB_MCP_DEADLINE_MS)
+  assert.equal(cancelled, true)
+  assert.equal(JSON.stringify(readFlightSimSnapshot()), before)
 })

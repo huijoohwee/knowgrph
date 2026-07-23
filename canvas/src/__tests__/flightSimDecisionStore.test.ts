@@ -24,6 +24,7 @@ const DECISION: FlightSimDecisionRecord = Object.freeze({
     runId: 1,
     status: 'completed',
     tick: 42,
+    landingPadId: 'landing-pad',
   }),
   producedAt: '2026-01-01T00:00:00.842Z',
 })
@@ -125,6 +126,25 @@ test('Flight Sim Decision save uses its local path, verifies read-back, and is i
   assert.equal(idempotent.retainedCount, 0)
   assert.equal(idempotent.savedCount, 1)
   assert.deepEqual(await loadFlightSimSavedDecisions({ workspace }), [DECISION])
+})
+
+test('Flight Sim Decision persistence admits canonical generic dialogue_outcome records', async () => {
+  resetFlightSimDecisionStoreForTests()
+  const workspace = testWorkspace()
+  const dialogue: FlightSimDecisionRecord = Object.freeze({
+    decisionId: 'flight-sim:dialogue:operator-ack',
+    decisionType: 'dialogue_outcome',
+    entityRef: 'flight-sim:operator',
+    payload: Object.freeze({
+      accepted: true,
+      outcome: 'acknowledged',
+    }),
+    producedAt: '2026-07-24T00:00:00.000Z',
+  })
+  queueFlightSimDecisions([dialogue])
+  const saved = await persistPendingFlightSimDecisions({ workspace })
+  assert.equal(saved.status, 'saved')
+  assert.deepEqual(await loadFlightSimSavedDecisions({ workspace }), [dialogue])
 })
 
 test('Flight Sim Decision write failure retains pending state and source bytes', async () => {

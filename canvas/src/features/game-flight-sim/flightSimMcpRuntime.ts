@@ -17,12 +17,11 @@ import {
   FLIGHT_SIM_INVOCATION_COMMANDS,
   FLIGHT_SIM_INVOCATION_SEMANTICS,
   FLIGHT_SIM_MCP_SCHEMA,
-  FLIGHT_SIM_OPERATIONS,
+  FLIGHT_SIM_CONTROL_OPERATIONS,
   FLIGHT_SIM_WEB_MCP_TOOL_IDS,
 } from './flightSimMcpContract.mjs'
 
 export type FlightSimOperation =
-  | 'inspect'
   | 'open'
   | 'start'
   | 'stop'
@@ -43,7 +42,34 @@ export type NormalizedFlightSimControl = Readonly<{
   throttle?: number
 }>
 
-const FLIGHT_SIM_OPERATION_SET = new Set<string>(FLIGHT_SIM_OPERATIONS)
+export type FlightSimControlErrorCode =
+  | 'FLIGHT_SIM_CONTROL_INVALID_INPUT'
+  | 'FLIGHT_SIM_CONTROL_MIXED_INPUT'
+  | 'FLIGHT_SIM_CONTROL_INVALID_THROTTLE'
+  | 'FLIGHT_SIM_CONTROL_UNSUPPORTED_OPERATION'
+  | 'FLIGHT_SIM_INVOCATION_MISSING_COMMAND'
+  | 'FLIGHT_SIM_INVOCATION_COMMAND_MISMATCH'
+  | 'FLIGHT_SIM_INVOCATION_MISSING_BINDING'
+  | 'FLIGHT_SIM_INVOCATION_BINDING_MISMATCH'
+  | 'FLIGHT_SIM_INVOCATION_SEMANTIC_MISMATCH'
+  | 'FLIGHT_SIM_INVOCATION_DUPLICATE_SIGIL'
+  | 'FLIGHT_SIM_INVOCATION_DUPLICATE_KEY'
+  | 'FLIGHT_SIM_INVOCATION_UNKNOWN_KEY'
+  | 'FLIGHT_SIM_INVOCATION_MALFORMED_PAIR'
+
+export type FlightSimControlDiagnostic =
+  | Readonly<{ ok: true; value: NormalizedFlightSimControl }>
+  | Readonly<{
+    ok: false
+    errorCode: FlightSimControlErrorCode
+    message: string
+    field?: string
+    token?: string
+  }>
+
+type FlightSimControlFailure = Extract<FlightSimControlDiagnostic, { ok: false }>
+
+const FLIGHT_SIM_OPERATION_SET = new Set<string>(FLIGHT_SIM_CONTROL_OPERATIONS)
 const FLIGHT_SIM_INVOCATION_PREFIX = [
   FLIGHT_SIM_INVOCATION_COMMANDS.control,
   FLIGHT_SIM_INVOCATION_BINDINGS.canvas,
@@ -58,6 +84,16 @@ const isFlightSimOperation = (value: unknown): value is FlightSimOperation => (
 const isThrottle = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
 )
+
+const diagnosticFailure = (
+  errorCode: FlightSimControlErrorCode,
+  message: string,
+  location: Readonly<{ field?: string; token?: string }>,
+): FlightSimControlFailure => Object.freeze({ ok: false, errorCode, message, ...location })
+
+const diagnosticSuccess = (
+  value: NormalizedFlightSimControl,
+): FlightSimControlDiagnostic => Object.freeze({ ok: true, value })
 
 export function buildFlightSimInvocation(
   operation: FlightSimOperation,
@@ -85,60 +121,207 @@ const parseNativeThrottle = (value: string | undefined): number | null => {
 }
 
 export function parseFlightSimInvocation(value: unknown): NormalizedFlightSimControl | null {
-  if (typeof value !== 'string') return null
+  const diagnostic = diagnoseFlightSimInvocation(value)
+  return diagnostic.ok ? diagnostic.value : null
+}
+
+export function diagnoseFlightSimInvocation(value: unknown): FlightSimControlDiagnostic {
+  if (typeof value !== 'string') {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_MISSING_COMMAND',
+      `Flight Sim invocation requires command token ${FLIGHT_SIM_INVOCATION_COMMANDS.control}.`,
+      { token: FLIGHT_SIM_INVOCATION_COMMANDS.control },
+    )
+  }
   const invocation = value.trim()
-  if (!invocation) return null
+  if (!invocation) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_MISSING_COMMAND',
+      `Flight Sim invocation requires command token ${FLIGHT_SIM_INVOCATION_COMMANDS.control}.`,
+      { token: FLIGHT_SIM_INVOCATION_COMMANDS.control },
+    )
+  }
   const tokens = invocation.split(/\s+/).filter(Boolean)
   const commandTokens = tokens.filter(token => token.startsWith('/'))
   const bindingTokens = tokens.filter(token => token.startsWith('@'))
   const semanticTokens = tokens.filter(token => token.startsWith('#'))
-  if (tokens[0] !== FLIGHT_SIM_INVOCATION_COMMANDS.control) return null
-  if (commandTokens.length !== 1 || commandTokens[0] !== FLIGHT_SIM_INVOCATION_COMMANDS.control) return null
-  if (bindingTokens.length !== 1 || bindingTokens[0] !== FLIGHT_SIM_INVOCATION_BINDINGS.canvas) return null
-  if (semanticTokens.length !== 1 || semanticTokens[0] !== FLIGHT_SIM_INVOCATION_SEMANTICS.flight) return null
+  if (commandTokens.length === 0) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_MISSING_COMMAND',
+      `Flight Sim invocation requires command token ${FLIGHT_SIM_INVOCATION_COMMANDS.control}.`,
+      { token: FLIGHT_SIM_INVOCATION_COMMANDS.control },
+    )
+  }
+  if (commandTokens.length > 1) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_DUPLICATE_SIGIL',
+      'Flight Sim invocation permits exactly one command sigil.',
+      { token: commandTokens[1] },
+    )
+  }
+  if (tokens[0] !== FLIGHT_SIM_INVOCATION_COMMANDS.control) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_COMMAND_MISMATCH',
+      `Flight Sim invocation command must be ${FLIGHT_SIM_INVOCATION_COMMANDS.control}.`,
+      { token: commandTokens[0] || tokens[0] },
+    )
+  }
+  if (bindingTokens.length === 0) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_MISSING_BINDING',
+      `Flight Sim invocation requires binding token ${FLIGHT_SIM_INVOCATION_BINDINGS.canvas}.`,
+      { token: FLIGHT_SIM_INVOCATION_BINDINGS.canvas },
+    )
+  }
+  if (bindingTokens.length > 1) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_DUPLICATE_SIGIL',
+      'Flight Sim invocation permits exactly one binding sigil.',
+      { token: bindingTokens[1] },
+    )
+  }
+  if (bindingTokens[0] !== FLIGHT_SIM_INVOCATION_BINDINGS.canvas || tokens[1] !== FLIGHT_SIM_INVOCATION_BINDINGS.canvas) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_BINDING_MISMATCH',
+      `Flight Sim invocation binding must be ${FLIGHT_SIM_INVOCATION_BINDINGS.canvas}.`,
+      { token: bindingTokens[0] || tokens[1] },
+    )
+  }
+  if (semanticTokens.length > 1) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_DUPLICATE_SIGIL',
+      'Flight Sim invocation permits exactly one semantic sigil.',
+      { token: semanticTokens[1] },
+    )
+  }
+  if (semanticTokens.length !== 1
+    || semanticTokens[0] !== FLIGHT_SIM_INVOCATION_SEMANTICS.flight
+    || tokens[2] !== FLIGHT_SIM_INVOCATION_SEMANTICS.flight) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_SEMANTIC_MISMATCH',
+      `Flight Sim invocation semantic must be ${FLIGHT_SIM_INVOCATION_SEMANTICS.flight}.`,
+      { token: semanticTokens[0] || FLIGHT_SIM_INVOCATION_SEMANTICS.flight },
+    )
+  }
 
   const pairs: Record<string, string> = {}
-  for (const token of tokens.slice(1)) {
-    if (token === FLIGHT_SIM_INVOCATION_BINDINGS.canvas || token === FLIGHT_SIM_INVOCATION_SEMANTICS.flight) {
-      continue
-    }
+  for (const token of tokens.slice(3)) {
     const separator = token.indexOf('=')
-    if (separator <= 0 || separator === token.length - 1) return null
+    if (separator <= 0 || separator === token.length - 1 || separator !== token.lastIndexOf('=')) {
+      return diagnosticFailure(
+        'FLIGHT_SIM_INVOCATION_MALFORMED_PAIR',
+        'Flight Sim invocation fields must use one non-empty key=value pair.',
+        { token },
+      )
+    }
     const key = token.slice(0, separator)
-    if ((key !== 'operation' && key !== 'throttle') || Object.hasOwn(pairs, key)) return null
+    if (key !== 'operation' && key !== 'throttle') {
+      return diagnosticFailure(
+        'FLIGHT_SIM_INVOCATION_UNKNOWN_KEY',
+        `Flight Sim invocation does not support key ${key}.`,
+        { field: key, token },
+      )
+    }
+    if (Object.hasOwn(pairs, key)) {
+      return diagnosticFailure(
+        'FLIGHT_SIM_INVOCATION_DUPLICATE_KEY',
+        `Flight Sim invocation contains duplicate key ${key}.`,
+        { field: key, token },
+      )
+    }
     pairs[key] = token.slice(separator + 1)
   }
 
   const operation = pairs.operation
-  if (!isFlightSimOperation(operation)) return null
+  if (!isFlightSimOperation(operation)) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_CONTROL_UNSUPPORTED_OPERATION',
+      `Flight Sim operation ${operation || '(missing)'} is unsupported.`,
+      { field: 'operation', token: operation || 'operation' },
+    )
+  }
   if (operation !== 'throttle') {
-    return Object.hasOwn(pairs, 'throttle') ? null : { invocation, operation }
+    return Object.hasOwn(pairs, 'throttle')
+      ? diagnosticFailure(
+        'FLIGHT_SIM_CONTROL_INVALID_THROTTLE',
+        `Flight Sim operation ${operation} forbids a throttle value.`,
+        { field: 'throttle', token: `throttle=${pairs.throttle}` },
+      )
+      : diagnosticSuccess({ invocation, operation })
   }
   const throttle = parseNativeThrottle(pairs.throttle)
-  return throttle === null ? null : { invocation, operation, throttle }
+  return throttle === null
+    ? diagnosticFailure(
+      'FLIGHT_SIM_CONTROL_INVALID_THROTTLE',
+      'Flight Sim throttle requires a finite decimal value from 0 through 1.',
+      { field: 'throttle', token: pairs.throttle === undefined ? 'throttle' : `throttle=${pairs.throttle}` },
+    )
+    : diagnosticSuccess({ invocation, operation, throttle })
 }
 
 export function normalizeFlightSimControl(
-  input: FlightSimControlInput,
+  input: unknown,
 ): NormalizedFlightSimControl | null {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) return null
-  const keys = Object.keys(input)
-  if (Object.hasOwn(input, 'invocation')) {
-    if (keys.length !== 1) return null
-    return parseFlightSimInvocation(input.invocation)
+  const diagnostic = diagnoseFlightSimControl(input)
+  return diagnostic.ok ? diagnostic.value : null
+}
+
+export function diagnoseFlightSimControl(input: unknown): FlightSimControlDiagnostic {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_CONTROL_INVALID_INPUT',
+      'Flight Sim control input must be an object.',
+      { field: 'input' },
+    )
   }
-  if (!Object.hasOwn(input, 'operation') || !isFlightSimOperation(input.operation)) return null
-  if (input.operation === 'throttle') {
-    if (keys.length !== 2 || !Object.hasOwn(input, 'throttle') || !isThrottle(input.throttle)) return null
-    return { invocation: '', operation: input.operation, throttle: input.throttle }
+  const record = input as Readonly<Record<string, unknown>>
+  const keys = Object.keys(record)
+  if (Object.hasOwn(record, 'invocation')) {
+    if (keys.length !== 1) {
+      return diagnosticFailure(
+        'FLIGHT_SIM_CONTROL_MIXED_INPUT',
+        'Flight Sim control forbids mixing native invocation and structured fields.',
+        { field: keys.find(key => key !== 'invocation') || 'invocation' },
+      )
+    }
+    return diagnoseFlightSimInvocation(record.invocation)
+  }
+  const unknownKey = keys.find(key => key !== 'operation' && key !== 'throttle')
+  if (unknownKey) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_INVOCATION_UNKNOWN_KEY',
+      `Flight Sim control does not support key ${unknownKey}.`,
+      { field: unknownKey },
+    )
+  }
+  if (!Object.hasOwn(record, 'operation') || !isFlightSimOperation(record.operation)) {
+    return diagnosticFailure(
+      'FLIGHT_SIM_CONTROL_UNSUPPORTED_OPERATION',
+      `Flight Sim operation ${String(record.operation || '(missing)')} is unsupported.`,
+      { field: 'operation', token: String(record.operation || 'operation') },
+    )
+  }
+  if (record.operation === 'throttle') {
+    if (keys.length !== 2 || !Object.hasOwn(record, 'throttle') || !isThrottle(record.throttle)) {
+      return diagnosticFailure(
+        'FLIGHT_SIM_CONTROL_INVALID_THROTTLE',
+        'Flight Sim throttle requires a finite value from 0 through 1.',
+        { field: 'throttle', token: String(record.throttle ?? 'throttle') },
+      )
+    }
+    return diagnosticSuccess({ invocation: '', operation: record.operation, throttle: record.throttle })
   }
   return keys.length === 1
-    ? { invocation: '', operation: input.operation }
-    : null
+    ? diagnosticSuccess({ invocation: '', operation: record.operation })
+    : diagnosticFailure(
+      'FLIGHT_SIM_CONTROL_INVALID_THROTTLE',
+      `Flight Sim operation ${record.operation} forbids a throttle value.`,
+      { field: 'throttle', token: String(record.throttle ?? 'throttle') },
+    )
 }
 
 const buildInvocationGrammar = (): Record<FlightSimOperation, string> => Object.fromEntries(
-  FLIGHT_SIM_OPERATIONS.map(operation => [
+  FLIGHT_SIM_CONTROL_OPERATIONS.map(operation => [
     operation,
     buildFlightSimInvocation(operation as FlightSimOperation, operation === 'throttle' ? 0.5 : undefined),
   ]),
@@ -177,10 +360,18 @@ const controlResult = (
   ok: boolean,
   message: string,
   operation?: FlightSimOperation,
+  failure?: FlightSimControlFailure,
 ) => ({
   ok,
   message,
   ...(operation ? { operation } : {}),
+  ...(!ok
+    ? {
+      errorCode: failure?.errorCode || 'FLIGHT_SIM_OPERATION_REJECTED',
+      ...(failure?.field ? { field: failure.field } : {}),
+      ...(failure?.token ? { token: failure.token } : {}),
+    }
+    : {}),
   flight: inspectLocalFlightSim(),
 })
 
@@ -189,17 +380,17 @@ const runtimeFailureMessage = (
   fallback: string,
 ): string => String(snapshot.runtimeError || fallback)
 
-export async function controlLocalFlightSim(input: FlightSimControlInput) {
-  const control = normalizeFlightSimControl(input)
-  if (!control) {
+export async function controlLocalFlightSim(input: unknown) {
+  const diagnostic = diagnoseFlightSimControl(input)
+  if (diagnostic.ok === false) {
     return controlResult(
       false,
-      'Use a supported structured operation or native /flight.sim @canvas #flight invocation.',
+      diagnostic.message,
+      undefined,
+      diagnostic,
     )
   }
-  if (control.operation === 'inspect') {
-    return controlResult(true, 'Local Flight Sim inspected without mutation.', control.operation)
-  }
+  const control = diagnostic.value
 
   const before = readFlightSimSnapshot()
   if (control.operation === 'open') {

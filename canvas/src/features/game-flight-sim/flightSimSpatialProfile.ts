@@ -14,6 +14,8 @@ import {
 import { readXrMotionReferenceRuntime } from '@/features/three/xrMotionReferenceRuntime'
 import { FLIGHT_SIM_AIRCRAFT_ASSET_SPEC } from './assetSpec/flightSimAssetSpec'
 import {
+  FLIGHT_SIM_COLLISION_SEPARATION_METERS,
+  FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
   freezeFlightSimAircraftState,
   type FlightSimAircraftState,
   type FlightSimBlocker,
@@ -113,8 +115,13 @@ export function createFlightSimSpatialProfile(
   const waypoints = Object.freeze(waypointSeeds.map<FlightSimWaypoint>((seed, index) => Object.freeze({
     id: `flight-sim:waypoint:${index + 1}:${seed[0]}`,
     position: vector([seed[1], seed[2], seed[3]]),
-    radiusMeters: Math.max(2.25, Math.min(4, Math.min(halfWidth, halfDepth) * 0.14)),
+    radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
   })))
+  const landingPad = Object.freeze({
+    id: 'flight-sim:landing-pad:home',
+    position: vector([centerX, 0.25, centerZ + halfDepth * 0.24]),
+    radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
+  })
   return Object.freeze({
     id: `flight-sim:${source.projection}:${source.stage.id}`,
     sourceKey: `${source.projection}:${source.stage.id}`,
@@ -122,6 +129,7 @@ export function createFlightSimSpatialProfile(
     spawn,
     blockers,
     waypoints,
+    landingPad,
   })
 }
 
@@ -176,13 +184,17 @@ export function resolveFlightSimAabbMotion(
   const hit = hits[0]
   if (!hit) return Object.freeze({ state: proposed, collisionId: null, impactSpeed: 0 })
 
-  const safeTime = Math.max(0, hit.time - 1e-5)
+  const impactPosition = previous.position.map((value, axis) => (
+    value + (proposed.position[axis] - value) * hit.time
+  ))
   const position = hit.penetration > 0
     ? vector(previous.position.map((value, axis) => (
-        value - hit.normal[axis] * (hit.penetration + 1e-6)
+        value - hit.normal[axis] * (
+          hit.penetration + FLIGHT_SIM_COLLISION_SEPARATION_METERS
+        )
       )))
-    : vector(previous.position.map((value, axis) => (
-        value + (proposed.position[axis] - value) * safeTime
+    : vector(impactPosition.map((value, axis) => (
+        value - hit.normal[axis] * FLIGHT_SIM_COLLISION_SEPARATION_METERS
       )))
   const velocity = vector(proposed.velocity.map((value, axis) => (
     Math.abs(hit.normal[axis]) > 0.5 ? 0 : value

@@ -8,6 +8,7 @@ import {
   XR_NATIVE_CONTROLLER_CAMERA_OPTIONS,
 } from '@/features/three/xrNativeControllerCameraCatalog'
 import {
+  diagnoseWorkspaceRunReadyDemoActivation,
   FLIGHT_SIM_DEMO_REPO_REL_PATH,
   FLIGHT_SIM_DEMO_WORKSPACE_SEED_BASENAME,
   FLIGHT_SIM_RUN_READY_DEMO_ID,
@@ -49,6 +50,25 @@ test('Flight Sim activation is source-authored and path conflicts fail closed', 
     resolveWorkspaceRunReadyDemoIdForDocument(XR_PHYSICS_DEMO_REPO_REL_PATH, seedSource),
     '',
   )
+  const conflict = diagnoseWorkspaceRunReadyDemoActivation(
+    XR_PHYSICS_DEMO_REPO_REL_PATH,
+    seedSource,
+  )
+  assert.equal(conflict.ok, false)
+  if (conflict.ok === false) {
+    assert.equal(conflict.errorCode, 'RUN_READY_IDENTITY_CONFLICT')
+    assert.match(conflict.message, /xr-physics/)
+    assert.match(conflict.message, /flight-sim/)
+  }
+  const unregistered = diagnoseWorkspaceRunReadyDemoActivation(
+    '/imports/unknown.md',
+    seedSource.replace('id: "flight-sim"', 'id: "unregistered-flight"'),
+  )
+  assert.equal(unregistered.ok, false)
+  if (unregistered.ok === false) {
+    assert.equal(unregistered.errorCode, 'RUN_READY_IDENTITY_UNREGISTERED')
+    assert.match(unregistered.message, /unregistered-flight/)
+  }
 })
 
 test('Flight browser proof activates only after applying the authored source', () => {
@@ -66,6 +86,13 @@ test('Flight browser proof activates only after applying the authored source', (
     ),
     'utf8',
   )
+  const serverOwner = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/run-local-vite-browser-smoke.mjs',
+    ),
+    'utf8',
+  )
   assert.match(
     runner,
     /delete process\.env\.VITE_KNOWGRPH_RUN_READY_DEMO/,
@@ -78,6 +105,24 @@ test('Flight browser proof activates only after applying the authored source', (
     runner,
     /VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH\s*=/,
   )
+  assert.match(runner, /const runCount = 2/)
+  assert.match(runner, /existingServerPolicy: 'forbid'/)
+  assert.match(runner, /KG_GAME_FLIGHT_SIM_EXPECTED_HEAD/)
+  assert.match(runner, /KG_GAME_FLIGHT_SIM_EXPECTED_SOURCE_SHA256/)
+  assert.match(runner, /freshServerPerRun: true/)
+  assert.match(
+    serverOwner,
+    /refusing responsive pre-existing server/,
+  )
+  for (const proofField of [
+    'runtimeRevision',
+    'authoredSeedSha256',
+    'workspaceSourceSha256',
+    'FIRST_PLAYABLE_FRAME_LIMIT_MS',
+    'durationMs',
+  ]) {
+    assert.match(verifier, new RegExp(proofField))
+  }
   assert.ok(
     verifier.indexOf(
       'source_application, source = apply_and_verify_exact_authored_source',

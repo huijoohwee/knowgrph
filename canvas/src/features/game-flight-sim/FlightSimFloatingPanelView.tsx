@@ -212,7 +212,13 @@ export function FlightSimFloatingPanelView() {
           <span><b>Heading</b><br />{degrees(flight.aircraft.yaw)}</span>
           <span><b>Pitch</b><br />{degrees(flight.aircraft.pitch)}</span>
           <span><b>Roll</b><br />{degrees(flight.aircraft.roll)}</span>
-          <span><b>Waypoint</b><br />{Math.min(flight.waypointIndex + 1, flight.waypointCount)}/{flight.waypointCount}</span>
+          <span>
+            <b>{flight.waypointIndex >= flight.waypointCount ? 'Landing pad' : 'Waypoint'}</b>
+            <br />
+            {flight.waypointIndex >= flight.waypointCount
+              ? 'Marked'
+              : `${flight.waypointIndex + 1}/${flight.waypointCount}`}
+          </span>
           <span><b>Tick</b><br />{flight.tick}</span>
           <span><b>Decisions</b><br />{decisions.savedCount} saved</span>
         </section>

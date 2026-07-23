@@ -43,6 +43,7 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
   const { gl } = useThree()
   const actorRef = React.useRef<Group | null>(null)
   const waypointRefs = React.useRef(new Map<string, Mesh>())
+  const landingPadRef = React.useRef<Mesh | null>(null)
   const snapshotRef = React.useRef(readFlightSimSnapshot())
   const desktopInputRef = React.useRef(FLIGHT_SIM_NEUTRAL_INPUT)
   const desktopBindingRef = React.useRef<FlightSimInputBinding | null>(null)
@@ -133,6 +134,10 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
       const mesh = waypointRefs.current.get(waypoint.id)
       if (mesh) mesh.visible = snapshot.active && index >= snapshot.waypointIndex
     }
+    if (landingPadRef.current) {
+      landingPadRef.current.visible = snapshot.active
+        && snapshot.waypointIndex >= profile.waypoints.length
+    }
     const playable = (snapshot.phase === 'ready' || snapshot.phase === 'flying')
       && snapshot.runId > 0
       && !isFlightSimHydrationPending()
@@ -188,6 +193,26 @@ export function FlightSimMissionStage({ coordinateScale = 1 }: {
           />
         </mesh>
       ))}
+      <mesh
+        ref={landingPadRef}
+        name="kg_flight_sim_landing_pad"
+        position={profile.landingPad.position}
+        rotation={[-Math.PI / 2, 0, 0]}
+        visible={snapshotRef.current.waypointIndex >= profile.waypoints.length}
+        userData={{
+          landingPadId: profile.landingPad.id,
+          captureRadiusMeters: profile.landingPad.radiusMeters,
+        }}
+      >
+        <ringGeometry args={[2.4, 3.2, 40]} />
+        <meshStandardMaterial
+          color="#facc15"
+          emissive="#ca8a04"
+          emissiveIntensity={0.5}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
     </group>
   )
 }

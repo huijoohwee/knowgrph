@@ -160,12 +160,18 @@ export function readStandardFlightSimGamepad(
 }
 
 export function mergeFlightSimInputs(inputs: readonly FlightSimInputPatch[]): FlightSimTickInput {
-  return normalizeFlightSimInput(inputs.reduce<Required<FlightSimInputPatch>>((merged, input) => ({
-    pitch: merged.pitch + (input.pitch ?? 0),
-    roll: merged.roll + (input.roll ?? 0),
-    yaw: merged.yaw + (input.yaw ?? 0),
-    throttleDelta: merged.throttleDelta + (input.throttleDelta ?? 0),
-  }), { pitch: 0, roll: 0, yaw: 0, throttleDelta: 0 }))
+  const selectLargestMagnitude = (values: readonly (number | undefined)[]): number => (
+    values.reduce((selected, candidateValue) => {
+      const candidate = candidateValue ?? 0
+      return Math.abs(candidate) > Math.abs(selected) ? candidate : selected
+    }, 0)
+  )
+  return normalizeFlightSimInput({
+    pitch: selectLargestMagnitude(inputs.map(input => input.pitch)),
+    roll: selectLargestMagnitude(inputs.map(input => input.roll)),
+    yaw: selectLargestMagnitude(inputs.map(input => input.yaw)),
+    throttleDelta: selectLargestMagnitude(inputs.map(input => input.throttleDelta)),
+  })
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {

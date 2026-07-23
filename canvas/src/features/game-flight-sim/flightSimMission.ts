@@ -1,48 +1,34 @@
 import { allocateEntity, createWorld, registerComponent, worldTick } from '../../../../ecs/index.js'
-import { snapshotWorld } from '../../../../ecs/world.js'
+import { disposeWorld, snapshotWorld } from '../../../../ecs/world.js'
+import { validateCostLog as validateCanonicalCostLog } from '../../../../contracts/cost-log.schema.js'
 import {
   FLIGHT_SIM_AIRCRAFT_ENTITY_REF,
+  FLIGHT_SIM_BLOCKED_INFERENCE_COST_LOG,
   FLIGHT_SIM_FIXED_STEP_SECONDS,
-  FLIGHT_SIM_MAX_MISSION_TICKS,
+  FLIGHT_SIM_MAX_CAPTURE_RADIUS_METERS,
   FLIGHT_SIM_MAX_RUN_ID,
+  FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
   FLIGHT_SIM_MISSION_ENTITY_REF,
-  FLIGHT_SIM_MISSION_ID,
+  FLIGHT_SIM_ROUTE_WAYPOINT_COUNT,
   FLIGHT_SIM_TIMEOUT_COLLIDER_ID,
   FLIGHT_SIM_ZERO_COST_LOG,
-  flightSimDecisionId,
-  flightSimDecisionProducedAt,
   freezeFlightSimAircraftState,
-  normalizeFlightSimInput,
   type FlightSimAircraftState,
   type FlightSimCostLog,
-  type FlightSimDecisionEvent,
   type FlightSimDecisionRecord,
   type FlightSimPhase,
   type FlightSimSpatialProfile,
   type FlightSimTickInput,
 } from './flightSimModel'
 import { validateFlightSimMissionDecisions } from './flightSimDecisionAdmission'
-import { integrateFlightModel } from './flightModel'
 import {
-  flightSimWaypointReached,
-  resolveFlightSimAabbMotion,
-} from './flightSimSpatialProfile'
-
-const PHASE_READY = 1
-const PHASE_FLYING = 2
-const PHASE_COMPLETED = 3
-const PHASE_CRASHED = 4
-
-type EcsContext = {
-  read(entityId: number, component: string, field: string): number
-  write(entityId: number, component: string, field: string, value: number): void
-  emitDecision(decision: FlightSimDecisionRecord): void
-}
-
-type FlightSimWorldTickInput = Readonly<{
-  controls: FlightSimTickInput
-  throttleSetpoint: number | null
-}>
+  createFlightSimSystems,
+  FLIGHT_SIM_PHASE_COMPLETED as PHASE_COMPLETED,
+  FLIGHT_SIM_PHASE_CRASHED as PHASE_CRASHED,
+  FLIGHT_SIM_PHASE_FLYING as PHASE_FLYING,
+  FLIGHT_SIM_PHASE_READY as PHASE_READY,
+  type FlightSimSystemFailureInjection,
+} from './flightSimSystems'
 
 type RuntimeEntity = Readonly<{
   entityRef: string
@@ -69,10 +55,14 @@ export type FlightSimMissionTickResult = Readonly<{
 export type FlightSimMission = Readonly<{
   world: object
   runId: number
+  seed: string
   aircraftEntityId: number
   missionEntityId: number
   profile: FlightSimSpatialProfile
 }>
+
+type FlightSimInferenceExecutor = (...args: readonly unknown[]) => unknown
+const inferenceExecutorByMission = new WeakMap<FlightSimMission, FlightSimInferenceExecutor>()
 
 type FlightSimReplayState = Readonly<{
   aircraft: FlightSimAircraftState
@@ -81,6 +71,34 @@ type FlightSimReplayState = Readonly<{
   phase: number
   collisionIndex: number
 }>
+
+export type FlightSimMissionTickOptions = Readonly<{
+  attemptInference?: boolean
+}>
+
+export class FlightSimWorldTickError extends Error {
+  readonly code = 'FLIGHT_SIM_WORLD_TICK_FAILED'
+  readonly ecsErrorCode: string
+  readonly failingSystemIndex: number | null
+  readonly failingSystemName: string | null
+  readonly systemCause: string
+
+  constructor(result: Readonly<Record<string, unknown>>) {
+    const ecsErrorCode = String(result.errorCode || 'ECS_TICK_FAILED')
+    const systemName = typeof result.failingSystemName === 'string'
+      ? result.failingSystemName
+      : null
+    const systemCause = String(result.failingSystemCause || result.message || 'unknown ECS failure')
+    super(`Flight Sim World_Tick failed: ${ecsErrorCode}: ${systemCause}`)
+    this.name = 'FlightSimWorldTickError'
+    this.ecsErrorCode = ecsErrorCode
+    this.failingSystemIndex = Number.isSafeInteger(result.failingSystemIndex)
+      ? Number(result.failingSystemIndex)
+      : null
+    this.failingSystemName = systemName
+    this.systemCause = systemCause
+  }
+}
 
 function boundedRunId(value: number): number {
   if (!Number.isSafeInteger(value) || value < 1 || value > FLIGHT_SIM_MAX_RUN_ID) {
@@ -101,25 +119,6 @@ function phaseCode(phase: Exclude<FlightSimPhase, 'stopped'>): number {
   if (phase === 'crashed') return PHASE_CRASHED
   if (phase === 'flying') return PHASE_FLYING
   return PHASE_READY
-}
-
-function decision(
-  runId: number,
-  tick: number,
-  event: FlightSimDecisionEvent,
-  decisionType: FlightSimDecisionRecord['decisionType'],
-  payload: Record<string, unknown>,
-): FlightSimDecisionRecord {
-  const suffix = String(payload.waypointId || payload.colliderId || 'mission')
-  return Object.freeze({
-    decisionId: flightSimDecisionId(runId, tick, event, suffix),
-    decisionType,
-    entityRef: event === 'waypoint_reached'
-      ? String(payload.waypointId)
-      : FLIGHT_SIM_MISSION_ENTITY_REF,
-    payload: Object.freeze({ event, missionId: FLIGHT_SIM_MISSION_ID, runId, tick, ...payload }),
-    producedAt: flightSimDecisionProducedAt(tick, event),
-  })
 }
 
 function payloadNumber(payload: Record<string, unknown>, key: string): number {
@@ -207,12 +206,28 @@ function replayFlightSimDecisions(
   return Object.freeze(state)
 }
 
+function currentObjectiveId(
+  profile: FlightSimSpatialProfile,
+  waypointIndex: number,
+): string | null {
+  return profile.waypoints[waypointIndex]?.id
+    || (waypointIndex === profile.waypoints.length ? profile.landingPad.id : null)
+}
+
 function replayFlightSimCapture(
   profile: FlightSimSpatialProfile,
   capture: FlightSimMissionCapture,
 ): FlightSimReplayState {
   if (capture.waypointCount !== profile.waypoints.length) {
     throw new Error('Flight Sim capture waypoint count does not match its spatial profile')
+  }
+  if (!Number.isSafeInteger(capture.waypointIndex)
+    || capture.waypointIndex < 0
+    || capture.waypointIndex > profile.waypoints.length) {
+    throw new Error('Flight Sim capture waypoint progress exceeds its spatial profile')
+  }
+  if (capture.currentWaypointId !== currentObjectiveId(profile, capture.waypointIndex)) {
+    throw new Error('Flight Sim capture objective identity does not match its spatial profile')
   }
   return Object.freeze({
     aircraft: capture.aircraft,
@@ -227,69 +242,48 @@ function replayFlightSimCapture(
   })
 }
 
-function emitFlightStateDecision(
-  context: EcsContext,
-  runId: number,
-  tick: number,
-  state: FlightSimAircraftState,
-  phase: 'flying' | 'completed' | 'crashed',
-  waypointIndex: number,
-): void {
-  context.emitDecision(decision(runId, tick, 'flight_state', 'world_tick_result', {
-    position: state.position,
-    velocity: state.velocity,
-    pitch: state.pitch,
-    roll: state.roll,
-    yaw: state.yaw,
-    throttle: state.throttle,
-    waypointIndex,
-    phase,
-  }))
+function validateMissionObjective(profile: FlightSimSpatialProfile): void {
+  if (profile.waypoints.length !== FLIGHT_SIM_ROUTE_WAYPOINT_COUNT) {
+    throw new Error(`Flight Sim profile must contain exactly ${FLIGHT_SIM_ROUTE_WAYPOINT_COUNT} ordered waypoints`)
+  }
+  const objectivePoints = [...profile.waypoints, profile.landingPad]
+  const ids = new Set<string>()
+  for (const point of objectivePoints) {
+    if (!point.id || ids.has(point.id)) {
+      throw new Error('Flight Sim objective points must use unique non-empty identities')
+    }
+    ids.add(point.id)
+    if (!Number.isFinite(point.radiusMeters)
+      || point.radiusMeters < FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS
+      || point.radiusMeters > FLIGHT_SIM_MAX_CAPTURE_RADIUS_METERS) {
+      throw new Error(
+        `Flight Sim objective capture radii must be from ${FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS} to ${FLIGHT_SIM_MAX_CAPTURE_RADIUS_METERS} meters`,
+      )
+    }
+  }
 }
 
-function readAircraft(context: EcsContext, entityId: number): FlightSimAircraftState {
-  return freezeFlightSimAircraftState({
-    position: [
-      context.read(entityId, 'Transform', 'x'),
-      context.read(entityId, 'Transform', 'y'),
-      context.read(entityId, 'Transform', 'z'),
-    ],
-    velocity: [
-      context.read(entityId, 'Velocity', 'x'),
-      context.read(entityId, 'Velocity', 'y'),
-      context.read(entityId, 'Velocity', 'z'),
-    ],
-    pitch: context.read(entityId, 'Attitude', 'pitch'),
-    roll: context.read(entityId, 'Attitude', 'roll'),
-    yaw: context.read(entityId, 'Attitude', 'yaw'),
-    throttle: context.read(entityId, 'FlightControl', 'throttle'),
-  })
-}
-
-function writeAircraft(context: EcsContext, entityId: number, state: FlightSimAircraftState): void {
-  context.write(entityId, 'Transform', 'x', state.position[0])
-  context.write(entityId, 'Transform', 'y', state.position[1])
-  context.write(entityId, 'Transform', 'z', state.position[2])
-  context.write(entityId, 'Velocity', 'x', state.velocity[0])
-  context.write(entityId, 'Velocity', 'y', state.velocity[1])
-  context.write(entityId, 'Velocity', 'z', state.velocity[2])
-  context.write(entityId, 'Attitude', 'pitch', state.pitch)
-  context.write(entityId, 'Attitude', 'roll', state.roll)
-  context.write(entityId, 'Attitude', 'yaw', state.yaw)
-  context.write(entityId, 'FlightControl', 'throttle', state.throttle)
+function missionSeed(value: string | undefined, profile: FlightSimSpatialProfile): string {
+  const seed = value ?? profile.sourceKey
+  if (!seed || seed.trim() !== seed) {
+    throw new Error('Flight Sim mission seed must be a non-empty trimmed string')
+  }
+  return seed
 }
 
 export function createFlightSimMission(args: {
   runId: number
   profile: FlightSimSpatialProfile
+  seed?: string
   decisions?: readonly unknown[]
   initialCapture?: FlightSimMissionCapture
+  failureInjection?: FlightSimSystemFailureInjection
+  inferenceExecutor?: FlightSimInferenceExecutor
 }): FlightSimMission {
   const runId = boundedRunId(args.runId)
   const profile = args.profile
-  if (profile.waypoints.length < 1 || profile.waypoints.length > 255) {
-    throw new Error('Flight Sim profile must contain from 1 to 255 waypoints')
-  }
+  const seed = missionSeed(args.seed, profile)
+  validateMissionObjective(profile)
   if (args.initialCapture && args.decisions) {
     throw new Error('Flight Sim mission accepts Decisions or an internal capture, not both')
   }
@@ -298,94 +292,47 @@ export function createFlightSimMission(args: {
     : replayFlightSimDecisions(profile, args.decisions || [])
   let aircraftEntityId = -1
   let missionEntityId = -1
-
-  const flightSystem = (context: EcsContext, tickInput: FlightSimWorldTickInput) => {
-    const phase = context.read(missionEntityId, 'Mission', 'phase')
-    if (phase === PHASE_COMPLETED || phase === PHASE_CRASHED) return
-    const previousTick = context.read(missionEntityId, 'Mission', 'tick')
-    if (previousTick >= FLIGHT_SIM_MAX_MISSION_TICKS) {
-      throw new Error('Flight Sim mission exhausted its bounded tick range')
-    }
-    const tick = previousTick + 1
-    if (tick === FLIGHT_SIM_MAX_MISSION_TICKS) {
-      context.write(missionEntityId, 'Mission', 'tick', tick)
-      context.write(missionEntityId, 'Mission', 'elapsed', tick * FLIGHT_SIM_FIXED_STEP_SECONDS)
-      context.write(missionEntityId, 'Mission', 'phase', PHASE_CRASHED)
-      context.write(missionEntityId, 'Mission', 'collisionIndex', profile.blockers.length + 1)
-      const timedOutState = readAircraft(context, aircraftEntityId)
-      context.emitDecision(decision(runId, tick, 'mission_crashed', 'quest_flag', {
-        status: 'crashed',
-        colliderId: FLIGHT_SIM_TIMEOUT_COLLIDER_ID,
-        impactSpeed: Math.hypot(...timedOutState.velocity),
-      }))
-      emitFlightStateDecision(
-        context,
-        runId,
-        tick,
-        timedOutState,
-        'crashed',
-        context.read(missionEntityId, 'Mission', 'waypointIndex'),
-      )
-      return
-    }
-    const input = normalizeFlightSimInput(tickInput.controls)
-    const captured = readAircraft(context, aircraftEntityId)
-    const previous = tickInput.throttleSetpoint === null
-      ? captured
-      : freezeFlightSimAircraftState({ ...captured, throttle: tickInput.throttleSetpoint })
-    const integrated = integrateFlightModel(previous, input)
-    const collision = resolveFlightSimAabbMotion(previous, integrated, profile)
-    writeAircraft(context, aircraftEntityId, collision.state)
-    context.write(missionEntityId, 'Mission', 'tick', tick)
-    context.write(
-      missionEntityId,
-      'Mission',
-      'elapsed',
-      tick * FLIGHT_SIM_FIXED_STEP_SECONDS,
-    )
-    context.write(missionEntityId, 'Mission', 'phase', PHASE_FLYING)
-
-    if (collision.collisionId) {
-      const colliderIndex = profile.blockers.findIndex(blocker => blocker.id === collision.collisionId)
-      context.write(missionEntityId, 'Mission', 'phase', PHASE_CRASHED)
-      context.write(missionEntityId, 'Mission', 'collisionIndex', colliderIndex + 1)
-      context.emitDecision(decision(runId, tick, 'mission_crashed', 'quest_flag', {
-        status: 'crashed',
-        colliderId: collision.collisionId,
-        impactSpeed: collision.impactSpeed,
-      }))
-      emitFlightStateDecision(context, runId, tick, readAircraft(context, aircraftEntityId), 'crashed', context.read(missionEntityId, 'Mission', 'waypointIndex'))
-      return
-    }
-
-    const waypointIndex = context.read(missionEntityId, 'Mission', 'waypointIndex')
-    const waypoint = profile.waypoints[waypointIndex]
-    if (!waypoint || !flightSimWaypointReached(collision.state.position, waypoint)) {
-      emitFlightStateDecision(context, runId, tick, readAircraft(context, aircraftEntityId), 'flying', waypointIndex)
-      return
-    }
-    const nextWaypointIndex = waypointIndex + 1
-    context.write(missionEntityId, 'Mission', 'waypointIndex', nextWaypointIndex)
-    context.emitDecision(decision(runId, tick, 'waypoint_reached', 'world_tick_result', {
-      waypointId: waypoint.id,
-      waypointIndex,
-    }))
-    if (nextWaypointIndex < profile.waypoints.length) {
-      emitFlightStateDecision(context, runId, tick, readAircraft(context, aircraftEntityId), 'flying', nextWaypointIndex)
-      return
-    }
-    context.write(missionEntityId, 'Mission', 'phase', PHASE_COMPLETED)
-    context.emitDecision(decision(runId, tick, 'mission_completed', 'quest_flag', {
-      status: 'completed',
-    }))
-    emitFlightStateDecision(context, runId, tick, readAircraft(context, aircraftEntityId), 'completed', nextWaypointIndex)
-  }
-
-  const world = createWorld({ systems: [flightSystem] })
+  const systems = createFlightSimSystems({
+    runId,
+    profile,
+    aircraftEntityId: () => aircraftEntityId,
+    missionEntityId: () => missionEntityId,
+    failureInjection: args.failureInjection,
+  })
+  const world = createWorld({
+    systems,
+    decisionExecutor: args.inferenceExecutor,
+    reasoningPolicy: 'forbid',
+  })
   registerComponent(world, 'Transform', { x: 'f32', y: 'f32', z: 'f32' })
   registerComponent(world, 'Velocity', { x: 'f32', y: 'f32', z: 'f32' })
   registerComponent(world, 'Attitude', { pitch: 'f32', roll: 'f32', yaw: 'f32' })
   registerComponent(world, 'FlightControl', { throttle: 'f32' })
+  registerComponent(world, 'InputFrame', {
+    pitch: 'f32',
+    roll: 'f32',
+    yaw: 'f32',
+    throttleDelta: 'f32',
+    throttleSetpoint: 'f32',
+    hasThrottleSetpoint: 'u8',
+    outOfRange: 'u8',
+  })
+  registerComponent(world, 'PreviousAircraft', {
+    x: 'f32',
+    y: 'f32',
+    z: 'f32',
+    vx: 'f32',
+    vy: 'f32',
+    vz: 'f32',
+    pitch: 'f32',
+    roll: 'f32',
+    yaw: 'f32',
+    throttle: 'f32',
+  })
+  registerComponent(world, 'TickCollision', {
+    blockerIndex: 'u16',
+    impactSpeed: 'f64',
+  })
   registerComponent(world, 'Aircraft', { active: 'u8' })
   registerComponent(world, 'Mission', {
     phase: 'u8',
@@ -413,6 +360,31 @@ export function createFlightSimMission(args: {
         yaw: replay.aircraft.yaw,
       },
       FlightControl: { throttle: replay.aircraft.throttle },
+      InputFrame: {
+        pitch: 0,
+        roll: 0,
+        yaw: 0,
+        throttleDelta: 0,
+        throttleSetpoint: 0,
+        hasThrottleSetpoint: 0,
+        outOfRange: 0,
+      },
+      PreviousAircraft: {
+        x: replay.aircraft.position[0],
+        y: replay.aircraft.position[1],
+        z: replay.aircraft.position[2],
+        vx: replay.aircraft.velocity[0],
+        vy: replay.aircraft.velocity[1],
+        vz: replay.aircraft.velocity[2],
+        pitch: replay.aircraft.pitch,
+        roll: replay.aircraft.roll,
+        yaw: replay.aircraft.yaw,
+        throttle: replay.aircraft.throttle,
+      },
+      TickCollision: {
+        blockerIndex: 0,
+        impactSpeed: 0,
+      },
       Aircraft: { active: 1 },
     },
   })
@@ -428,15 +400,31 @@ export function createFlightSimMission(args: {
       },
     },
   })
-  return Object.freeze({ world, runId, aircraftEntityId, missionEntityId, profile })
+  const mission = Object.freeze({
+    world,
+    runId,
+    seed,
+    aircraftEntityId,
+    missionEntityId,
+    profile,
+  })
+  if (args.inferenceExecutor) inferenceExecutorByMission.set(mission, args.inferenceExecutor)
+  return mission
 }
 
 export function cloneFlightSimMission(mission: FlightSimMission): FlightSimMission {
   return createFlightSimMission({
     runId: mission.runId,
     profile: mission.profile,
+    seed: mission.seed,
     initialCapture: captureFlightSimMission(mission),
+    inferenceExecutor: inferenceExecutorByMission.get(mission),
   })
+}
+
+export function disposeFlightSimMission(mission: FlightSimMission): boolean {
+  inferenceExecutorByMission.delete(mission)
+  return disposeWorld(mission.world)
 }
 
 function component(entity: RuntimeEntity, name: string): Record<string, number> {
@@ -469,7 +457,7 @@ export function captureFlightSimMission(mission: FlightSimMission): FlightSimMis
     }),
     waypointIndex,
     waypointCount: mission.profile.waypoints.length,
-    currentWaypointId: mission.profile.waypoints[waypointIndex]?.id || null,
+    currentWaypointId: currentObjectiveId(mission.profile, waypointIndex),
     tick: state.tick,
     elapsedSeconds: state.elapsed,
     collisionId: collisionIndex === mission.profile.blockers.length
@@ -478,14 +466,27 @@ export function captureFlightSimMission(mission: FlightSimMission): FlightSimMis
   })
 }
 
-function validateZeroCostLog(value: unknown): FlightSimCostLog {
+function validateFlightSimCostLog(value: unknown, blockedInference: boolean): FlightSimCostLog {
   const cost = value as Record<string, unknown>
-  if (!cost || cost.model !== 'none'
-    || cost.prompt_tokens !== 0
-    || cost.completion_tokens !== 0
+  const validation = validateCanonicalCostLog(value)
+  if (!validation.valid || !cost || cost.model !== 'none'
     || cost.cache_hits !== 0
-    || cost.estimated_cost_usd !== 0
-    || cost.incomplete !== false) {
+    || cost.estimated_cost_usd !== 0) {
+    throw new Error('Flight Sim World_Tick produced an invalid canonical Cost_Log')
+  }
+  if (blockedInference) {
+    if (cost.prompt_tokens !== 'unknown'
+      || cost.completion_tokens !== 'unknown'
+      || cost.incomplete !== true
+      || cost.error !== 'blocked_inference') {
+      throw new Error('Flight Sim blocked inference must produce one incomplete Cost_Log')
+    }
+    return FLIGHT_SIM_BLOCKED_INFERENCE_COST_LOG
+  }
+  if (cost.prompt_tokens !== 0
+    || cost.completion_tokens !== 0
+    || cost.incomplete !== false
+    || Object.hasOwn(cost, 'error')) {
     throw new Error('Flight Sim World_Tick must produce exactly one canonical zero Cost_Log')
   }
   return FLIGHT_SIM_ZERO_COST_LOG
@@ -495,25 +496,40 @@ export async function tickFlightSimMission(
   mission: FlightSimMission,
   input: FlightSimTickInput,
   throttleSetpoint: number | null = null,
+  options: FlightSimMissionTickOptions = {},
 ): Promise<FlightSimMissionTickResult> {
   if (throttleSetpoint !== null
     && (!Number.isFinite(throttleSetpoint) || throttleSetpoint < 0 || throttleSetpoint > 1)) {
     throw new Error('Flight Sim throttle setpoint must be a finite number from 0 to 1')
   }
-  const result = await worldTick(mission.world, Object.freeze({
-    controls: normalizeFlightSimInput(input),
-    throttleSetpoint,
-  }))
-  if (!result.ok) throw new Error(`Flight Sim World_Tick failed: ${result.errorCode}: ${result.message}`)
-  if (result.deferred_decisions.length !== 0 || result.cost_logs.length !== 1) {
-    throw new Error('Flight Sim World_Tick must remain deterministic and reasoning-free')
+  const blockedInference = options.attemptInference === true
+  const tickMission = blockedInference ? cloneFlightSimMission(mission) : mission
+  try {
+    const result = await worldTick(tickMission.world, Object.freeze({
+      controls: input,
+      throttleSetpoint,
+      attemptInference: blockedInference,
+    }))
+    if (!result.ok) throw new FlightSimWorldTickError(result)
+    const expectedDeferredCount = blockedInference ? 1 : 0
+    if (result.deferred_decisions.length !== expectedDeferredCount || result.cost_logs.length !== 1) {
+      throw new Error('Flight Sim World_Tick must remain deterministic and reasoning-free')
+    }
+    if (blockedInference
+      && result.deferred_decisions[0]?.deferred_reason !== 'inference_blocked') {
+      throw new Error('Flight Sim inference guard did not block the reasoning request')
+    }
+    return Object.freeze({
+      capture: captureFlightSimMission(blockedInference ? mission : tickMission),
+      decisions: blockedInference
+        ? Object.freeze([])
+        : Object.freeze(result.decisions.map((item: FlightSimDecisionRecord) => Object.freeze({
+            ...item,
+            payload: Object.freeze({ ...item.payload }),
+          }))),
+      costLog: validateFlightSimCostLog(result.cost_logs[0], blockedInference),
+    })
+  } finally {
+    if (blockedInference) disposeFlightSimMission(tickMission)
   }
-  return Object.freeze({
-    capture: captureFlightSimMission(mission),
-    decisions: Object.freeze(result.decisions.map((item: FlightSimDecisionRecord) => Object.freeze({
-      ...item,
-      payload: Object.freeze({ ...item.payload }),
-    }))),
-    costLog: validateZeroCostLog(result.cost_logs[0]),
-  })
 }

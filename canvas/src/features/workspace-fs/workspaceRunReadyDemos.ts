@@ -27,6 +27,21 @@ export type WorkspaceRunReadyDemoSeed = {
   cleanCanvasRecommended: boolean
 }
 
+export type WorkspaceRunReadyDemoActivationDiagnostic =
+  | Readonly<{
+    ok: true
+    id: string
+    pathId: string
+    sourceId: string | null
+  }>
+  | Readonly<{
+    ok: false
+    errorCode: 'RUN_READY_IDENTITY_CONFLICT' | 'RUN_READY_IDENTITY_UNREGISTERED'
+    message: string
+    pathId: string
+    sourceId: string | null
+  }>
+
 const normalizeDemoId = (value: string): string =>
   String(value || '')
     .trim()
@@ -153,15 +168,64 @@ function resolveWorkspaceRunReadyDemoIdForDocumentText(
   return resolved
 }
 
+function readDeclaredWorkspaceRunReadyDemoId(
+  documentText: string | null | undefined,
+): string {
+  const block = extractYamlFrontmatterHeaderBlock(String(documentText || ''))
+  if (!block) return ''
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(block.rawBlock))
+  const declaration = parsed.meta.run_ready_demo
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration)) {
+    return ''
+  }
+  return normalizeDemoId(String((declaration as Record<string, unknown>).id || ''))
+}
+
 export const resolveWorkspaceRunReadyDemoIdForDocument = (
   documentPath: string | null | undefined,
   documentText: string | null | undefined,
 ): string => {
+  const diagnostic = diagnoseWorkspaceRunReadyDemoActivation(documentPath, documentText)
+  return diagnostic.ok ? diagnostic.id : ''
+}
+
+export const diagnoseWorkspaceRunReadyDemoActivation = (
+  documentPath: string | null | undefined,
+  documentText: string | null | undefined,
+): WorkspaceRunReadyDemoActivationDiagnostic => {
   const pathId = resolveWorkspaceRunReadyDemoIdForDocumentPath(documentPath)
   const sourceId = resolveWorkspaceRunReadyDemoIdForDocumentText(documentText)
-  if (sourceId == null) return pathId
-  if (!sourceId || (pathId && pathId !== sourceId)) return ''
-  return sourceId
+  if (sourceId == null) {
+    return pathId
+      ? Object.freeze({ ok: true, id: pathId, pathId, sourceId })
+      : Object.freeze({
+        ok: false,
+        errorCode: 'RUN_READY_IDENTITY_UNREGISTERED',
+        message: 'Run-ready activation identity is unregistered: (missing).',
+        pathId,
+        sourceId,
+      })
+  }
+  if (!sourceId) {
+    const declaredId = readDeclaredWorkspaceRunReadyDemoId(documentText)
+    return Object.freeze({
+      ok: false,
+      errorCode: 'RUN_READY_IDENTITY_UNREGISTERED',
+      message: `Run-ready source-authored identity is unregistered: ${declaredId || '(invalid)'}.`,
+      pathId,
+      sourceId: declaredId || sourceId,
+    })
+  }
+  if (pathId && pathId !== sourceId) {
+    return Object.freeze({
+      ok: false,
+      errorCode: 'RUN_READY_IDENTITY_CONFLICT',
+      message: `Run-ready identity conflict: imported path=${pathId}, source-authored=${sourceId}.`,
+      pathId,
+      sourceId,
+    })
+  }
+  return Object.freeze({ ok: true, id: sourceId, pathId, sourceId })
 }
 
 export const readWorkspaceRunReadyDemoId = (

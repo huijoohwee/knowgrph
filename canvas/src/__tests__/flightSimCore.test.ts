@@ -17,7 +17,10 @@ import {
   FLIGHT_SIM_MISSION_ID,
   FLIGHT_SIM_FIXED_STEP_SECONDS,
   FLIGHT_SIM_MAX_MISSION_TICKS,
+  FLIGHT_SIM_MAX_CAPTURE_RADIUS_METERS,
+  FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
   FLIGHT_SIM_NEUTRAL_INPUT,
+  FLIGHT_SIM_ROUTE_WAYPOINT_COUNT,
   FLIGHT_SIM_TIMEOUT_COLLIDER_ID,
   FLIGHT_SIM_ZERO_COST_LOG,
   flightSimDecisionId,
@@ -73,10 +76,25 @@ function profile(): FlightSimSpatialProfile {
     waypoints: Object.freeze([
       Object.freeze({
         id: 'waypoint-1',
-        position: Object.freeze([0, 8, -12] as const),
-        radiusMeters: 1,
+        position: Object.freeze([0, 8, -200] as const),
+        radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
+      }),
+      Object.freeze({
+        id: 'waypoint-2',
+        position: Object.freeze([0, 8, -400] as const),
+        radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
+      }),
+      Object.freeze({
+        id: 'waypoint-3',
+        position: Object.freeze([0, 8, -600] as const),
+        radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
       }),
     ]),
+    landingPad: Object.freeze({
+      id: 'landing-pad',
+      position: Object.freeze([0, 0, -800] as const),
+      radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS,
+    }),
   })
 }
 
@@ -124,7 +142,7 @@ function completedStateDecision(
   }
 }
 
-function completedDecision(tick: number) {
+function completedDecision(spatial: FlightSimSpatialProfile, tick: number) {
   return {
     decisionId: flightSimDecisionId(1, tick, 'mission_completed', 'mission'),
     decisionType: 'quest_flag',
@@ -135,6 +153,7 @@ function completedDecision(tick: number) {
       runId: 1,
       tick,
       status: 'completed',
+      landingPadId: spatial.landingPad.id,
     },
     producedAt: flightSimDecisionProducedAt(tick, 'mission_completed'),
   }
@@ -205,6 +224,20 @@ test('keyboard and standard gamepad controls normalize into one immutable bounde
   assert.equal(merged.yaw, -1)
   assert.ok(merged.throttleDelta > 0)
   assert.equal(flightSimInputFromStandardGamepad(null), FLIGHT_SIM_NEUTRAL_INPUT)
+})
+
+test('multi-device conflicts select the largest absolute value independently per flight axis', () => {
+  assert.deepEqual(mergeFlightSimInputs([
+    { pitch: 0.45, roll: -0.9, yaw: 0.4, throttleDelta: -0.25 },
+    { pitch: -0.8, roll: 0.3, yaw: -0.7, throttleDelta: 0.75 },
+    { pitch: 0.2, roll: 0.5, yaw: 0.1, throttleDelta: -0.5 },
+  ]), {
+    pitch: -0.8,
+    roll: -0.9,
+    yaw: -0.7,
+    throttleDelta: 0.75,
+  })
+  assert.equal(mergeFlightSimInputs([{ yaw: 0.5 }, { yaw: -0.5 }]).yaw, 0.5)
 })
 
 test('left and right yaw controls turn toward their labelled world directions', () => {
@@ -342,7 +375,9 @@ test('native swept AABB resolution stops before a thin authored slab', () => {
     ],
   })
   assert.equal(collision.collisionId, 'thin-wall')
-  assert.ok(collision.state.position[2] > 0.5)
+  const separation = Math.abs(collision.state.position[2])
+    - (spatial.aircraftHalfSize[2] + 0.05)
+  assert.ok(separation >= 0.001 - 1e-12)
   assert.equal(collision.state.velocity[2], 0)
 })
 
@@ -362,6 +397,11 @@ test('native AABB resolution ejects a schema-valid hydrated overlap', () => {
     blockers: [blocker],
   })
   assert.equal(collision.collisionId, blocker.id)
+  const separation = Math.max(...([0, 1, 2] as const).map(axis => (
+    Math.abs(collision.state.position[axis] - blocker.center[axis])
+      - (spatial.aircraftHalfSize[axis] + blocker.halfSize[axis])
+  )))
+  assert.ok(separation >= 0.001 - 1e-12)
   assert.equal(resolveFlightSimAabbMotion(
     collision.state,
     collision.state,
@@ -370,7 +410,8 @@ test('native AABB resolution ejects a schema-valid hydrated overlap', () => {
 })
 
 test('canonical Flight profile fences every horizontal edge and the flight ceiling', () => {
-  const blockerIds = new Set(readFlightSimXrSpatialProfile().blockers.map(blocker => blocker.id))
+  const spatial = readFlightSimXrSpatialProfile()
+  const blockerIds = new Set(spatial.blockers.map(blocker => blocker.id))
   for (const id of [
     'flight-sim:boundary-west',
     'flight-sim:boundary-east',
@@ -381,6 +422,46 @@ test('canonical Flight profile fences every horizontal edge and the flight ceili
   ]) {
     assert.equal(blockerIds.has(id), true, `missing bounded Flight collider ${id}`)
   }
+  assert.equal(spatial.waypoints.length, FLIGHT_SIM_ROUTE_WAYPOINT_COUNT)
+  assert.equal(spatial.landingPad.id, 'flight-sim:landing-pad:home')
+  for (const point of [...spatial.waypoints, spatial.landingPad]) {
+    assert.ok(point.radiusMeters >= FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS)
+    assert.ok(point.radiusMeters <= FLIGHT_SIM_MAX_CAPTURE_RADIUS_METERS)
+  }
+})
+
+test('mission profiles reject routes other than three waypoints and capture radii outside 50 to 200 meters', () => {
+  const spatial = profile()
+  assert.throws(() => createFlightSimMission({
+    runId: 1,
+    profile: Object.freeze({
+      ...spatial,
+      waypoints: Object.freeze(spatial.waypoints.slice(0, 2)),
+    }),
+  }), /exactly 3 ordered waypoints/)
+  assert.throws(() => createFlightSimMission({
+    runId: 1,
+    profile: Object.freeze({
+      ...spatial,
+      landingPad: Object.freeze({
+        ...spatial.landingPad,
+        radiusMeters: FLIGHT_SIM_MIN_CAPTURE_RADIUS_METERS - 1,
+      }),
+    }),
+  }), /50 to 200 meters/)
+  assert.throws(() => createFlightSimMission({
+    runId: 1,
+    profile: Object.freeze({
+      ...spatial,
+      waypoints: Object.freeze([
+        Object.freeze({
+          ...spatial.waypoints[0],
+          radiusMeters: FLIGHT_SIM_MAX_CAPTURE_RADIUS_METERS + 1,
+        }),
+        ...spatial.waypoints.slice(1),
+      ]),
+    }),
+  }), /50 to 200 meters/)
 })
 
 test('bounded mission terminates at its maximum tick with replayable timeout Decisions', async () => {
@@ -426,6 +507,7 @@ test('a canonical-looking completion cannot omit its waypoint and terminal state
       runId: 1,
       tick: 1,
       status: 'completed',
+      landingPadId: profile().landingPad.id,
     },
     producedAt: '2026-01-01T00:00:00.022Z',
   }]), /terminal flight state|full waypoint history/)
@@ -442,27 +524,30 @@ test('Decision admission rejects fabricated waypoint chronology and progress', (
     () => validateFlightSimMissionDecisions(spatial, [
       waypointDecision(10, 0, waypoint.id),
       completedStateDecision(spatial, 11, 1),
-      completedDecision(11),
+      completedDecision(spatial, 11),
     ]),
-    /share its tick/,
+    /full waypoint history/,
   )
 
-  const route = Object.freeze({
-    ...spatial,
-    waypoints: Object.freeze([0, 1, 2].map(index => Object.freeze({
-      ...waypoint,
-      id: `waypoint-${index + 1}`,
-    }))),
-  })
   assert.throws(
-    () => validateFlightSimMissionDecisions(route, [
-      waypointDecision(20, 0, route.waypoints[0].id),
-      waypointDecision(10, 1, route.waypoints[1].id),
-      waypointDecision(30, 2, route.waypoints[2].id),
-      completedStateDecision(route, 30, 3),
-      completedDecision(30),
+    () => validateFlightSimMissionDecisions(spatial, [
+      waypointDecision(20, 0, spatial.waypoints[0].id),
+      waypointDecision(10, 1, spatial.waypoints[1].id),
+      waypointDecision(30, 2, spatial.waypoints[2].id),
+      completedStateDecision(spatial, 31, 3),
+      completedDecision(spatial, 31),
     ]),
     /complete and ordered/,
+  )
+  assert.throws(
+    () => validateFlightSimMissionDecisions(spatial, [
+      waypointDecision(10, 0, spatial.waypoints[0].id),
+      waypointDecision(20, 1, spatial.waypoints[1].id),
+      waypointDecision(30, 2, spatial.waypoints[2].id),
+      completedStateDecision(spatial, 30, 3),
+      completedDecision(spatial, 30),
+    ]),
+    /follow the final waypoint/,
   )
 })
 

@@ -32,7 +32,7 @@
     "dev:xr-physics": "VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT=$PWD/../../huijoohwee/docs VITE_KNOWGRPH_RUN_READY_REPO_LOCAL=1 VITE_KNOWGRPH_RUN_READY_DEMO=xr-physics vite --configLoader runner --port 5174 --strictPort",
     "predev:5173": "npm run predev",
     "dev:5173": "vite --configLoader runner --port 5173 --strictPort",
-    "prebuild": "npm run prepare:linked-packages && npm run prepare:litert-assets && npm run build:settings && if [ \"${KG_SKIP_DOCS_UPDATE:-}\" = \"1\" ]; then echo \"[knowgrph] skipping docs:preview:update\"; else npm --prefix .. run docs:preview:update && tsx src/cli/lint-doc.ts; fi",
+    "prebuild": "npm --prefix .. run game-flight-sim:boundary && npm run prepare:linked-packages && npm run prepare:litert-assets && npm run build:settings && if [ \"${KG_SKIP_DOCS_UPDATE:-}\" = \"1\" ]; then echo \"[knowgrph] skipping docs:preview:update\"; else npm --prefix .. run docs:preview:update && tsx src/cli/lint-doc.ts; fi",
     "doc:lint": "tsx src/cli/lint-doc.ts",
     "doc:sanity": "tsx src/cli/doc-sanity-check.ts",
     "validate:animatic-interactions": "python3 ./scripts/validate_animatic_timeline_interactions.py",

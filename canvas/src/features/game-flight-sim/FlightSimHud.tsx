@@ -1,6 +1,5 @@
 import React from 'react'
 import { subscribeGlobalCancelEvents } from '@/lib/browser/globalCancelEvents'
-import { flightSimAirspeed, flightSimHeadingDegrees } from './flightModel'
 import {
   flightSimInputFromHeldTouches,
   releaseFlightSimHeldTouch,
@@ -20,10 +19,11 @@ import {
   subscribeFlightSimSnapshot,
 } from './flightSimRuntime'
 import {
+  FLIGHT_SIM_SAVE_PATH,
   readFlightSimDecisionStore,
-  resolveFlightSimEffectiveSaveStatus,
   subscribeFlightSimDecisionStore,
 } from './flightSimDecisionStore'
+import { projectFlightSimHud } from './flightSimHudProjection'
 
 const buttonClass = 'min-h-11 rounded-xl border border-white/25 bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-sm disabled:opacity-50'
 
@@ -82,36 +82,16 @@ export function FlightSimHud() {
     setFlightSimTouchInput({})
   }, [])
 
-  const airspeed = flightSimAirspeed(flight.aircraft)
-  const heading = flightSimHeadingDegrees(flight.aircraft.yaw)
   const terminal = flight.phase === 'completed' || flight.phase === 'crashed'
   const flightControlsEnabled = flight.active
     && (flight.phase === 'ready' || flight.phase === 'flying')
   const hydrationPending = isFlightSimHydrationPending()
-  const effectiveSaveStatus = resolveFlightSimEffectiveSaveStatus(
-    save.status,
-    flight.pendingDecisions.length,
-  )
-  const saveLabel = effectiveSaveStatus === 'saving'
-    ? 'Saving Decisions…'
-    : effectiveSaveStatus === 'error'
-        ? 'Local save needs attention'
-        : effectiveSaveStatus === 'pending'
-          ? 'Decision pending'
-          : effectiveSaveStatus === 'saved'
-            ? 'Decisions saved locally'
-          : 'Local save ready'
-  const objective = hydrationPending
-    ? 'Loading local Decisions…'
-    : flight.phase === 'completed'
-    ? 'Route complete'
-    : flight.phase === 'crashed'
-      ? `Aircraft stopped by ${flight.collisionId || 'terrain'}`
-      : flight.phase === 'flying'
-        ? `Waypoint ${Math.min(flight.waypointIndex + 1, flight.waypointCount)} of ${flight.waypointCount}`
-        : flight.phase === 'ready'
-          ? 'Ready · apply flight input'
-          : 'Flight Sim stopped'
+  const projection = projectFlightSimHud({
+    flight,
+    save,
+    savePath: FLIGHT_SIM_SAVE_PATH,
+    hydrationPending,
+  })
 
   return (
     <section
@@ -120,9 +100,9 @@ export function FlightSimHud() {
       data-kg-flight-sim-hud="1"
       data-kg-flight-sim-phase={flight.phase}
       data-kg-flight-sim-tick={String(flight.tick)}
-      data-kg-flight-sim-airspeed={airspeed.toFixed(4)}
-      data-kg-flight-sim-altitude={flight.aircraft.position[1].toFixed(4)}
-      data-kg-flight-sim-heading={heading.toFixed(4)}
+      data-kg-flight-sim-airspeed={projection.airspeed.toFixed(4)}
+      data-kg-flight-sim-altitude={projection.altitude.toFixed(4)}
+      data-kg-flight-sim-heading={projection.headingDegrees.toFixed(4)}
       data-kg-flight-sim-pitch={flight.aircraft.pitch.toFixed(4)}
       data-kg-flight-sim-roll={flight.aircraft.roll.toFixed(4)}
       data-kg-flight-sim-throttle={flight.aircraft.throttle.toFixed(4)}
@@ -131,21 +111,21 @@ export function FlightSimHud() {
       data-kg-flight-sim-hydration={hydrationPending ? 'loading' : save.hydrationBlocked ? 'blocked' : 'ready'}
       data-kg-flight-sim-pending-decisions={String(flight.pendingDecisions.length)}
       data-kg-flight-sim-save-status={save.status}
-      data-kg-flight-sim-effective-save-status={effectiveSaveStatus}
+      data-kg-flight-sim-effective-save-status={projection.save.effectiveStatus}
       data-kg-flight-sim-save-error={save.error || undefined}
     >
       <header className="absolute left-3 right-3 top-3 grid grid-cols-1 gap-2 pt-[env(safe-area-inset-top)] sm:flex sm:items-start sm:justify-between sm:gap-3">
         <section className="max-w-none rounded-xl border border-white/20 bg-slate-950/75 px-3 py-2 shadow-lg backdrop-blur-sm sm:max-w-[58vw]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">Local deterministic flight mission</p>
-          <p className="mt-1 text-sm font-semibold">{objective}</p>
-          <p className="mt-1 text-[11px] text-slate-300">{saveLabel}</p>
+          <p className="mt-1 text-sm font-semibold">{projection.objective}</p>
+          <p className="mt-1 text-[11px] text-slate-300">{projection.save.label}</p>
           {flight.runtimeError ? <p className="mt-1 text-[11px] text-rose-200" role="alert">{flight.runtimeError}</p> : null}
           {save.error ? <p className="mt-1 text-[11px] text-rose-200" role="alert">{save.error}</p> : null}
         </section>
         <section className="grid min-w-0 grid-cols-3 gap-2 rounded-xl border border-white/20 bg-slate-950/75 px-2 py-2 text-center shadow-lg backdrop-blur-sm sm:min-w-[22rem] sm:grid-cols-6">
-          <span className="text-[10px] text-slate-300">KTS<strong className="block text-sm text-white">{(airspeed * 1.94384).toFixed(0)}</strong></span>
+          <span className="text-[10px] text-slate-300">KTS<strong className="block text-sm text-white">{(projection.airspeed * 1.94384).toFixed(0)}</strong></span>
           <span className="text-[10px] text-slate-300">ALT<strong className="block text-sm text-white">{flight.aircraft.position[1].toFixed(1)}</strong></span>
-          <span className="text-[10px] text-slate-300">HDG<strong className="block text-sm text-white">{heading.toFixed(0)}°</strong></span>
+          <span className="text-[10px] text-slate-300">HDG<strong className="block text-sm text-white">{projection.headingDegrees.toFixed(0)}°</strong></span>
           <span className="text-[10px] text-slate-300">PIT<strong className="block text-sm text-white">{(flight.aircraft.pitch * 180 / Math.PI).toFixed(1)}°</strong></span>
           <span className="text-[10px] text-slate-300">ROL<strong className="block text-sm text-white">{(flight.aircraft.roll * 180 / Math.PI).toFixed(1)}°</strong></span>
           <span className="text-[10px] text-slate-300">THR<strong className="block text-sm text-white">{Math.round(flight.aircraft.throttle * 100)}%</strong></span>
