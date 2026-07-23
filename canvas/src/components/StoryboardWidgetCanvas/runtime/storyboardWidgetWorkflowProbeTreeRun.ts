@@ -193,7 +193,11 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
     outputThreadRootId: threadRootId,
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
-    panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    panelProperties: {
+      probeTreeThreadLedger: true,
+      probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION,
+      markdownWorkspaceViewerSurface: true,
+    },
     connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')
@@ -478,7 +482,11 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     outputThreadRootId: threadRootId,
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
-    panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    panelProperties: {
+      probeTreeThreadLedger: true,
+      probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION,
+      markdownWorkspaceViewerSurface: true,
+    },
     connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')
