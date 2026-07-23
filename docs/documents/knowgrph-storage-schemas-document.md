@@ -171,6 +171,8 @@ type SourceFilesOwnershipProjection = {
 
 The path resolver selects `workspaceSeeds` for `/docs/workspace-seeds/**`, rejects `huijoohwee/docs/workspace-seeds/**`, and refuses Agentic Canvas OS write targets. Explorer consumes the same constants, so labels cannot drift from save-bridge authority. The Agentic seed file remains a protected byte-identical runtime projection outside this write model.
 
+The local filesystem bridge applies the same invariant. A seed mutation is valid only when its workspace key and resolved host path agree on `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`; nested deletes are supported for rename/delete convergence, while deleting the root or omitting the ownership key is forbidden.
+
 ---
 
 ## Browser-Local Cache Schema

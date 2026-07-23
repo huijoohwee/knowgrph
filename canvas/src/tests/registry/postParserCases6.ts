@@ -179,6 +179,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["richMedia.externalMcp.cancellationStopsCall","@/__tests__/externalMcpBridge.test","testExternalMcpBridgeCancellationDoesNotInvokeTool"],
   ["richMedia.workbookArtifact.strictXlsxPayload","@/__tests__/workspaceArtifactBridge.test","testWorkspaceArtifactBridgeAcceptsOnlyVerifiedXlsxPayloads"],
   ["richMedia.workbookArtifact.pathConfinement","@/__tests__/workspaceArtifactBridge.test","testWorkspaceArtifactBridgeConfinesDownloadPathsToWorkspaceRoots"],
+  ["workspaceFs.artifactBridge.enforcesCanonicalWorkspaceSeedOwnership","@/__tests__/workspaceArtifactBridge.test","testWorkspaceArtifactBridgeEnforcesCanonicalWorkspaceSeedOwnership"],
   ["richMedia.deliverables.nativeMarkdownPresentationSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface"],
   ["richMedia.probeTree.editorWorkspaceViewerSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurface"],
   ["richMedia.textOutput.versionSelectorPublishesSelection","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorPublishesSelection"],

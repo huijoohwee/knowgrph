@@ -328,6 +328,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["workspaceFs.sourceRootSnapshot.keepsFullDocsTreeForSourceFilesSync","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSourceRootSnapshotKeepsFullDocsTreeForSourceFilesSync"],
   ["workspaceFs.seedProvider.browserUpsertWritesViaKgFsProxy","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertWritesViaKgFsProxy"],
   ["workspaceFs.seedProvider.browserUpsertDocsMirrorWritesViaKgFsProxy","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertDocsMirrorWritesViaKgFsProxy"],
+  ["workspaceFs.seedProvider.enforcesCanonicalWorkspaceSeedsMutations","@/__tests__/workspaceSeedStorageAuthority.test","testWorkspaceSeedProviderEnforcesCanonicalWorkspaceSeedsMutations"],
   ["workspaceFs.seedProvider.browserUpsertDocsMirrorSkipsHiddenDocumentWrites","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertDocsMirrorSkipsHiddenDocumentWrites"],
   ["workspaceFs.seedProvider.browserUpsertChatLogMirrorWritesViaKgFsProxy","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSeedProviderBrowserUpsertChatLogMirrorWritesViaKgFsProxy"],
   ["workspaceFs.activeEntry.prefersCanonicalDocsMirrorForCorruptedLabelResidue","@/__tests__/workspaceSeedPersistence.test","testReadWorkspaceActiveEntrySnapshotPrefersCanonicalDocsMirrorForCorruptedFrontmatterLabelResidue"],

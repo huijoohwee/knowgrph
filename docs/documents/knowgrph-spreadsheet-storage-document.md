@@ -50,6 +50,7 @@ MainPanel `Document Storage & Sync` therefore applies unchanged to spreadsheet-a
 - PocketBase is the recommended small-team provider only after the shared production gates pass. A Durable Object may replace it, but both providers must never own the same spreadsheet room.
 - GitHub receives explicit or bounded autosave checkpoints with compare-and-set content SHA; D1 remains the read/index projection and never receives per-cell writes.
 - Explorer ownership remains path-derived: ordinary spreadsheet documents target `GitHub/huijoohwee/docs`, while any authored spreadsheet-like workspace seed under `/docs/workspace-seeds/**` targets `GitHub/knowgrph/docs/workspace-seeds`; IndexedDB remains the offline fallback.
+- Source Files local mirroring cannot redirect a spreadsheet seed through the general docs-root setting: seed reads and supported mutations resolve to `$GITHUB_ROOT/knowgrph/docs/workspace-seeds/**`, and the host bridge rejects mismatched paths and root deletion.
 
 ## Bounded Proof
 

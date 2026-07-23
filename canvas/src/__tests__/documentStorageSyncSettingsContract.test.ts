@@ -44,4 +44,13 @@ export const testMainPanelSettingsSurfacesDocumentStorageSyncContract = () => {
   if (rowsText.includes('apiKey') || rowsText.includes('GITHUB_TOKEN')) {
     throw new Error('Expected document storage settings to keep server-managed credentials out of browser UI')
   }
+  const persistedWorkspaceFsText = fs.readFileSync(
+    path.resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceFsPersisted.ts'),
+    'utf8',
+  )
+  for (const token of ['deleteWorkspaceDocsMirrorEntry', 'shouldMirrorCanonicalSeedDelete', 'cancelWorkspaceDocsMirrorMutationsUnderPath']) {
+    if (!persistedWorkspaceFsText.includes(token)) {
+      throw new Error(`Expected persisted Source Files mutations to mirror canonical seed deletion through ${token}`)
+    }
+  }
 }

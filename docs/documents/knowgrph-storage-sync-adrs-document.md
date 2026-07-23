@@ -122,3 +122,5 @@ The collaboration room contract is provider-neutral, but exactly one provider ow
 ## ADR-017: Workspace-Seed Source And Projection Ownership
 
 `knowgrph/docs/workspace-seeds` is the only authored seed root. The protected `agentic-canvas-os/docs/workspace-seeds` file is a byte-identical default-runtime projection, not an editable copy; it remains until bootstrap no longer requires that projection. `huijoohwee/docs/workspace-seeds` is forbidden. Explorer displays this ownership boundary from shared constants, and the authority check derives sibling repositories through the Git common directory so canonical and linked worktrees validate the same roots.
+
+This ownership is enforced at mutation time, not only displayed: Source Files maps seed reads and writes to the canonical Knowgrph checkout, passes the workspace path to the local bridge for exact host-path validation, mirrors nested deletion after rename/delete, and forbids deleting the seed root. The configurable `workspace-docs` local mirror cannot redirect this subtree.

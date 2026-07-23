@@ -30,7 +30,7 @@ import { serializeMarkdownPipeTable } from './src/features/markdown/ui/markdownD
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
 import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRangeServer'
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
-import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64 } from './viteWorkspaceArtifactBridge'; import { buildVersionedAssetFileNames } from './viteBuildAssetNamespace.mjs'
+import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64, enforceCanonicalWorkspaceMutation, parseKgFsMutationRequest } from './viteWorkspaceArtifactBridge'; import { buildVersionedAssetFileNames } from './viteBuildAssetNamespace.mjs'
 import { isWorkspaceMirrorReadPathAllowed, resolveWorkspaceMirrorReadRoots } from './viteWorkspaceMirrorReadRoots'
 import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
 import {
@@ -5121,15 +5121,11 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Body too large' }))
       return
     }
-    let parsed: { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown; mkdirOnly?: unknown } | null = null
-    try {
-      parsed = JSON.parse(body) as { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown; mkdirOnly?: unknown }
-    } catch {
-      parsed = null
-    }
+    const parsed = parseKgFsMutationRequest(body)
     const incomingPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
+    const workspacePath = typeof parsed?.workspacePath === 'string' ? parsed.workspacePath.trim() : ''
     const text = typeof parsed?.text === 'string' ? parsed.text : ''
-    const base64 = typeof parsed?.base64 === 'string' ? parsed.base64 : '', encoding = typeof parsed?.encoding === 'string' ? parsed.encoding.trim().toLowerCase() : '', mkdirOnly = parsed?.mkdirOnly === true
+    const base64 = typeof parsed?.base64 === 'string' ? parsed.base64 : '', encoding = typeof parsed?.encoding === 'string' ? parsed.encoding.trim().toLowerCase() : '', mkdirOnly = parsed?.mkdirOnly === true, deleteOnly = parsed?.deleteOnly === true
     if (!incomingPath || incomingPath.includes('\u0000')) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -5137,6 +5133,8 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const requestedAbsPath = pathPolicy.resolveHostPath(incomingPath)
+    const workspaceMutation = await enforceCanonicalWorkspaceMutation({ policy: pathPolicy, requestedAbsPath, workspacePath, deleteOnly })
+    if (workspaceMutation) { res.statusCode = workspaceMutation.status; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: workspaceMutation.status === 200, ...(workspaceMutation.error ? { error: workspaceMutation.error } : {}) })); return }
     if (mkdirOnly) { if (!pathPolicy.isAllowed(requestedAbsPath)) { res.statusCode = 403; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: 'Forbidden' })); return } try { await fs.mkdir(requestedAbsPath, { recursive: true }); res.statusCode = 200; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: true })) } catch (e: unknown) { const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''; res.statusCode = 500; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: msg || 'Mkdir failed' })) } return }
     const kgcPathInfo = parseKgcPathInfo(requestedAbsPath)
     const absPath = kgcPathInfo.tracePath || kgcPathInfo.canonicalPath
