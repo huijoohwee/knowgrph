@@ -49,7 +49,10 @@ import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 import { clampMediaLayoutViewportToFrame16x9, coerceRichMediaPanelSizeForLayoutViewport, resolveFlowCanvasMediaLayoutViewport } from '@/components/FlowCanvas/flowCanvasMediaLayoutViewport'
 import { readMediaLayoutNodePropsSignature } from '@/components/FlowCanvas/flowCanvasMediaLayoutPropsSignature'
-import { buildFlowCanvasRichMediaPanelHeaderToolbar } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
+import {
+  buildFlowCanvasRichMediaPanelHeaderToolbar,
+  shouldActivateFlowCanvasRichMediaPanelFromPointer,
+} from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import { captureRichMediaPanelBoundaryEvent } from '@/components/captureRichMediaPanelBoundaryEvent'
 import {
   readElementWorldTopLeft2d,
@@ -827,6 +830,7 @@ export default function FlowCanvasMediaOverlays(args: {
               forwardWheelTo={() => canvasRef.current}
               onPointerDownCapture={event => {
                 if (event.button !== 0) return
+                if (!shouldActivateFlowCanvasRichMediaPanelFromPointer({ isSelected, target: event.target })) return
                 const id = String(node.id || '').trim()
                 if (!id) return
                 richMediaPanelHeaderToolbar.activate()

@@ -157,6 +157,23 @@ export async function testVersionedRichMediaWorkspaceViewerReusesInlineSelection
   const container = doc.getElementById('root')
   if (!container) throw new Error('missing root container')
   const root = createRoot(container as unknown as HTMLElement)
+  const probeTreeMarkdown = [
+    '---',
+    'schema: "knowgrph-rich-media-text/v1"',
+    'title: "Probe-Tree Branches"',
+    'media_kind: "text"',
+    'content_type: "text/markdown"',
+    'source_contract: "knowgrph-probe-tree/v0.1"',
+    '---',
+    '',
+    '# Probe-Tree Branches',
+    '',
+    '`source=n1 · contract=probe-tree-llm-response/v5`',
+    '',
+    '1. **Which missing variable changes the decision?**',
+    '   1. Product margin',
+    '   2. Landed cost',
+  ].join('\n')
 
   try {
     root.render(
@@ -175,7 +192,7 @@ export async function testVersionedRichMediaWorkspaceViewerReusesInlineSelection
           hasVideo: false,
           hasAudio: false,
           hasPoi: false,
-          text: 'Versioned toolbar text',
+          text: probeTreeMarkdown,
           connectedText: '',
           outputVersions: [
             {
@@ -186,7 +203,7 @@ export async function testVersionedRichMediaWorkspaceViewerReusesInlineSelection
             {
               id: 'probe-tree-run-2',
               createdAt: '2026-07-23T00:01:00.000Z',
-              output: 'Versioned toolbar text',
+              output: probeTreeMarkdown,
             },
           ],
           selectedOutputVersionId: 'probe-tree-run-2',
@@ -200,7 +217,7 @@ export async function testVersionedRichMediaWorkspaceViewerReusesInlineSelection
     if (!richMediaEditSurface) {
       throw new Error(`expected versioned Rich Media output to expose the shared Viewer edit surface, html=${container.innerHTML}`)
     }
-    const host = richMediaEditSurface.querySelector('[data-start-line="1"]') as HTMLElement | null
+    const host = richMediaEditSurface.querySelector('h1[data-start-line="9"]') as HTMLElement | null
     if (!host) throw new Error(`expected versioned Rich Media Viewer markdown host, html=${container.innerHTML}`)
     host.getBoundingClientRect = () => {
       return {
