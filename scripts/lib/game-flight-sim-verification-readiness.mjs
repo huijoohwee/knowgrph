@@ -246,6 +246,7 @@ export async function assertFlightSimVerificationReadiness({ readText }) {
     '"knowgrph-flight-sim-browser-proof-bridge/v1"',
     'window.__kgFlightSimBrowserProof?.schema === expectedSchema',
     'page.wait_for_function(',
+    'arg=FLIGHT_SIM_BROWSER_PROOF_BRIDGE_SCHEMA',
     'Flight production candidate page did not load',
   ], 'Flight Sim production browser bootstrap')
   forbidMarkers(browserBootstrapSource, [

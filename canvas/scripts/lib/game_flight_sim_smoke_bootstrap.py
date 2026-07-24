@@ -22,6 +22,6 @@ def prepare_stable_candidate_page(page: Page, target_url: str) -> None:
           window.__kgFlightSimBrowserProof?.schema === expectedSchema
         )
         """,
-        FLIGHT_SIM_BROWSER_PROOF_BRIDGE_SCHEMA,
+        arg=FLIGHT_SIM_BROWSER_PROOF_BRIDGE_SCHEMA,
         timeout=120_000,
     )

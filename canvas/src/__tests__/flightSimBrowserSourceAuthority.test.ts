@@ -143,6 +143,10 @@ test('Flight browser proof activates only after applying the authored source', (
     /window\.__kgFlightSimBrowserProof\?\.schema/,
   )
   assert.match(
+    browserBootstrap,
+    /arg=FLIGHT_SIM_BROWSER_PROOF_BRIDGE_SCHEMA/,
+  )
+  assert.match(
     browserProofBridge,
     /Unknown Flight browser proof module/,
   )
