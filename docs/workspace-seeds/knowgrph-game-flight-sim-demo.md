@@ -77,7 +77,7 @@ planned_asset_pipeline:
   diffability: "100% of demo aircraft/props are TypeScript+JSON specs; GLB fallback count tracked and minimized"
   native_in_repo: true
   forbid_external_copy_or_dependency: true
-  inspiration_reference_only: "github.com/Arnie016/flight-simulator-fable5 (inspiration only; no source copy, no dependency)"
+  inspiration_reference_only: "flight-simulator (inspiration only; no source copy, no dependency)"
 planned_motion_control:
   runtime: "browser-local LiteRT.js"
   model: "Google BlazePose GHUM Full"
