@@ -84,6 +84,13 @@ export function resolveFlowCanvasMediaOverlayInteractionPolicy(args: {
   }
 }
 
+export function isFlowCanvasRichMediaPropertyMutationBlocked(args: {
+  workspaceMutationBlocked: boolean
+  hasDelegatedPropertyMutation: boolean
+}): boolean {
+  return args.workspaceMutationBlocked === true && args.hasDelegatedPropertyMutation !== true
+}
+
 export type FlowCanvasInteractionRuntimeProps = {
   active: boolean
   storyboardWidgetSurfaceId?: string

@@ -4,7 +4,10 @@ import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiv
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { FlowCanvasRichMediaOverlayToolbar } from '@/components/FlowCanvas/FlowCanvasRichMediaOverlayToolbar'
 import { StoryboardWidgetOverlayPortHandles } from '@/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles'
-import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/FlowCanvas/shared'
+import {
+  isFlowCanvasRichMediaPropertyMutationBlocked,
+  resolveFlowCanvasMediaOverlayInteractionPolicy,
+} from '@/components/FlowCanvas/shared'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
@@ -761,7 +764,10 @@ export default function FlowCanvasMediaOverlays(args: {
           ? Z_INDEX_GRAPH_OVERLAY_SELECTED
           : Math.max(1, Z_INDEX_GRAPH_MEDIA_LAYER + Math.max(0, mediaNodes.length - index))
         const updateNode = (id: string, patch: { properties: Record<string, unknown> }) => {
-          if (workspaceMutationBlockedRef.current) return
+          if (isFlowCanvasRichMediaPropertyMutationBlocked({
+            workspaceMutationBlocked: workspaceMutationBlockedRef.current,
+            hasDelegatedPropertyMutation: typeof onNodePropertiesChange === 'function',
+          })) return
           if (onNodePropertiesChange) {
             onNodePropertiesChange(id, patch.properties, mutationSourceGraphData)
             return
