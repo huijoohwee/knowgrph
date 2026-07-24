@@ -1,5 +1,6 @@
 import React from 'react'
 import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMarkdownEditorSsotSync'
+import { commitActiveMarkdownBlockEditors } from '@/lib/markdown-core/ui/markdownBlockContainerCore.activeEditor'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
@@ -93,6 +94,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   const [selectionPath, setSelectionPath] = React.useState<WorkspacePath | null>(null)
   const selectionPathRef = React.useRef<WorkspacePath | null>(null)
   const pendingSelectionPathRef = React.useRef<WorkspacePath | null>(null)
+  const selectionCommitRequestRef = React.useRef(0)
   if (pendingSelectionPathRef.current === selectionPath) {
     pendingSelectionPathRef.current = null
   }
@@ -100,9 +102,20 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath | null) => {
     const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
     if (selectionPathRef.current === normalized) return
-    pendingSelectionPathRef.current = normalized
-    selectionPathRef.current = normalized
-    setSelectionPath(normalized)
+    const requestId = selectionCommitRequestRef.current + 1
+    selectionCommitRequestRef.current = requestId
+    const applySelection = () => {
+      if (selectionCommitRequestRef.current !== requestId) return
+      pendingSelectionPathRef.current = normalized
+      selectionPathRef.current = normalized
+      setSelectionPath(normalized)
+    }
+    const pendingCommit = commitActiveMarkdownBlockEditors()
+    if (!pendingCommit) {
+      applySelection()
+      return
+    }
+    void pendingCommit.then(applySelection, applySelection)
   }, [])
 
   const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])
