@@ -115,7 +115,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       applySelection()
       return
     }
-    void pendingCommit.then(applySelection, applySelection)
+    return pendingCommit.then(applySelection, applySelection)
   }, [])
 
   const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])

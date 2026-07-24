@@ -31,13 +31,21 @@ export function testMarkdownWorkspaceSelectionUsesActiveInlineEditCommitBoundary
     resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.engine.runtime.tsx'),
     'utf8',
   )
+  const viewShellText = readFileSync(
+    resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceViewShell.tsx'),
+    'utf8',
+  )
   const commitIndex = selectionText.indexOf('const pendingCommit = commitActiveMarkdownBlockEditors()')
-  const applyIndex = selectionText.indexOf('void pendingCommit.then(applySelection, applySelection)')
+  const applyIndex = selectionText.indexOf('return pendingCommit.then(applySelection, applySelection)')
+  const guardedSelectionIndex = viewShellText.indexOf('const pendingSelection = setSelectionPathSafe(normalized)')
+  const activePathHandoffIndex = viewShellText.indexOf('void pendingSelection.then(applyActivePath, applyActivePath)')
   if (
     !editorText.includes('return registerActiveMarkdownBlockEditor(commit)')
     || commitIndex < 0
     || applyIndex < commitIndex
+    || guardedSelectionIndex < 0
+    || activePathHandoffIndex < guardedSelectionIndex
   ) {
-    throw new Error('expected Source Files selection to await the shared active markdown block commit before applying the next document path')
+    throw new Error('expected Source Files selection to await the shared active markdown block commit before applying the next selection and active document path')
   }
 }
