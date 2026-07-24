@@ -1,5 +1,6 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { createUniqueId } from '@/lib/ids'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 
 export const TEXT_SELECTION_WIDGET_LINK_SCHEMA = 'knowgrph-text-selection-widget-link/v1'
 export const TEXT_SELECTION_WIDGET_CREATE_EVENT = 'knowgrph:text-selection-widget-create'
@@ -143,4 +144,21 @@ export function buildTextSelectionWidgetEdge(args: {
     label: 'selection',
     properties,
   }
+}
+
+export function isTextSelectionWidgetEdgePersisted(args: {
+  graphData: GraphData | null | undefined
+  edge: GraphEdge
+}): boolean {
+  return (args.graphData?.edges || []).some(candidate => (
+    isCanonicalNodeIdEqual(candidate.id, args.edge.id)
+    && isCanonicalNodeIdEqual(candidate.source, args.edge.source)
+    && isCanonicalNodeIdEqual(candidate.target, args.edge.target)
+  ) || (
+    isCanonicalNodeIdEqual(candidate.source, args.edge.source)
+    && isCanonicalNodeIdEqual(candidate.target, args.edge.target)
+    && String(candidate.properties?.schema || '').trim() === TEXT_SELECTION_WIDGET_LINK_SCHEMA
+    && String(candidate.properties?.['selection:text'] || '').trim()
+      === String(args.edge.properties?.['selection:text'] || '').trim()
+  ))
 }
