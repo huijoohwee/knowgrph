@@ -172,13 +172,13 @@ const requireFlightRuntimeIdentity = (source, physicsSource) => {
     if (actual !== expected) missing.push(`${label}=${JSON.stringify(expected)}`)
   }
 
-  requireValue('status', frontmatter.status, 'implementation-ready')
-  requireValue('runtime_status', frontmatter.runtime_status, 'evidence-pending')
-  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-candidate')
+  requireValue('status', frontmatter.status, 'runtime-ready')
+  requireValue('runtime_status', frontmatter.runtime_status, 'runtime-ready')
+  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-ready')
   requireValue(
     'evidence_status',
     frontmatter.evidence_status,
-    'pending exact-head handoff proof',
+    'exact-head source and browser proof required at every handoff',
   )
   requireValue('publish_scope', frontmatter.publish_scope, 'local-only')
   requireValue('kgCanvasSurfaceMode', readCanvasSurfaceMode(frontmatter.kgCanvasSurfaceMode), 'xr')
@@ -254,7 +254,7 @@ const requireFlightRuntimeIdentity = (source, physicsSource) => {
   const forbidden = Object.keys(frontmatter).filter(key => key.startsWith('planned_'))
   if (missing.length > 0 || forbidden.length > 0) {
     throw new Error(
-      `implementation-ready workspace document ${FLIGHT_SEED_BASENAME} has invalid authority; `
+      `runtime-ready workspace document ${FLIGHT_SEED_BASENAME} has invalid authority; `
       + `missing=${JSON.stringify(missing)} forbidden=${JSON.stringify(forbidden)}`,
     )
   }
@@ -267,7 +267,7 @@ const requireFlightCompanionIdentity = source => {
     if (actual !== expected) missing.push(`${label}=${JSON.stringify(expected)}`)
   }
   requireValue('status', frontmatter.status, 'projection-pending')
-  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-candidate')
+  requireValue('runtime_claim', frontmatter.runtime_claim, 'local-runtime-ready')
   requireValue('kgCanvasSurfaceMode', readCanvasSurfaceMode(frontmatter.kgCanvasSurfaceMode), '2d')
   requireValue('kgCanvasRenderMode', readCanvasRenderMode(frontmatter.kgCanvasRenderMode), '2d')
   requireValue('kgCanvas2dRenderer', readCanvas2dRenderer(frontmatter.kgCanvas2dRenderer), 'flow')

@@ -4,10 +4,10 @@ id: "md:knowgrph-game-flight-sim-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-22"
 updated: "2026-07-24"
-version: "1.2.0"
-status: "implementation-ready"
-runtime_claim: "local-runtime-candidate"
-evidence_status: "pending exact-head handoff proof"
+version: "1.3.0"
+status: "runtime-ready"
+runtime_claim: "local-runtime-ready"
+evidence_status: "exact-head source and browser proof required at every handoff"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -378,4 +378,4 @@ Both commands are finite and local apart from ordinary build/test artifacts, acc
 
 ## Release Boundary
 
-This module is implementation-ready; its runtime-ready claim is established only by the externally reported exact-HEAD handoff proof, and protected integration remains pending. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, merge, or release claim belongs to this scope. The optional opaque fallback is a committed-local runtime input, not an asset-generation service or deployment dependency. A future release must begin from a protected integrated SHA and explicit operator authorization.
+This module is local-runtime-ready; every review candidate must re-establish that claim through the externally reported exact-HEAD source and browser proof, and protected integration remains pending. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, merge, or release claim belongs to this scope. The optional opaque fallback is a committed-local runtime input, not an asset-generation service or deployment dependency. A future release must begin from a protected integrated SHA and explicit operator authorization.

@@ -9,6 +9,9 @@ from playwright.sync_api import Page
 from lib.game_flight_sim_smoke_scene import (
     read_and_pin_authored_physics_baseline,
 )
+from lib.game_flight_sim_smoke_source_selection import (
+    verify_source_file_button_round_trip,
+)
 
 
 SOURCE_BASENAME = "knowgrph-game-flight-sim-demo.md"
@@ -94,12 +97,14 @@ def _read_source_identity(
             ? state.graphData.nodes.map(node => String(node?.id || '')).sort()
             : []
           const sourceContract = {
-            statusImplementationReady:
-              /^status:\\s*["']implementation-ready["']\\s*$/m.test(sourceText),
-            runtimeStatusEvidencePending:
-              /^runtime_status:\\s*["']evidence-pending["']\\s*$/m.test(sourceText),
+            statusRuntimeReady:
+              /^status:\\s*["']runtime-ready["']\\s*$/m.test(sourceText),
+            runtimeStatusRuntimeReady:
+              /^runtime_status:\\s*["']runtime-ready["']\\s*$/m.test(sourceText),
+            localRuntimeReadyClaim:
+              /^runtime_claim:\\s*["']local-runtime-ready["']\\s*$/m.test(sourceText),
             exactHeadEvidenceRequired:
-              /^evidence_status:\\s*["']pending exact-head handoff proof["']\\s*$/m.test(sourceText),
+              /^evidence_status:\\s*["']exact-head source and browser proof required at every handoff["']\\s*$/m.test(sourceText),
             surfaceXr:
               /^kgCanvasSurfaceMode:\\s*["']xr["']\\s*$/m.test(sourceText),
             render3d:
@@ -474,7 +479,16 @@ def apply_and_verify_exact_authored_source(
         expected_source_text.encode("utf-8")
     ).hexdigest()
 
+    selection_round_trip = verify_source_file_button_round_trip(
+        page,
+        expected_source_text,
+        flight_basename=SOURCE_BASENAME,
+        physics_basename=PHYSICS_SOURCE_BASENAME,
+        poll=_poll,
+        read_source_identity=_read_source_identity,
+    )
     application = _apply_exact_authored_source(page, expected_source_text)
+    application["selectionRoundTrip"] = selection_round_trip
     source = _poll(
         page,
         lambda: _read_source_identity(page, expected_source_text),

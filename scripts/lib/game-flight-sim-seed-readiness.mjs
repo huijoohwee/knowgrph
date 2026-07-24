@@ -32,10 +32,10 @@ export async function assertFlightSimSeedReadiness({
   const assetPipeline = seed.asset_pipeline
   const flightSim = seed.flight_sim
   if (
-    seed.status !== 'implementation-ready'
-    || seed.runtime_status !== 'evidence-pending'
-    || seed.runtime_claim !== 'local-runtime-candidate'
-    || seed.evidence_status !== 'pending exact-head handoff proof'
+    seed.status !== 'runtime-ready'
+    || seed.runtime_status !== 'runtime-ready'
+    || seed.runtime_claim !== 'local-runtime-ready'
+    || seed.evidence_status !== 'exact-head source and browser proof required at every handoff'
     || seed.publish_scope !== 'local-only'
     || seed.authority_role !== 'derived runtime activation/proof projection'
     || seed.normative_kiro_authority !== '/.kiro/specs/knowgrph-game-flight-sim/'
@@ -177,7 +177,7 @@ export async function assertFlightSimSeedReadiness({
       'data/outputs/game-flight-sim-browser-smoke-run-1.json',
       'data/outputs/game-flight-sim-browser-smoke-run-2.json',
     ])
-    || runtimeValidation.status !== 'runtime-readiness gates registered; exact-head source/browser evidence required at handoff; protected integration pending'
+    || runtimeValidation.status !== 'local runtime-ready; exact-head source/browser evidence required at every handoff; protected integration pending'
   ) {
     throw new Error('Flight Sim seed must retain explicit source, browser, and protected-integration proof fields')
   }

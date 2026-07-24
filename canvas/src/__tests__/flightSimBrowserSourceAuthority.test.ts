@@ -27,6 +27,13 @@ test('Flight browser proof activates only after applying the authored source', (
     ),
     'utf8',
   )
+  const sourceSelection = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_source_selection.py',
+    ),
+    'utf8',
+  )
   const browserBootstrap = readFileSync(
     resolve(
       repoRoot,
@@ -154,6 +161,13 @@ test('Flight browser proof activates only after applying the authored source', (
     browserProofBridge,
     /flightSimRuntime: \(\) => import\('@\/features\/game-flight-sim\/flightSimRuntime'\)/,
   )
+  assert.match(sourceSelection, /get_by_role\(\s*["']button["']/)
+  assert.match(sourceSelection, /name=flight_basename,\s*exact=True/)
+  assert.match(sourceSelection, /flight_button\.click\(\)/)
+  assert.match(sourceSelection, /physics_button\.click\(\)/)
+  assert.match(sourceSelection, /canvas === window\.__kgFlightSimCanvas/)
+  assert.match(sourceSelection, /isXrPhysicsRunReadyDemoActive/)
+  assert.match(sourceSelection, /flightHudCount/)
   assert.doesNotMatch(networkBoundary, /["']\/src\/["']/)
   assert.doesNotMatch(networkBoundary, /["']\/@vite\//)
   const browserHelperRoot = resolve(repoRoot, 'canvas/scripts/lib')

@@ -2,7 +2,7 @@
 title: "Knowgrph Flight Sim Seed — Projection Companion Note"
 doc_type: "Projection Companion Note"
 status: "projection-pending"
-runtime_claim: "local-runtime-candidate"
+runtime_claim: "local-runtime-ready"
 publish_scope: "local-only"
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
@@ -25,7 +25,7 @@ constraints:
 
 # Knowgrph Flight Sim Seed — Projection Companion Note
 
-This is a **documentation note**, not a workspace seed. It has no `run_ready_demo` activation block and must never be applied as a seed. The authored Knowgrph source is a local-runtime candidate pending exact-head evidence; this note records the separate, still-unfulfilled contract for a future Agentic Canvas OS default-storage projection. No projection file currently exists.
+This is a **documentation note**, not a workspace seed. It has no `run_ready_demo` activation block and must never be applied as a seed. The authored Knowgrph source is local-runtime-ready and requires fresh exact-head evidence at every handoff; this note records the separate, still-unfulfilled contract for a future Agentic Canvas OS default-storage projection. No projection file currently exists.
 
 ## Authority and direction
 
@@ -43,14 +43,14 @@ This is a **documentation note**, not a workspace seed. It has no `run_ready_dem
 
 ## Current status
 
-- **`projection_status`: not-generated.** The Flight Sim source remains a local-runtime candidate until exact-head readiness evidence passes; that evidence does not grant default-storage or release authority. Generating the byte-identical projection remains deferred to the protected release controller after:
+- **`projection_status`: not-generated.** The Flight Sim source is local-runtime-ready, while every review candidate must re-establish exact-head readiness evidence; that evidence does not grant default-storage or release authority. Generating the byte-identical projection remains deferred to the protected release controller after:
   1. the repository-owned runtime-readiness and browser-smoke commands pass on an exact protected integrated SHA, and
   2. an operator explicitly authorizes a protected release from that SHA.
 - Until then this note is the only companion artifact; the projection file is intentionally absent.
 
 ## Asset-pipeline and invocation guarantees carried into the projection
 
-Any future projection must preserve the authored seed's planned guarantees verbatim (see the source seed and `docs/documents/knowgrph-game-flight-sim-prd-tad.md`):
+Any future projection must preserve the authored seed's runtime guarantees verbatim (see the source seed and `docs/documents/knowgrph-game-flight-sim-prd-tad.md`):
 
 - **Assets:** the required aircraft uses the exact img2threejs-style, diffable TypeScript + JSON scene spec and has GLB fallback count zero. The optional beacon alone uses one committed-local, opaque, CC0-1.0 GLB pinned to SHA-256 `be41f87bb745ba35c439336d932dd69c34223d26e117443a3c8556e44fce70cd`; remote or unavailable fallbacks fail closed without fetch. No runtime image-to-3D model, network fetch, or Cloudflare resource obtains an asset.
 - **Invocation:** strict native `/flight.sim @canvas #flight` and browser-local WebMCP `knowgrph.inspect_local_flight_sim` / `knowgrph.control_local_flight_sim`; no stdio, HTTP, gateway, or deployment surface is added.

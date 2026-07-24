@@ -319,10 +319,13 @@ test('Flight surface fencing drains and restores both workspace seed-sync owners
 
 test('Flight Sim source declares an overlay on the canonical XR world', () => {
   const meta = frontmatter(seedSource)
-  assert.equal(meta.status, 'implementation-ready')
-  assert.equal(meta.runtime_status, 'evidence-pending')
-  assert.equal(meta.runtime_claim, 'local-runtime-candidate')
-  assert.equal(meta.evidence_status, 'pending exact-head handoff proof')
+  assert.equal(meta.status, 'runtime-ready')
+  assert.equal(meta.runtime_status, 'runtime-ready')
+  assert.equal(meta.runtime_claim, 'local-runtime-ready')
+  assert.equal(
+    meta.evidence_status,
+    'exact-head source and browser proof required at every handoff',
+  )
   assert.equal(meta.publish_scope, 'local-only')
   assert.equal(meta.kgCanvasSurfaceMode, 'xr')
   assert.equal(meta.kgCanvasRenderMode, '3d')

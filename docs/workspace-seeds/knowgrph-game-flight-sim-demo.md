@@ -1,10 +1,10 @@
 ---
 title: "Knowgrph Native Flight Sim"
 doc_type: "Workspace Demo"
-status: "implementation-ready"
-runtime_status: "evidence-pending"
-runtime_claim: "local-runtime-candidate"
-evidence_status: "pending exact-head handoff proof"
+status: "runtime-ready"
+runtime_status: "runtime-ready"
+runtime_claim: "local-runtime-ready"
+evidence_status: "exact-head source and browser proof required at every handoff"
 publish_scope: "local-only"
 authority_role: "derived runtime activation/proof projection"
 normative_kiro_authority: "/.kiro/specs/knowgrph-game-flight-sim/"
@@ -185,7 +185,7 @@ runtime_validation:
   browser_proof: "two fresh serial runs; each evidence record binds clean branch, HEAD, tree, authored seed SHA-256, and source path before launch"
   browser_evidence: ["data/outputs/game-flight-sim-browser-smoke-run-1.json", "data/outputs/game-flight-sim-browser-smoke-run-2.json"]
   editor_chrome: true
-  status: "runtime-readiness gates registered; exact-head source/browser evidence required at handoff; protected integration pending"
+  status: "local runtime-ready; exact-head source/browser evidence required at every handoff; protected integration pending"
 mcp_control:
   inspect_tool: "knowgrph.inspect_local_flight_sim"
   control_tool: "knowgrph.control_local_flight_sim"
@@ -281,4 +281,4 @@ The required aircraft loads from committed img2threejs-style TypeScript plus `ve
 - [x] `npm run game-flight-sim:browser-smoke` requires two serial runs on that same exact candidate revision.
 - [ ] The protected PR integrates the verified candidate.
 
-The unchecked gates are proof/release state, not missing runtime behavior. This scope authorizes no Agentic workspace-seed projection, Prod/Cloudflare deployment, or public release.
+The unchecked protected-integration gate is release state, not missing runtime behavior. Every handoff must re-run the exact-head source and browser proof. This scope authorizes no Agentic workspace-seed projection, Prod/Cloudflare deployment, or public release.

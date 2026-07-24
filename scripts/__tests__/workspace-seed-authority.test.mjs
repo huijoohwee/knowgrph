@@ -29,10 +29,10 @@ native_controller_demo:
 ---
 `
 const flightRuntimeSeed = `---
-status: "implementation-ready"
-runtime_status: "evidence-pending"
-runtime_claim: "local-runtime-candidate"
-evidence_status: "pending exact-head handoff proof"
+status: "runtime-ready"
+runtime_status: "runtime-ready"
+runtime_claim: "local-runtime-ready"
+evidence_status: "exact-head source and browser proof required at every handoff"
 publish_scope: "local-only"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
@@ -71,7 +71,7 @@ flight_sim:
 `
 const flightCompanion = `---
 status: "projection-pending"
-runtime_claim: "local-runtime-candidate"
+runtime_claim: "local-runtime-ready"
 kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "flow"
@@ -170,7 +170,7 @@ test('rejects a flight runtime source without canonical shared-XR overlay author
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /implementation-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
   )
 })
 
@@ -186,7 +186,7 @@ test('rejects a flight runtime source with a private camera catalog', async t =>
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /implementation-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
   )
 })
 
@@ -219,7 +219,7 @@ test('rejects drift from the shared Physics camera contract', async t => {
       )
       await assert.rejects(
         () => verifyWorkspaceSeedAuthority(roots),
-        /implementation-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+        /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
       )
     })
   }
@@ -346,7 +346,7 @@ test('does not accept safe presentation markers from the Markdown body', async t
     [
       '---',
       'status: projection-pending',
-      'runtime_claim: local-runtime-candidate',
+      'runtime_claim: local-runtime-ready',
       'activatable_seed: false',
       'note_kind: projection-contract',
       '---',
