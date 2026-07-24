@@ -34,6 +34,13 @@ test('Flight browser proof activates only after applying the authored source', (
     ),
     'utf8',
   )
+  const sourceVerifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_source.py',
+    ),
+    'utf8',
+  )
   const browserBootstrap = readFileSync(
     resolve(
       repoRoot,
@@ -87,6 +94,13 @@ test('Flight browser proof activates only after applying the authored source', (
     ),
     'utf8',
   )
+  const touchSurfaceVerifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_mobile_surface.py',
+    ),
+    'utf8',
+  )
   const missionVerifier = readFileSync(
     resolve(
       repoRoot,
@@ -98,6 +112,20 @@ test('Flight browser proof activates only after applying the authored source', (
     resolve(
       repoRoot,
       'canvas/scripts/lib/game_flight_sim_smoke_scene.py',
+    ),
+    'utf8',
+  )
+  const cameraTrackingVerifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_camera_tracking.py',
+    ),
+    'utf8',
+  )
+  const cameraVerifier = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_camera.py',
     ),
     'utf8',
   )
@@ -162,12 +190,70 @@ test('Flight browser proof activates only after applying the authored source', (
     /flightSimRuntime: \(\) => import\('@\/features\/game-flight-sim\/flightSimRuntime'\)/,
   )
   assert.match(sourceSelection, /get_by_role\(\s*["']button["']/)
-  assert.match(sourceSelection, /name=flight_basename,\s*exact=True/)
+  assert.match(sourceSelection, /name=["']Workspace View["'],\s*exact=True/)
+  assert.match(sourceSelection, /name=["']Editor Workspace["'],\s*exact=True/)
+  assert.match(sourceSelection, /name=["']Storage Sync: On["'],\s*exact=True/)
+  assert.match(sourceSelection, /name=["']Storage Sync: Off["'],\s*exact=True/)
+  assert.match(sourceSelection, /name=["']Folder docs["'],\s*exact=True/)
+  assert.match(sourceSelection, /name=["']Folder workspace-seeds["'],\s*exact=True/)
+  assert.match(sourceSelection, /workspace_view_button\.click\(\)/)
+  assert.match(sourceSelection, /storage_sync_on_button\.click\(\)/)
+  assert.match(sourceSelection, /editor_workspace_button\.click\(\)/)
+  assert.match(sourceSelection, /name=["']Show Explorer pane["'],\s*exact=True/)
+  assert.match(sourceSelection, /name=["']Source Files["'],\s*exact=True/)
+  assert.match(sourceSelection, /explorer_toggle\.check\(\)/)
+  assert.match(sourceSelection, /source_files_button\.click\(\)/)
+  assert.match(sourceSelection, /docs_button\.click\(\)/)
+  assert.match(sourceSelection, /workspace_seeds_button\.click\(\)/)
+  assert.match(sourceSelection, /name=f["']File \{flight_basename\}["'],\s*exact=True/)
   assert.match(sourceSelection, /flight_button\.click\(\)/)
   assert.match(sourceSelection, /physics_button\.click\(\)/)
   assert.match(sourceSelection, /canvas === window\.__kgFlightSimCanvas/)
   assert.match(sourceSelection, /isXrPhysicsRunReadyDemoActive/)
   assert.match(sourceSelection, /flightHudCount/)
+  assert.match(
+    sourceSelection,
+    /\[aria-label="Workspace editor overlay shell"\]/,
+  )
+  assert.match(
+    sourceSelection,
+    /button\[title="Close"\]/,
+  )
+  assert.match(
+    sourceSelection,
+    /close_button\.first\.click\(timeout=5_000\)/,
+  )
+  assert.doesNotMatch(
+    sourceSelection,
+    /setWorkspaceViewState\(|setWorkspaceCanvasPaneOpen\(/,
+  )
+  assert.ok(
+    sourceVerifier.indexOf(
+      'selection_round_trip = verify_source_file_button_round_trip(',
+    )
+      < sourceVerifier.indexOf(
+        'selection_surface_transition = close_source_files_selection_surface(page)',
+      ),
+  )
+  assert.ok(
+    sourceVerifier.indexOf(
+      'selection_surface_transition = close_source_files_selection_surface(page)',
+    )
+      < sourceVerifier.indexOf(
+        'application = _apply_exact_authored_source(page, expected_source_text)',
+      ),
+  )
+  assert.ok(
+    runtimePhases.indexOf('prepare_source_files_selection_surface(page)')
+      < runtimePhases.indexOf('prepare_authored_physics_surface(page)'),
+    'expected Source Files UI setup before the Physics canvas baseline is pinned',
+  )
+  assert.ok(
+    runtimePhases.indexOf('prepare_authored_physics_surface(page)')
+      < runtimePhases.indexOf('reset_observed_errors()'),
+    'expected Flight network/error evidence to begin after the stable Physics baseline',
+  )
+  assert.match(verifier, /blocked_requests\.clear\(\)/)
   assert.doesNotMatch(networkBoundary, /["']\/src\/["']/)
   assert.doesNotMatch(networkBoundary, /["']\/@vite\//)
   const browserHelperRoot = resolve(repoRoot, 'canvas/scripts/lib')
@@ -179,6 +265,9 @@ test('Flight browser proof activates only after applying the authored source', (
       'utf8',
     )
     assert.doesNotMatch(source, /import\(\s*['"]\/src\//)
+    if (source.includes('auxiliaryCanvasesLocalOnly')) {
+      assert.match(source, /\.monaco-editor/)
+    }
     for (const match of source.matchAll(
       /window\.__kgFlightSimBrowserProof\.importModule\('([^']+)'\)/g,
     )) {
@@ -201,6 +290,7 @@ test('Flight browser proof activates only after applying the authored source', (
     'game_flight_sim_smoke_lifecycle.py',
     'game_flight_sim_smoke_mission.py',
     'game_flight_sim_smoke_mobile.py',
+    'game_flight_sim_smoke_mobile_surface.py',
     'game_flight_sim_smoke_runtime_phases.py',
     'game_flight_sim_smoke_scene.py',
     'game_flight_sim_smoke_source.py',
@@ -284,6 +374,67 @@ test('Flight browser proof activates only after applying the authored source', (
   assert.match(touchVerifier, /pointer_down\.get\("isTrusted"\) is not True/)
   assert.match(missionVerifier, /accelerated-public-production-runtime/)
   assert.match(missionVerifier, /snapshot\.tick !== prior\.tick \+ 1/)
+  assert.match(
+    cameraTrackingVerifier,
+    /document\.elementFromPoint\(x, y\) === canvas/,
+  )
+  assert.match(
+    cameraTrackingVerifier,
+    /page\.mouse\.click\(point\["x"\], point\["y"\]\)/,
+  )
+  assert.match(
+    cameraVerifier,
+    /drag_start = hit_tested_flight_canvas_point\(page\)/,
+  )
+  assert.doesNotMatch(cameraVerifier, /canvas\.bounding_box\(\)/)
+  assert.doesNotMatch(
+    cameraTrackingVerifier,
+    /canvas\.click\(\s*force=True/,
+  )
+  assert.match(
+    touchSurfaceVerifier,
+    /MOBILE_TOUCH_OCCLUDER_CLOSE_LIMIT = 3/,
+  )
+  assert.match(
+    touchSurfaceVerifier,
+    /\[aria-label="Workspace editor overlay shell"\]/,
+  )
+  assert.match(
+    touchSurfaceVerifier,
+    /main\[aria-label="Markdown Editor and Viewer"\]/,
+  )
+  assert.match(
+    touchSurfaceVerifier,
+    /\[data-kg-floating-panel-root="true"\]/,
+  )
+  assert.match(touchSurfaceVerifier, /button\[title="Close"\]/)
+  assert.match(touchSurfaceVerifier, /close_button\.first\.click\(timeout=5_000\)/)
+  assert.match(
+    touchSurfaceVerifier,
+    /const topHit = document\.elementFromPoint\(center\.x, center\.y\)/,
+  )
+  assert.match(
+    touchSurfaceVerifier,
+    /topHit === control \|\| Boolean\(topHit && control\.contains\(topHit\)\)/,
+  )
+  assert.doesNotMatch(touchSurfaceVerifier, /elementsFromPoint/)
+  assert.doesNotMatch(touchSurfaceVerifier, /\.click\(\s*force=True/)
+  assert.doesNotMatch(
+    touchSurfaceVerifier,
+    /setFloatingPanelOpen\(false\)|setWorkspaceViewState\(/,
+  )
+  assert.doesNotMatch(
+    touchVerifier,
+    /dispatchEvent\(new (?:PointerEvent|TouchEvent|MouseEvent)/,
+  )
+  assert.ok(
+    touchVerifier.indexOf('"Emulation.setTouchEmulationEnabled"')
+      < touchVerifier.indexOf('box = control.bounding_box()'),
+  )
+  assert.ok(
+    touchVerifier.indexOf('box = control.bounding_box()')
+      < touchVerifier.indexOf('"Input.dispatchTouchEvent"'),
+  )
   assert.match(sceneVerifier, /expected_landing_pad_count = 1/)
   assert.match(
     sceneVerifier,

@@ -226,7 +226,9 @@ requireMarkers(missionStageSource, [
   'kg_flight_sim_optional_beacon',
   "shouldPauseOnPointerRelease: () => readXrNativeControllerCamera().mode === 'fixed-follow'", 'blocksProgrammaticCamera: false',
   "snapshot.phase === 'ready' || snapshot.phase === 'flying'",
-  "gl.domElement.dataset.kgFlightSimFirstFrame = '1'",
+  'const removeAfterRender = addAfterEffect(() => {',
+  "canvas.dataset.kgFlightSimFirstFrame = '1'",
+  'completeFlightSimReadyFrame(presentation.runId, presentation.tick)',
 ], 'Flight Sim actor stage')
 if (
   /<(?:Canvas|ambientLight|directionalLight|hemisphereLight|pointLight|spotLight|Environment|Sky|Stars|FlightSimHud)\b/.test(

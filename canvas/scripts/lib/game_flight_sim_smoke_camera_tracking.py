@@ -337,21 +337,46 @@ def _install_pointer_lock_contract_harness(
     )
 
 
-def _lock_flight_canvas(page: Page) -> dict[str, Any]:
+def hit_tested_flight_canvas_point(page: Page) -> dict[str, float]:
     canvas = page.locator(
         '[data-kg-xr-scene-media-drop="1"] canvas'
     ).first
     canvas.scroll_into_view_if_needed()
-    box = canvas.bounding_box()
-    if not box:
-        raise AssertionError("Flight canvas was not measurable for pointer lock")
-    canvas.click(
-        force=True,
-        position={
-            "x": box["width"] * 0.5,
-            "y": box["height"] * 0.5,
-        },
+    point = canvas.evaluate(
+        """
+        canvas => {
+          const rect = canvas.getBoundingClientRect()
+          const ratios = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9]
+          for (const ratioY of ratios) {
+            for (const ratioX of ratios) {
+              const x = rect.left + rect.width * ratioX
+              const y = rect.top + rect.height * ratioY
+              if (document.elementFromPoint(x, y) === canvas) {
+                return { x, y }
+              }
+            }
+          }
+          return null
+        }
+        """
     )
+    if not point:
+        raise AssertionError(
+            "Flight canvas exposed no hit-testable interaction point"
+        )
+    return {
+        "x": float(point["x"]),
+        "y": float(point["y"]),
+    }
+
+
+def _click_hit_tested_flight_canvas(page: Page) -> None:
+    point = hit_tested_flight_canvas_point(page)
+    page.mouse.click(point["x"], point["y"])
+
+
+def _lock_flight_canvas(page: Page) -> dict[str, Any]:
+    _click_hit_tested_flight_canvas(page)
     native = poll(
         page,
         lambda: read_camera_state(page),
@@ -377,13 +402,7 @@ def _lock_flight_canvas(page: Page) -> dict[str, Any]:
             f"contract: {native}"
         )
     _install_pointer_lock_contract_harness(page, native_error)
-    canvas.click(
-        force=True,
-        position={
-            "x": box["width"] * 0.5,
-            "y": box["height"] * 0.5,
-        },
-    )
+    _click_hit_tested_flight_canvas(page)
     return poll(
         page,
         lambda: read_camera_state(page),

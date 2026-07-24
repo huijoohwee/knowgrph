@@ -5,6 +5,7 @@ from typing import Any
 from playwright.sync_api import Page
 
 from lib.game_flight_sim_smoke_camera_tracking import (
+    hit_tested_flight_canvas_point,
     poll as _poll,
     pose_changed as _pose_changed,
     read_camera_state as _read_camera_state,
@@ -49,14 +50,9 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
         raise AssertionError(
             f"Free Orbit did not expose a camera pose: {transition_setup}"
         )
-    canvas = page.locator(
-        '[data-kg-xr-scene-media-drop="1"] canvas'
-    ).first
-    box = canvas.bounding_box()
-    if not box:
-        raise AssertionError("Flight canvas was not measurable for Free Orbit")
-    start_x = box["x"] + box["width"] * 0.5
-    start_y = box["y"] + box["height"] * 0.5
+    drag_start = hit_tested_flight_canvas_point(page)
+    start_x = drag_start["x"]
+    start_y = drag_start["y"]
     page.mouse.move(start_x, start_y)
     page.mouse.down()
     page.mouse.move(start_x + 96, start_y + 36, steps=8)

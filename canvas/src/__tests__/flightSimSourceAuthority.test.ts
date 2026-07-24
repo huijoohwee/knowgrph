@@ -142,18 +142,57 @@ test('Flight surface opening preloads the existing lazy mission stage before act
     'surfaceActivated = activateXrSceneSurface',
     opening,
   )
+  const opened = runtime.indexOf(
+    'const opened = defaultRuntime.open(true)',
+    opening,
+  )
+  const preparationRequest = runtime.indexOf(
+    'stagePreparationRequestId = beginFlightSimStagePreparation()',
+    opening,
+  )
+  const preparedStage = runtime.indexOf(
+    'await waitForFlightSimStagePreparation',
+    opening,
+  )
   const readyDeadline = runtime.indexOf(
     'return startFlightSimWithReadyFrame',
     opening,
   )
   assert.ok(opening >= 0 && preload > opening)
   assert.ok(preload < activation)
-  assert.ok(activation < readyDeadline)
+  assert.ok(activation < preparationRequest)
+  assert.ok(preparationRequest < opened)
+  assert.ok(opened < preparedStage)
+  assert.ok(preparedStage < readyDeadline)
+  assert.match(missionStage, /addAfterEffect\(\(\) => \{/)
+  assert.match(
+    missionStage,
+    /React\.useState\(\s*readCurrentFlightSimStagePreparationRequest,\s*\)/,
+  )
+  assert.match(
+    missionStage,
+    /completeFlightSimStagePreparation\(\s*stagePreparationRequestId,\s*\)/,
+  )
+  assert.match(missionStage, /&& actorRef\.current/)
+  const afterRender = missionStage.indexOf('addAfterEffect(() => {')
+  const deadlineCompletion = missionStage.indexOf(
+    'completeFlightSimReadyFrame(presentation.runId, presentation.tick)',
+  )
+  const frameSubscriber = missionStage.indexOf('useFrame(() => {')
+  assert.ok(afterRender >= 0 && deadlineCompletion > afterRender)
+  assert.ok(frameSubscriber > deadlineCompletion)
 })
 
 test('Flight surface fencing drains and restores both workspace seed-sync owners', () => {
   const runtime = readFileSync(
     resolve(repoRoot, 'canvas/src/features/game-flight-sim/flightSimRuntime.ts'),
+    'utf8',
+  )
+  const surfaceOpenLifecycle = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/src/features/game-flight-sim/flightSimSurfaceOpenLifecycle.ts',
+    ),
     'utf8',
   )
   const sourceFilesBootstrap = readFileSync(
@@ -301,7 +340,7 @@ test('Flight surface fencing drains and restores both workspace seed-sync owners
   assert.ok(restorePreviousSurface < releaseSyncSuspension)
   assert.match(
     runtime,
-    /flightSimSurfaceLifecycleGeneration \+= 1[\s\S]*cancelFlightSimHydration\(\)/,
+    /invalidateFlightSimSurfaceOpens\(\)[\s\S]*cancelFlightSimHydration\(\)/,
   )
   assert.match(
     runtime,
@@ -312,7 +351,7 @@ test('Flight surface fencing drains and restores both workspace seed-sync owners
     /defaultRuntime\.read\(\)\.active \|\| flightSimSurfaceOpenTail/,
   )
   assert.match(
-    runtime,
+    surfaceOpenLifecycle,
     /openController\.controller\.abort\(new FlightSimSurfaceOpenSettledError\(\)\)/,
   )
 })

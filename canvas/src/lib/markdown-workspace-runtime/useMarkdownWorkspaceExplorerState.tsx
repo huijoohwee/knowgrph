@@ -55,9 +55,11 @@ import type { MarkdownWorkspaceRuntimeInteractionStatusBindings } from './markdo
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
 import {
   buildWorkspaceEntriesIndex,
-  getFirstDescendantFilePath,
-  hasWorkspaceFileEntry,
 } from './workspaceEntriesIndex'
+import {
+  resolveWorkspaceFolderContractDocumentPath,
+  resolveWorkspaceFolderContractTargetPath,
+} from './workspaceFolderContractTarget'
 
 const hasNonWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.getState>['sourceFiles']): boolean => {
   const list = Array.isArray(sourceFiles) ? sourceFiles : []
@@ -557,26 +559,20 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
 
   const resolveFolderContractDocPath = React.useCallback(
     (folderPath: WorkspacePath, mode: FolderModeContract): WorkspacePath => {
-      const normalized = normalizeWorkspacePath(folderPath)
-      const leaf = mode === 'user-journey' ? 'repo.user-journey.md' : 'repo.sitemap.md'
-      return normalizeWorkspacePath(`${normalized.replace(/\/+$/, '')}/${leaf}`)
+      return resolveWorkspaceFolderContractDocumentPath(folderPath, mode)
     },
     [],
   )
 
   const pickFolderContractTargetPath = React.useCallback(
     (folderPath: WorkspacePath, preferredMode: FolderModeContract): WorkspacePath | null => {
-      const folder = normalizeWorkspacePath(folderPath)
-      const preferred = resolveFolderContractDocPath(folder, preferredMode)
-      if (hasWorkspaceFileEntry(entriesIndex, preferred)) return preferred
-
-      const alternateMode: FolderModeContract = preferredMode === 'sitemap' ? 'user-journey' : 'sitemap'
-      const alternate = resolveFolderContractDocPath(folder, alternateMode)
-      if (hasWorkspaceFileEntry(entriesIndex, alternate)) return alternate
-
-      return getFirstDescendantFilePath(entriesIndex, folder)
+      return resolveWorkspaceFolderContractTargetPath({
+        entriesIndex,
+        folderPath,
+        preferredMode,
+      })
     },
-    [entriesIndex, resolveFolderContractDocPath],
+    [entriesIndex],
   )
 
   return {

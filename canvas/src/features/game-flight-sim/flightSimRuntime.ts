@@ -37,6 +37,22 @@ import { flightSimRuntimeErrorMessage } from './flightSimRuntimeState'
 import { readFlightSimXrSpatialProfile } from './flightSimSpatialProfile'
 import type { FlightSimStageRuntimeController } from './flightSimStageRuntimeController'
 import {
+  beginFlightSimStagePreparation,
+  cancelFlightSimStagePreparation,
+  cancelCurrentFlightSimStagePreparation,
+  resetFlightSimStagePreparationForTests,
+  waitForFlightSimStagePreparation,
+} from './flightSimStagePreparationRuntime'
+import {
+  createFlightSimSurfaceOpenController,
+  FlightSimSurfaceOpenStaleError,
+  invalidateFlightSimSurfaceOpens,
+  isFlightSimSurfaceOpenCurrent,
+  readFlightSimSurfaceLifecycleGeneration,
+  settleFlightSimSurfaceOpenController,
+  throwIfFlightSimSurfaceOpenStale,
+} from './flightSimSurfaceOpenLifecycle'
+import {
   captureFlightSimAuthoredRuntimeOwnership, captureFlightSimPreviousCanvasSurface,
   restoreFlightSimAuthoredRuntime, restoreFlightSimPreviousCanvasSurface,
   suspendFlightSimAuthoredRuntime, type FlightSimAuthoredRuntimeOwnership,
@@ -71,22 +87,6 @@ let authoredRuntimeOwnership: FlightSimAuthoredRuntimeOwnership | null = null
 let flightSimSurfaceOpenTail: Promise<void> | null = null
 let releaseFlightSimDurableChatStreamTransportSuspension: (() => void) | null = null
 let releaseFlightSimWorkspaceSeedSyncSuspension: (() => void) | null = null
-let flightSimSurfaceLifecycleGeneration = 0
-const flightSimSurfaceOpenControllers = new Set<AbortController>()
-
-class FlightSimSurfaceOpenStaleError extends Error {
-  constructor() {
-    super('Flight Sim surface open was invalidated by a newer lifecycle action')
-    this.name = 'FlightSimSurfaceOpenStaleError'
-  }
-}
-
-class FlightSimSurfaceOpenSettledError extends Error {
-  constructor() {
-    super('Flight Sim surface open operation settled')
-    this.name = 'FlightSimSurfaceOpenSettledError'
-  }
-}
 
 function throwIfFlightSimOperationAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return
@@ -95,36 +95,10 @@ function throwIfFlightSimOperationAborted(signal?: AbortSignal): void {
     : new Error('Flight Sim operation was aborted')
 }
 
-function throwIfFlightSimSurfaceOpenStale(expectedGeneration: number): void {
-  if (expectedGeneration === flightSimSurfaceLifecycleGeneration) return
-  throw new FlightSimSurfaceOpenStaleError()
-}
-
-function createFlightSimSurfaceOpenController(
-  callerSignal?: AbortSignal,
-): Readonly<{
-  controller: AbortController
-  detachCallerSignal: () => void
-}> {
-  const controller = new AbortController()
-  const handleCallerAbort = () => {
-    controller.abort(callerSignal?.reason)
-  }
-  if (callerSignal?.aborted) handleCallerAbort()
-  else callerSignal?.addEventListener('abort', handleCallerAbort, { once: true })
-  flightSimSurfaceOpenControllers.add(controller)
-  return Object.freeze({
-    controller,
-    detachCallerSignal: () => {
-      callerSignal?.removeEventListener('abort', handleCallerAbort)
-    },
-  })
-}
-
-function abortFlightSimSurfaceOpens(reason: Error): void {
-  for (const controller of [...flightSimSurfaceOpenControllers]) {
-    controller.abort(reason)
-  }
+function hasFlightSimBrowserPresentationRuntime(): boolean {
+  return typeof window !== 'undefined'
+    && typeof document !== 'undefined'
+    && typeof window.requestAnimationFrame === 'function'
 }
 
 function admitDefaultAssets(): void {
@@ -284,7 +258,7 @@ async function performFlightSimSurfaceOpen(
   options: FlightSimSurfaceOpenOptions,
   expectedGeneration: number,
 ): Promise<FlightSimSnapshot> {
-  if (expectedGeneration !== flightSimSurfaceLifecycleGeneration) {
+  if (!isFlightSimSurfaceOpenCurrent(expectedGeneration)) {
     return defaultRuntime.read()
   }
   throwIfFlightSimOperationAborted(options.signal)
@@ -295,6 +269,7 @@ async function performFlightSimSurfaceOpen(
   let hydrationFinished = false
   let surfaceActivated = false
   let locallyAcquiredSeedSyncRelease: (() => void) | null = null
+  let stagePreparationRequestId: number | null = null
   try {
     const webglAdmission = readFlightSimWebglAdmission(options.webglSupported)
     if (!webglAdmission.available) {
@@ -368,12 +343,22 @@ async function performFlightSimSurfaceOpen(
       defaultRuntime.rejectGameplayNetworkAttempt(operation, () => undefined)
     ))
     throwIfFlightSimOperationAborted(options.signal)
+    if (hasFlightSimBrowserPresentationRuntime()) {
+      stagePreparationRequestId = beginFlightSimStagePreparation()
+    }
     const opened = defaultRuntime.open(true)
     throwIfFlightSimSurfaceOpenStale(expectedGeneration)
+    if (stagePreparationRequestId !== null) {
+      await waitForFlightSimStagePreparation(stagePreparationRequestId, {
+        signal: options.signal,
+      })
+      throwIfFlightSimSurfaceOpenStale(expectedGeneration)
+      throwIfFlightSimOperationAborted(options.signal)
+    }
     return opened
   } catch (error) {
     if (
-      expectedGeneration !== flightSimSurfaceLifecycleGeneration
+      !isFlightSimSurfaceOpenCurrent(expectedGeneration)
       || error instanceof FlightSimSurfaceOpenStaleError
     ) {
       return defaultRuntime.read()
@@ -392,6 +377,9 @@ async function performFlightSimSurfaceOpen(
     const localError = readFlightSimDecisionStore().error || error
     return failFlightSimSurfaceEntry(localError, entering, surfaceActivated)
   } finally {
+    if (stagePreparationRequestId !== null) {
+      cancelFlightSimStagePreparation(stagePreparationRequestId)
+    }
     locallyAcquiredSeedSyncRelease?.()
   }
 }
@@ -399,7 +387,7 @@ async function performFlightSimSurfaceOpen(
 export function openFlightSimSurface(
   options: FlightSimSurfaceOpenOptions = {},
 ): Promise<FlightSimSnapshot> {
-  const expectedGeneration = flightSimSurfaceLifecycleGeneration
+  const expectedGeneration = readFlightSimSurfaceLifecycleGeneration()
   const openController = createFlightSimSurfaceOpenController(options.signal)
   const operationOptions = {
     ...options,
@@ -413,9 +401,7 @@ export function openFlightSimSurface(
   const tail = opening.then(() => undefined, () => undefined)
   flightSimSurfaceOpenTail = tail
   void tail.then(() => {
-    openController.controller.abort(new FlightSimSurfaceOpenSettledError())
-    flightSimSurfaceOpenControllers.delete(openController.controller)
-    openController.detachCallerSignal()
+    settleFlightSimSurfaceOpenController(openController)
     if (flightSimSurfaceOpenTail === tail) flightSimSurfaceOpenTail = null
   })
   return opening
@@ -522,8 +508,8 @@ export async function resetFlightSimLocalPersistence(
 export function exitFlightSimSurface(
   options: Readonly<{ restorePreviousSurface?: boolean }> = {},
 ): FlightSimSnapshot {
-  flightSimSurfaceLifecycleGeneration += 1
-  abortFlightSimSurfaceOpens(
+  invalidateFlightSimSurfaceOpens()
+  cancelCurrentFlightSimStagePreparation(
     new FlightSimSurfaceOpenStaleError(),
   )
   cancelFlightSimHydration()
@@ -562,10 +548,7 @@ registerXrSceneGameplayExitHandler('flightSim', () => {
 export function resetFlightSimRuntimeForTests(
   profile: FlightSimSpatialProfile = readFlightSimXrSpatialProfile(),
 ): FlightSimSnapshot {
-  flightSimSurfaceLifecycleGeneration += 1
-  abortFlightSimSurfaceOpens(
-    new FlightSimSurfaceOpenStaleError(),
-  )
+  invalidateFlightSimSurfaceOpens()
   cancelFlightSimHydration()
   uninstallFlightSimGameplayNetworkFence()
   flightSimSurfaceOpenTail = null
@@ -575,6 +558,7 @@ export function resetFlightSimRuntimeForTests(
   restoreWorkspaceSeedSyncOwnership()
   resetFlightSimSurfaceOwnershipStatusForTests()
   resetFlightSimDeadlineRuntimeForTests()
+  resetFlightSimStagePreparationForTests()
   resetFlightSimMissionStageLoaderForTests()
   defaultRuntime = createFlightSimRuntime({ profile, active: false, webglSupported: false })
   return defaultRuntime.read()

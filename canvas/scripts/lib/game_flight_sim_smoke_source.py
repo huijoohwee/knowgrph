@@ -10,6 +10,7 @@ from lib.game_flight_sim_smoke_scene import (
     read_and_pin_authored_physics_baseline,
 )
 from lib.game_flight_sim_smoke_source_selection import (
+    close_source_files_selection_surface,
     verify_source_file_button_round_trip,
 )
 
@@ -396,7 +397,7 @@ def _apply_exact_authored_source(
                 auxiliaryCanvasCount: auxiliaryCanvases.length,
                 auxiliaryCanvasesLocalOnly: auxiliaryCanvases.every(
                   candidate => Boolean(candidate.closest(
-                    '[data-kg-motion-control-preview="local-only"]',
+                    '[data-kg-motion-control-preview="local-only"], .monaco-editor',
                   )),
                 ),
                 rootCount: document.querySelectorAll(
@@ -487,8 +488,10 @@ def apply_and_verify_exact_authored_source(
         poll=_poll,
         read_source_identity=_read_source_identity,
     )
+    selection_surface_transition = close_source_files_selection_surface(page)
     application = _apply_exact_authored_source(page, expected_source_text)
     application["selectionRoundTrip"] = selection_round_trip
+    application["selectionSurfaceTransition"] = selection_surface_transition
     source = _poll(
         page,
         lambda: _read_source_identity(page, expected_source_text),

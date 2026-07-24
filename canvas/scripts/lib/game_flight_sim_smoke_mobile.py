@@ -4,6 +4,9 @@ import time
 from typing import Any
 
 from playwright.sync_api import Page
+from lib.game_flight_sim_smoke_mobile_surface import (
+    prepare_mobile_flight_touch_surface,
+)
 
 
 MOBILE_VIEWPORT = {"width": 375, "height": 812}
@@ -12,6 +15,10 @@ MOBILE_VIEWPORT = {"width": 375, "height": 812}
 def verify_mobile_flight_hud(page: Page) -> dict[str, Any]:
     page.set_viewport_size(MOBILE_VIEWPORT)
     page.wait_for_timeout(250)
+    interaction_surface = prepare_mobile_flight_touch_surface(
+        page,
+        close_occluders=True,
+    )
     layout = page.evaluate(
         """
         () => {
@@ -280,7 +287,8 @@ def verify_mobile_flight_hud(page: Page) -> dict[str, Any]:
             f"invalid={invalid_targets}, overflow={overflow_targets}, "
             f"layout={layout}"
         )
-    layout["proofScope"] = "layout-and-control-presence"
+    layout["interactionSurface"] = interaction_surface
+    layout["proofScope"] = "layout-control-presence-and-topmost-hit-ownership"
     return layout
 
 
@@ -300,9 +308,6 @@ def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
     ):
         raise AssertionError(f"fresh touch mission was not ready: {before}")
     control = page.get_by_role("button", name="Pitch ▲", exact=True).first
-    box = control.bounding_box()
-    if not box or not control.is_enabled():
-        raise AssertionError("mobile Pitch Up touch target was unavailable")
     control.evaluate(
         """
         element => {
@@ -320,24 +325,43 @@ def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
         """
     )
     session = page.context.new_cdp_session(page)
-    point = {
-        "x": box["x"] + box["width"] / 2,
-        "y": box["y"] + box["height"] / 2,
-        "radiusX": 4,
-        "radiusY": 4,
-        "force": 1,
-        "id": 41,
-    }
+    hit_test: dict[str, Any] = {}
     after: dict[str, Any] | None = None
+    touch_active = False
     try:
         session.send(
             "Emulation.setTouchEmulationEnabled",
             {"enabled": True, "maxTouchPoints": 1},
         )
+        page.wait_for_timeout(50)
+        box = control.bounding_box()
+        hit_test = prepare_mobile_flight_touch_surface(
+            page,
+            close_occluders=False,
+        )["final"]
+        if (
+            not box
+            or not control.is_enabled()
+            or hit_test.get("controlEnabled") is not True
+            or hit_test.get("controlOwnsPoint") is not True
+        ):
+            raise AssertionError(
+                f"mobile Pitch Up was not the topmost touch target after "
+                f"enabling touch emulation: box={box}, surface={hit_test}"
+            )
+        point = {
+            "x": box["x"] + box["width"] / 2,
+            "y": box["y"] + box["height"] / 2,
+            "radiusX": 4,
+            "radiusY": 4,
+            "force": 1,
+            "id": 41,
+        }
         session.send(
             "Input.dispatchTouchEvent",
             {"type": "touchStart", "touchPoints": [point]},
         )
+        touch_active = True
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             after = page.evaluate(
@@ -357,15 +381,28 @@ def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
                 break
             page.wait_for_timeout(50)
         else:
+            interaction_state = page.evaluate(
+                """
+                async () => {
+                  const input = await window.__kgFlightSimBrowserProof.importModule('flightSimInput')
+                  return {
+                    events: window.__kgFlightSimTouchEventProof,
+                    touchInput: input.readFlightSimTouchInput(),
+                  }
+                }
+                """
+            )
             raise AssertionError(
                 "Flight mobile Pitch Up touch did not advance production input: "
-                f"before={before}, after={after}"
+                f"before={before}, after={after}, hitTest={hit_test}, "
+                f"interaction={interaction_state}"
             )
     finally:
-        session.send(
-            "Input.dispatchTouchEvent",
-            {"type": "touchEnd", "touchPoints": []},
-        )
+        if touch_active:
+            session.send(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
         session.send(
             "Emulation.setTouchEmulationEnabled",
             {"enabled": False},
@@ -410,5 +447,6 @@ def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
         "positionBefore": before["aircraft"]["position"],
         "positionAfter": after["aircraft"]["position"],
         "events": events,
+        "hitTest": hit_test,
         "releasedInput": released,
     }

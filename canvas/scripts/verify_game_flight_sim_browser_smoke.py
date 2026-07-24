@@ -179,9 +179,12 @@ def main() -> None:
             )
 
         def reset_observed_errors() -> None:
+            blocked_requests.clear()
             console_errors.clear()
             page_errors.clear()
             failed_responses.clear()
+            websocket_events.clear()
+            websocket_route_hits.clear()
 
         # Every context-level transport observer and route is installed before
         # page creation. This includes requests owned by a Service Worker,

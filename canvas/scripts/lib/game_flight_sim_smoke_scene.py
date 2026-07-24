@@ -61,7 +61,7 @@ def read_and_pin_authored_physics_baseline(
           )
           const auxiliaryCanvasesLocalOnly = auxiliaryCanvases.every(
             canvas => Boolean(canvas.closest(
-              '[data-kg-motion-control-preview="local-only"]',
+              '[data-kg-motion-control-preview="local-only"], .monaco-editor',
             )),
           )
           const namedNodeCounts = nodes.reduce((counts, node) => {
@@ -220,7 +220,7 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
           )
           const auxiliaryCanvasesLocalOnly = auxiliaryCanvases.every(
             canvas => Boolean(canvas.closest(
-              '[data-kg-motion-control-preview="local-only"]',
+              '[data-kg-motion-control-preview="local-only"], .monaco-editor',
             )),
           )
           const missionIndex = nodes.findIndex(

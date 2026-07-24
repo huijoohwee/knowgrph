@@ -31,6 +31,9 @@ from lib.game_flight_sim_smoke_source import (
     apply_and_verify_exact_authored_source,
     prepare_authored_physics_surface,
 )
+from lib.game_flight_sim_smoke_source_selection import (
+    prepare_source_files_selection_surface,
+)
 from lib.game_flight_sim_smoke_throttle import (
     FLIGHT_THROTTLE_PROOF_TARGET,
     assert_staged_throttle_response,
@@ -102,8 +105,11 @@ def run_flight_runtime_verifications(
 
     def source_apply() -> dict[str, Any]:
         prepare_stable_candidate_page(page, target_url)
-        reset_observed_errors()
+        prepare_source_files_selection_surface(page)
         physics_baseline = prepare_authored_physics_surface(page)
+        # Flight's zero-network evidence begins from the stable, visible
+        # Physics XR baseline after optional Editor Workspace bootstrap settles.
+        reset_observed_errors()
         source_application, source = apply_and_verify_exact_authored_source(page)
         hud = page.locator('[data-kg-flight-sim-hud="1"]').first
         expect(hud).to_be_visible(timeout=120_000)

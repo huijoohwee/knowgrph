@@ -1,5 +1,5 @@
 import React from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { addAfterEffect, useFrame, useThree } from '@react-three/fiber'
 import { type Group, type Mesh } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { XrProceduralVehicleGeometry } from '@/features/three/XrProceduralVehicleGeometry'
@@ -35,6 +35,10 @@ import {
   runFlightSimStageSimulationStep,
 } from './flightSimSimulationClock'
 import { completeFlightSimReadyFrame } from './flightSimDeadlineRuntime'
+import {
+  completeFlightSimStagePreparation,
+  readCurrentFlightSimStagePreparationRequest,
+} from './flightSimStagePreparationRuntime'
 
 const INPUT_OWNER_ID = 'flight-sim:aircraft'
 const CLOCK_INTERVAL_MS = FLIGHT_SIM_FIXED_STEP_SECONDS * 1000
@@ -56,6 +60,15 @@ export function FlightSimMissionStage({
   const desktopInputRef = React.useRef(FLIGHT_SIM_NEUTRAL_INPUT)
   const desktopBindingRef = React.useRef<FlightSimInputBinding | null>(null)
   const inputClaimedRef = React.useRef(false)
+  const framePresentationRef = React.useRef({
+    playable: false,
+    readyAtTickZero: false,
+    runId: 0,
+    tick: 0,
+  })
+  const [stagePreparationRequestId] = React.useState(
+    readCurrentFlightSimStagePreparationRequest,
+  )
   const profile = React.useMemo(
     () => runtimeController.readSpatialProfile(),
     [runtimeController],
@@ -100,7 +113,7 @@ export function FlightSimMissionStage({
     return () => {
       retained = false
     }
-  }, [assetCatalog])
+  }, [assetCatalog, runtimeController])
 
   React.useEffect(() => runtimeController.subscribe(() => {
     snapshotRef.current = runtimeController.readSnapshot()
@@ -125,8 +138,36 @@ export function FlightSimMissionStage({
       shouldPauseOnPointerRelease: () => readXrNativeControllerCamera().mode === 'fixed-follow',
       shouldRequestPointerLock: () => readXrNativeControllerCamera().mode === 'fixed-follow',
     }) : null
+    let stagePreparationCompleted = false
+    const removeAfterRender = addAfterEffect(() => {
+      if (!inputClaimedRef.current) return
+      const snapshot = runtimeController.readSnapshot()
+      if (
+        !stagePreparationCompleted
+        && stagePreparationRequestId !== null
+        && snapshot.active
+        && snapshot.phase === 'stopped'
+        && !runtimeController.isHydrationPending()
+        && !snapshot.runtimeError
+        && actorRef.current
+      ) {
+        stagePreparationCompleted = completeFlightSimStagePreparation(
+          stagePreparationRequestId,
+        )
+      }
+      const presentation = framePresentationRef.current
+      if (!presentation.playable) {
+        delete canvas.dataset.kgFlightSimFirstFrame
+        return
+      }
+      canvas.dataset.kgFlightSimFirstFrame = '1'
+      if (presentation.readyAtTickZero) {
+        completeFlightSimReadyFrame(presentation.runId, presentation.tick)
+      }
+    })
     desktopBindingRef.current = desktop
     return () => {
+      removeAfterRender()
       inputClaimedRef.current = false
       if (desktopBindingRef.current === desktop) desktopBindingRef.current = null
       desktop?.dispose()
@@ -135,7 +176,7 @@ export function FlightSimMissionStage({
       delete canvas.dataset.kgFlightSimSpatialProfile
       delete canvas.dataset.kgFlightSimFirstFrame
     }
-  }, [gl, profile.id])
+  }, [gl, profile.id, runtimeController, stagePreparationRequestId])
 
   React.useEffect(() => {
     const clock = createFlightSimSimulationClock({
@@ -196,14 +237,15 @@ export function FlightSimMissionStage({
     const playable = (snapshot.phase === 'ready' || snapshot.phase === 'flying')
       && snapshot.runId > 0
       && !runtimeController.isHydrationPending()
-    if (snapshot.active && playable && inputClaimedRef.current && !snapshot.runtimeError) {
-      gl.domElement.dataset.kgFlightSimFirstFrame = '1'
-      if (snapshot.phase === 'ready' && snapshot.tick === 0) {
-        completeFlightSimReadyFrame(snapshot.runId, snapshot.tick)
-      }
-    } else {
-      delete gl.domElement.dataset.kgFlightSimFirstFrame
-    }
+    const presentation = framePresentationRef.current
+    presentation.playable = snapshot.active
+      && playable
+      && inputClaimedRef.current
+      && !snapshot.runtimeError
+    presentation.readyAtTickZero = snapshot.phase === 'ready'
+      && snapshot.tick === 0
+    presentation.runId = snapshot.runId
+    presentation.tick = snapshot.tick
   })
 
   return (

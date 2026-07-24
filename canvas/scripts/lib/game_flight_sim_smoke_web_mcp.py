@@ -443,7 +443,7 @@ def verify_flight_exit(
               auxiliaryCanvasCount: auxiliaryCanvases.length,
               auxiliaryCanvasesLocalOnly: auxiliaryCanvases.every(
                 canvas => Boolean(canvas.closest(
-                  '[data-kg-motion-control-preview="local-only"]',
+                  '[data-kg-motion-control-preview="local-only"], .monaco-editor',
                 )),
               ),
               rootCount: roots.length,

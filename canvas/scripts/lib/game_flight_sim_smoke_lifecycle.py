@@ -263,7 +263,7 @@ def verify_surface_failure_paths(page: Page) -> dict[str, Any]:
               auxiliaryCanvasCount: auxiliaryCanvases.length,
               auxiliaryCanvasesLocalOnly: auxiliaryCanvases.every(
                 canvas => Boolean(canvas.closest(
-                  '[data-kg-motion-control-preview="local-only"]',
+                  '[data-kg-motion-control-preview="local-only"], .monaco-editor',
                 )),
               ),
               canvasStable: rendererCanvases.length === 1
