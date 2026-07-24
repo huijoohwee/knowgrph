@@ -5,9 +5,8 @@ import type { GraphData } from '@/lib/graph/types'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
-  buildTextSelectionWidgetEdge,
-  clearTextSelectionWidgetLinkSession,
-  isTextSelectionWidgetEdgePersisted,
+  clearTextSelectionWidgetLinkSessionIfCurrent,
+  persistTextSelectionWidgetEdgeAfterTargetCreation,
   resolveTextSelectionWidgetTargetPosition,
   TEXT_SELECTION_WIDGET_CREATE_EVENT,
   type TextSelectionWidgetCreateDetail,
@@ -31,16 +30,23 @@ export function useTextSelectionWidgetCreateBridge(args: {
     x: number
     y: number
   }) => string
+  authoringGraphDataRef?: React.MutableRefObject<GraphData | null>
+  baseGraphData?: GraphData | null
 }) {
   const {
     active,
     widgetRegistryRef,
     resolveRegistryEntry,
     addNodeFromRegistryAtWorld,
+    authoringGraphDataRef,
+    baseGraphData,
   } = args
 
   React.useEffect(() => {
     if (!active || typeof window === 'undefined') return
+    const waitForGraphMutation = () => new Promise<void>(resolve => {
+      window.requestAnimationFrame(() => resolve())
+    })
     const onCreateTarget = (event: Event) => {
       const detail = (event as CustomEvent<TextSelectionWidgetCreateDetail>).detail
       if (!detail || detail.claimed) return
@@ -58,55 +64,56 @@ export function useTextSelectionWidgetCreateBridge(args: {
         x: position.x,
         y: position.y,
       })
-      const stateAfterNode = useGraphStore.getState()
-      const graphAfterNode = stateAfterNode.graphData as GraphData | null
-      const edge = graphAfterNode && targetNodeId
-          ? buildTextSelectionWidgetEdge({
-            graphData: graphAfterNode,
-            session: {
-              ...detail.session,
-              sourceNodeId: sourceNode.id,
-            },
-            targetNodeId,
+      if (!targetNodeId) return
+      void persistTextSelectionWidgetEdgeAfterTargetCreation({
+        readGraphDataCandidates: () => [
+          useGraphStore.getState().graphData as GraphData | null,
+          authoringGraphDataRef?.current || null,
+          baseGraphData || null,
+        ],
+        session: {
+          ...detail.session,
+          sourceNodeId: sourceNode.id,
+        },
+        targetNodeId,
+        addEdge: edge => useGraphStore.getState().addEdge(edge),
+        waitForGraphMutation,
+      }).then(result => {
+        if (result.kind === 'unresolved') {
+          useGraphStore.getState().upsertUiToast({
+            id: 'rich-media-selection-widget-link-error',
+            kind: 'error',
+            message: 'The target Widget was created, but the selection edge could not be resolved.',
+            ttlMs: 5000,
           })
-        : null
-      if (!edge) {
-        stateAfterNode.upsertUiToast({
-          id: 'rich-media-selection-widget-link-error',
-          kind: 'error',
-          message: 'The target Widget was created, but the selection edge could not be resolved.',
-          ttlMs: 5000,
-        })
-        return
-      }
-      const edgeAlreadyPersisted = isTextSelectionWidgetEdgePersisted({
-        graphData: graphAfterNode,
-        edge,
-      })
-      if (!edgeAlreadyPersisted) stateAfterNode.addEdge(edge)
-      const graphAfterEdge = useGraphStore.getState().graphData as GraphData | null
-      const edgePersisted = isTextSelectionWidgetEdgePersisted({
-        graphData: graphAfterEdge,
-        edge,
-      })
-      if (!edgePersisted) {
+          return
+        }
+        if (result.kind === 'rejected') {
+          useGraphStore.getState().upsertUiToast({
+            id: 'rich-media-selection-widget-link-error',
+            kind: 'error',
+            message: 'The target Widget was created, but the graph rejected the selection edge.',
+            ttlMs: 5000,
+          })
+          return
+        }
+        clearTextSelectionWidgetLinkSessionIfCurrent(detail.session)
         useGraphStore.getState().upsertUiToast({
-          id: 'rich-media-selection-widget-link-error',
-          kind: 'error',
-          message: 'The target Widget was created, but the graph rejected the selection edge.',
-          ttlMs: 5000,
+          id: 'rich-media-selection-widget-link-complete',
+          kind: 'success',
+          message: `Created ${entry.nodeTypeId} and linked the selected text.`,
+          ttlMs: 3000,
         })
-        return
-      }
-      clearTextSelectionWidgetLinkSession()
-      useGraphStore.getState().upsertUiToast({
-        id: 'rich-media-selection-widget-link-complete',
-        kind: 'success',
-        message: `Created ${entry.nodeTypeId} and linked the selected text.`,
-        ttlMs: 3000,
       })
     }
     window.addEventListener(TEXT_SELECTION_WIDGET_CREATE_EVENT, onCreateTarget)
     return () => window.removeEventListener(TEXT_SELECTION_WIDGET_CREATE_EVENT, onCreateTarget)
-  }, [active, addNodeFromRegistryAtWorld, resolveRegistryEntry, widgetRegistryRef])
+  }, [
+    active,
+    addNodeFromRegistryAtWorld,
+    authoringGraphDataRef,
+    baseGraphData,
+    resolveRegistryEntry,
+    widgetRegistryRef,
+  ])
 }

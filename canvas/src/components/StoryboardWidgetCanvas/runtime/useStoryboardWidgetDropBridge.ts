@@ -414,6 +414,8 @@ export function useStoryboardWidgetDropBridge(args: {
     widgetRegistryRef: args.widgetRegistryRef,
     resolveRegistryEntry: resolveWidgetRegistryEntryForDrop,
     addNodeFromRegistryAtWorld,
+    authoringGraphDataRef: args.draftGraphDataRef,
+    baseGraphData: args.baseGraphData,
   })
 
   const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => {

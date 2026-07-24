@@ -69,6 +69,13 @@ export function clearTextSelectionWidgetLinkSession(): void {
   notify()
 }
 
+export function clearTextSelectionWidgetLinkSessionIfCurrent(
+  expectedSession: TextSelectionWidgetLinkSession,
+): void {
+  if (activeSession !== expectedSession) return
+  clearTextSelectionWidgetLinkSession()
+}
+
 export function getTextSelectionWidgetLinkSnapshot(): TextSelectionWidgetLinkSession | null {
   return activeSession
 }
@@ -169,4 +176,54 @@ export function isTextSelectionWidgetEdgePersisted(args: {
     && String(candidate.properties?.['selection:text'] || '').trim()
       === String(args.edge.properties?.['selection:text'] || '').trim()
   ))
+}
+
+export type TextSelectionWidgetEdgePersistenceResult =
+  | { kind: 'persisted'; edge: GraphEdge }
+  | { kind: 'unresolved' }
+  | { kind: 'rejected'; edge: GraphEdge }
+
+export async function persistTextSelectionWidgetEdgeAfterTargetCreation(args: {
+  readGraphDataCandidates: () => ReadonlyArray<GraphData | null | undefined>
+  session: TextSelectionWidgetLinkSession
+  targetNodeId: string
+  addEdge: (edge: GraphEdge) => void
+  waitForGraphMutation: () => Promise<void>
+  maxAttempts?: number
+}): Promise<TextSelectionWidgetEdgePersistenceResult> {
+  const maxAttempts = Number.isFinite(args.maxAttempts)
+    ? Math.min(8, Math.max(1, Math.floor(Number(args.maxAttempts))))
+    : 4
+  let resolvedEdge: GraphEdge | null = null
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidates = args.readGraphDataCandidates().filter(
+      (candidate): candidate is GraphData => Boolean(candidate),
+    )
+    const edge = candidates
+      .map(graphData => buildTextSelectionWidgetEdge({
+        graphData,
+        session: args.session,
+        targetNodeId: args.targetNodeId,
+      }))
+      .find((candidate): candidate is GraphEdge => Boolean(candidate)) || null
+
+    if (edge) {
+      resolvedEdge = edge
+      if (candidates.some(graphData => isTextSelectionWidgetEdgePersisted({ graphData, edge }))) {
+        return { kind: 'persisted', edge }
+      }
+      args.addEdge(edge)
+      const graphDataAfterWrite = args.readGraphDataCandidates()
+      if (graphDataAfterWrite.some(graphData => (
+        isTextSelectionWidgetEdgePersisted({ graphData, edge })
+      ))) {
+        return { kind: 'persisted', edge }
+      }
+    }
+
+    if (attempt + 1 < maxAttempts) await args.waitForGraphMutation()
+  }
+
+  return resolvedEdge ? { kind: 'rejected', edge: resolvedEdge } : { kind: 'unresolved' }
 }
