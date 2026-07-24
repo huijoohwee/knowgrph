@@ -133,6 +133,7 @@ async function buildExactProductionPreview(candidate) {
         ...process.env,
         KG_SKIP_DOCS_UPDATE: '1',
         VITE_BASE_PATH: '/',
+        VITE_KNOWGRPH_FLIGHT_SIM_BROWSER_PROOF: '1',
       },
       shell: false,
       stdio: 'inherit',

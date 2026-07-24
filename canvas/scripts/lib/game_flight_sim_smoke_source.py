@@ -54,16 +54,10 @@ def _read_source_identity(
     return page.evaluate(
         """
         async expectedSourceText => {
-          const store = await import('/src/hooks/useGraphStore.ts')
-          const demos = await import(
-            '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
-          )
-          const workspaceModule = await import(
-            '/src/features/workspace-fs/workspaceFs.ts'
-          )
-          const seedBundle = await import(
-            '/src/features/workspace-fs/workspaceCanonicalSeedBundle.ts'
-          )
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
+          const demos = await window.__kgFlightSimBrowserProof.importModule('workspaceRunReadyDemos')
+          const workspaceModule = await window.__kgFlightSimBrowserProof.importModule('workspaceFs')
+          const seedBundle = await window.__kgFlightSimBrowserProof.importModule('workspaceCanonicalSeedBundle')
           const state = store.useGraphStore.getState()
           const workspace = await workspaceModule.getWorkspaceFs()
           const sourcePath = `/${demos.FLIGHT_SIM_DEMO_REPO_REL_PATH}`
@@ -178,9 +172,7 @@ def prepare_authored_physics_surface(page: Page) -> dict[str, Any]:
         lambda: page.evaluate(
             """
             async () => {
-              const readiness = await import(
-                '/src/features/source-files/sourceFilesBootstrapReadiness.ts'
-              )
+              const readiness = await window.__kgFlightSimBrowserProof.importModule('sourceFilesBootstrapReadiness')
               return readiness.readSourceFilesBootstrapSnapshot()
             }
             """
@@ -193,19 +185,11 @@ def prepare_authored_physics_surface(page: Page) -> dict[str, Any]:
         lambda: page.evaluate(
             """
             async expectedText => {
-              const explorer = await import('/src/features/markdown-explorer/store.ts')
-              const materialization = await import(
-                '/src/features/source-files/sourceFilesRuntimeMaterialization.ts'
-              )
-              const workspaceModule = await import(
-                '/src/features/workspace-fs/workspaceFs.ts'
-              )
-              const seedBundle = await import(
-                '/src/features/workspace-fs/workspaceCanonicalSeedBundle.ts'
-              )
-              const demos = await import(
-                '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
-              )
+              const explorer = await window.__kgFlightSimBrowserProof.importModule('markdownExplorerStore')
+              const materialization = await window.__kgFlightSimBrowserProof.importModule('sourceFilesRuntimeMaterialization')
+              const workspaceModule = await window.__kgFlightSimBrowserProof.importModule('workspaceFs')
+              const seedBundle = await window.__kgFlightSimBrowserProof.importModule('workspaceCanonicalSeedBundle')
+              const demos = await window.__kgFlightSimBrowserProof.importModule('workspaceRunReadyDemos')
               const workspace = await workspaceModule.getWorkspaceFs()
               await workspace.ensureSeed()
               const sourcePath = `/${demos.XR_PHYSICS_DEMO_REPO_REL_PATH}`
@@ -274,9 +258,7 @@ def _apply_exact_authored_source(
         lambda: page.evaluate(
             """
             async () => {
-              const readiness = await import(
-                '/src/features/source-files/sourceFilesBootstrapReadiness.ts'
-              )
+              const readiness = await window.__kgFlightSimBrowserProof.importModule('sourceFilesBootstrapReadiness')
               const snapshot = readiness.readSourceFilesBootstrapSnapshot()
               return {
                 phase: snapshot.phase,
@@ -328,31 +310,15 @@ def _apply_exact_authored_source(
                 )
                 captureFirstFrame()
               }
-              const explorer = await import(
-                '/src/features/markdown-explorer/store.ts'
-              )
-              const materialization = await import(
-                '/src/features/source-files/sourceFilesRuntimeMaterialization.ts'
-              )
-              const store = await import('/src/hooks/useGraphStore.ts')
-              const workspaceModule = await import(
-                '/src/features/workspace-fs/workspaceFs.ts'
-              )
-              const seedBundle = await import(
-                '/src/features/workspace-fs/workspaceCanonicalSeedBundle.ts'
-              )
-              const physics = await import(
-                '/src/features/three/xrPhysicsRuntime.ts'
-              )
-              const controller = await import(
-                '/src/features/three/xrNativeControllerDemoRuntime.ts'
-              )
-              const camera = await import(
-                '/src/features/three/xrNativeControllerCameraRuntime.ts'
-              )
-              const demos = await import(
-                '/src/features/workspace-fs/workspaceRunReadyDemos.ts'
-              )
+              const explorer = await window.__kgFlightSimBrowserProof.importModule('markdownExplorerStore')
+              const materialization = await window.__kgFlightSimBrowserProof.importModule('sourceFilesRuntimeMaterialization')
+              const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
+              const workspaceModule = await window.__kgFlightSimBrowserProof.importModule('workspaceFs')
+              const seedBundle = await window.__kgFlightSimBrowserProof.importModule('workspaceCanonicalSeedBundle')
+              const physics = await window.__kgFlightSimBrowserProof.importModule('xrPhysicsRuntime')
+              const controller = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerDemoRuntime')
+              const camera = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerCameraRuntime')
+              const demos = await window.__kgFlightSimBrowserProof.importModule('workspaceRunReadyDemos')
               const workspace = await workspaceModule.getWorkspaceFs()
               await workspace.ensureSeed()
               const sourcePath =

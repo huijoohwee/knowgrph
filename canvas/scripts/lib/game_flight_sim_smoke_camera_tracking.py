@@ -10,13 +10,9 @@ def read_camera_state(page: Page) -> dict[str, Any]:
     return page.evaluate(
         """
         async () => {
-          const source = await import(
-            '/src/features/strybldr/cameraSourceMcpRuntime.ts'
-          )
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const source = await window.__kgFlightSimBrowserProof.importModule('cameraSourceMcpRuntime')
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           const canvas = document.querySelector(
             '[data-kg-xr-scene-media-drop="1"] canvas',
           )
@@ -68,9 +64,7 @@ def select_camera_via_catalog(
     result = page.evaluate(
         """
         async cameraId => {
-          const camera = await import(
-            '/src/features/strybldr/cameraMcpRuntime.ts'
-          )
+          const camera = await window.__kgFlightSimBrowserProof.importModule('cameraMcpRuntime')
           return camera.controlLocalCamera({
             invocation:
               `/camera.select @camera #camera camera=${cameraId}`,
@@ -144,19 +138,11 @@ def read_fixed_follow_state(page: Page) -> dict[str, Any]:
     return page.evaluate(
         """
         async () => {
-          const source = await import(
-            '/src/features/strybldr/cameraSourceMcpRuntime.ts'
-          )
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
-          const native = await import(
-            '/src/features/three/xrNativeControllerDemoRuntime.ts'
-          )
-          const coordinates = await import(
-            '/src/features/game-flight-sim/flightSimSpatialScale.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const source = await window.__kgFlightSimBrowserProof.importModule('cameraSourceMcpRuntime')
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
+          const native = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerDemoRuntime')
+          const coordinates = await window.__kgFlightSimBrowserProof.importModule('flightSimSpatialScale')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           const snapshot = flight.readFlightSimSnapshot()
           const scale = coordinates.resolveFlightSimGameplayCoordinateScale(
             native.XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE,
@@ -195,9 +181,7 @@ def verify_live_fixed_follow_tracking(
     fresh_run = page.evaluate(
         """
         async () => {
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           flight.restartFlightSim()
           return flight.startFlightSim()
         }
@@ -263,9 +247,7 @@ def _start_flying(page: Page, label: str) -> dict[str, Any]:
     started = page.evaluate(
         """
         async () => {
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           flight.restartFlightSim()
           return flight.startFlightSim()
         }
@@ -420,9 +402,7 @@ def verify_camera_pointer_transitions(page: Page) -> dict[str, Any]:
     fixed_release = page.evaluate(
         """
         async () => {
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           const canvas = document.querySelector(
             '[data-kg-xr-scene-media-drop="1"] canvas',
           )
@@ -469,12 +449,8 @@ def verify_camera_pointer_transitions(page: Page) -> dict[str, Any]:
     free_transition = page.evaluate(
         """
         async () => {
-          const camera = await import(
-            '/src/features/strybldr/cameraMcpRuntime.ts'
-          )
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const camera = await window.__kgFlightSimBrowserProof.importModule('cameraMcpRuntime')
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           const canvas = document.querySelector(
             '[data-kg-xr-scene-media-drop="1"] canvas',
           )

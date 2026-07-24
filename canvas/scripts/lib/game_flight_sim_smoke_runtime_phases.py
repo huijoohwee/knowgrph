@@ -36,7 +36,7 @@ from lib.game_flight_sim_smoke_throttle import (
     assert_staged_throttle_response,
     is_committed_throttle_target,
 )
-from lib.game_flight_sim_smoke_vite import prepare_stable_candidate_page
+from lib.game_flight_sim_smoke_bootstrap import prepare_stable_candidate_page
 from lib.game_flight_sim_smoke_web_mcp import (
     control_flight_via_web_mcp,
     verify_flight_exit,
@@ -66,9 +66,7 @@ def read_runtime(page: Page) -> dict[str, Any]:
     return page.evaluate(
         """
         async () => {
-          const runtime = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           return runtime.readFlightSimSnapshot()
         }
         """
@@ -116,9 +114,7 @@ def run_flight_runtime_verifications(
         runtime_identity = page.evaluate(
             """
             async () => {
-              const identity = await import(
-                '/src/features/runtime-identity/knowgrphRuntimeIdentity.ts'
-              )
+              const identity = await window.__kgFlightSimBrowserProof.importModule('knowgrphRuntimeIdentity')
               return identity.getKnowgrphRuntimeIdentity()
             }
             """

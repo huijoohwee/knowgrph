@@ -184,12 +184,8 @@ def verify_flight_web_mcp(
         """
         async diagnosticInputs => {
           const tools = Array.from(navigator.modelContext?.tools || [])
-          const mcpRuntime = await import(
-            '/src/features/game-flight-sim/flightSimMcpRuntime.ts'
-          )
-          const webMcpRuntime = await import(
-            '/src/features/agent-ready/flightSimWebMcpTools.ts'
-          )
+          const mcpRuntime = await window.__kgFlightSimBrowserProof.importModule('flightSimMcpRuntime')
+          const webMcpRuntime = await window.__kgFlightSimBrowserProof.importModule('flightSimWebMcpTools')
           const flightTools = tools
             .filter(tool => tool.name.includes('local_flight_sim'))
             .map(tool => tool.name)
@@ -397,22 +393,12 @@ def verify_flight_exit(
             tool => tool.name === 'knowgrph.inspect_local_flight_sim',
           )
           if (!control || !inspect) return { registered: false }
-          const runtime = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
-          const mcpRuntime = await import(
-            '/src/features/game-flight-sim/flightSimMcpRuntime.ts'
-          )
-          const physics = await import(
-            '/src/features/three/xrPhysicsRuntime.ts'
-          )
-          const camera = await import(
-            '/src/features/three/xrNativeControllerCameraRuntime.ts'
-          )
-          const controller = await import(
-            '/src/features/three/xrNativeControllerDemoRuntime.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
+          const mcpRuntime = await window.__kgFlightSimBrowserProof.importModule('flightSimMcpRuntime')
+          const physics = await window.__kgFlightSimBrowserProof.importModule('xrPhysicsRuntime')
+          const camera = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerCameraRuntime')
+          const controller = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerDemoRuntime')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           const withoutRevision = value => {
             const copy = JSON.parse(JSON.stringify(value))
             delete copy.revision

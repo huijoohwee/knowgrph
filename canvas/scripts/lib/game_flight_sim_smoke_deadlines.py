@@ -22,9 +22,7 @@ def _read_deadlines(page: Page) -> dict[str, Any]:
     return page.evaluate(
         """
         async () => {
-          const deadlines = await import(
-            '/src/features/game-flight-sim/flightSimDeadlineRuntime.ts'
-          )
+          const deadlines = await window.__kgFlightSimBrowserProof.importModule('flightSimDeadlineRuntime')
           return deadlines.readFlightSimDeadlineSnapshot()
         }
         """
@@ -90,12 +88,8 @@ def verify_flight_deadline_contracts(
         interaction = page.evaluate(
             """
         async ({ attemptPath, websocketProbeUrl }) => {
-          const runtime = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
-          const deadlines = await import(
-            '/src/features/game-flight-sim/flightSimDeadlineRuntime.ts'
-          )
+          const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
+          const deadlines = await window.__kgFlightSimBrowserProof.importModule('flightSimDeadlineRuntime')
           const hud = document.querySelector('[data-kg-flight-sim-hud="1"]')
           if (!(hud instanceof HTMLElement)) {
             throw new Error('Flight HUD is unavailable for deadline proof')

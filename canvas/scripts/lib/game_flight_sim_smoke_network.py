@@ -16,21 +16,14 @@ PROOF_LOCAL_WORKSPACE_LIST_PATH = "/__kg_fs_list"
 PROOF_LOCAL_STATIC_EXACT_PATHS = {
     "/",
     "/index.html",
-    "/@react-refresh",
-    "/@vite/client",
 }
 PROOF_LOCAL_STATIC_PATH_PREFIXES = (
-    "/@fs/",
-    "/@id/",
-    "/@vite/",
     "/assets/",
     "/fonts/",
     "/icons/",
     "/images/",
     "/models/",
-    "/node_modules/",
     "/public/",
-    "/src/",
     "/textures/",
 )
 PROOF_LOCAL_STATIC_SUFFIXES = (
@@ -52,8 +45,6 @@ PROOF_LOCAL_STATIC_SUFFIXES = (
     ".ogg",
     ".png",
     ".svg",
-    ".ts",
-    ".tsx",
     ".wasm",
     ".webm",
     ".webmanifest",

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import test from 'node:test'
 
@@ -24,6 +24,31 @@ test('Flight browser proof activates only after applying the authored source', (
     resolve(
       repoRoot,
       'canvas/scripts/lib/game_flight_sim_smoke_runtime_phases.py',
+    ),
+    'utf8',
+  )
+  const browserBootstrap = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_bootstrap.py',
+    ),
+    'utf8',
+  )
+  const browserProofBridge = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/src/features/testing/flightSimBrowserProofBridge.ts',
+    ),
+    'utf8',
+  )
+  const mainEntry = readFileSync(
+    resolve(repoRoot, 'canvas/src/main.tsx'),
+    'utf8',
+  )
+  const networkBoundary = readFileSync(
+    resolve(
+      repoRoot,
+      'canvas/scripts/lib/game_flight_sim_smoke_network.py',
     ),
     'utf8',
   )
@@ -86,9 +111,93 @@ test('Flight browser proof activates only after applying the authored source', (
   assert.match(runner, /buildExactProductionPreview\(candidate\)/)
   assert.match(runner, /KG_SKIP_DOCS_UPDATE: '1'/)
   assert.match(runner, /VITE_BASE_PATH: '\/'/)
+  assert.match(
+    runner,
+    /VITE_KNOWGRPH_FLIGHT_SIM_BROWSER_PROOF: '1'/,
+  )
   assert.match(runner, /indexSource\.includes\('\/@vite\/client'\)/)
   assert.match(runner, /devServerStartMode: 'vite-preview-runner'/)
   assert.match(runner, /productionBuild,/)
+  assert.match(
+    verifier,
+    /target_url = f"\{BASE_URL\}\/\?kgFlightSimBrowserProof=1"/,
+  )
+  assert.match(
+    mainEntry,
+    /VITE_KNOWGRPH_FLIGHT_SIM_BROWSER_PROOF === '1'/,
+  )
+  assert.match(
+    mainEntry,
+    /\.get\('kgFlightSimBrowserProof'\) === '1'/,
+  )
+  assert.match(
+    mainEntry,
+    /import\('@\/features\/testing\/flightSimBrowserProofBridge'\)/,
+  )
+  assert.match(
+    browserBootstrap,
+    /knowgrph-flight-sim-browser-proof-bridge\/v1/,
+  )
+  assert.match(
+    browserBootstrap,
+    /window\.__kgFlightSimBrowserProof\?\.schema/,
+  )
+  assert.match(
+    browserProofBridge,
+    /Unknown Flight browser proof module/,
+  )
+  assert.match(
+    browserProofBridge,
+    /flightSimRuntime: \(\) => import\('@\/features\/game-flight-sim\/flightSimRuntime'\)/,
+  )
+  assert.doesNotMatch(networkBoundary, /["']\/src\/["']/)
+  assert.doesNotMatch(networkBoundary, /["']\/@vite\//)
+  const browserHelperRoot = resolve(repoRoot, 'canvas/scripts/lib')
+  const requestedBrowserModuleKeys = new Set<string>()
+  for (const browserHelperPath of readdirSync(browserHelperRoot)
+    .filter(path => /^game_flight_sim_smoke_.*\.py$/.test(path))) {
+    const source = readFileSync(
+      resolve(browserHelperRoot, browserHelperPath),
+      'utf8',
+    )
+    assert.doesNotMatch(source, /import\(\s*['"]\/src\//)
+    for (const match of source.matchAll(
+      /window\.__kgFlightSimBrowserProof\.importModule\('([^']+)'\)/g,
+    )) {
+      requestedBrowserModuleKeys.add(match[1])
+    }
+  }
+  const bridgeModuleKeys = [
+    ...browserProofBridge.matchAll(
+      /^\s{2}([A-Za-z][A-Za-z0-9]*): \(\) => import\(/gm,
+    ),
+  ].map(match => match[1])
+  assert.deepEqual(
+    [...requestedBrowserModuleKeys].sort(),
+    bridgeModuleKeys.sort(),
+  )
+  for (const browserVerifierPath of [
+    'game_flight_sim_smoke_camera.py',
+    'game_flight_sim_smoke_camera_tracking.py',
+    'game_flight_sim_smoke_deadlines.py',
+    'game_flight_sim_smoke_lifecycle.py',
+    'game_flight_sim_smoke_mission.py',
+    'game_flight_sim_smoke_mobile.py',
+    'game_flight_sim_smoke_runtime_phases.py',
+    'game_flight_sim_smoke_scene.py',
+    'game_flight_sim_smoke_source.py',
+    'game_flight_sim_smoke_web_mcp.py',
+  ]) {
+    const source = readFileSync(
+      resolve(repoRoot, 'canvas/scripts/lib', browserVerifierPath),
+      'utf8',
+    )
+    assert.doesNotMatch(source, /import\(\s*['"]\/src\//)
+    assert.match(
+      source,
+      /window\.__kgFlightSimBrowserProof\.importModule\(/,
+    )
+  }
   assert.ok(
     runner.indexOf(
       'const productionBuild = await buildExactProductionPreview(candidate)',

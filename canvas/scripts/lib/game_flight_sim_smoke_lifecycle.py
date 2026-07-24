@@ -27,9 +27,7 @@ def read_runtime(page: Page) -> dict[str, Any]:
     return page.evaluate(
         """
         async () => {
-          const runtime = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           return runtime.readFlightSimSnapshot()
         }
         """
@@ -222,17 +220,11 @@ def verify_surface_failure_paths(page: Page) -> dict[str, Any]:
     proof = page.evaluate(
         """
         async () => {
-          const store = await import('/src/hooks/useGraphStore.ts')
-          const runtime = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
-          const status = await import(
-            '/src/features/game-flight-sim/flightSimSurfaceOwnershipStatus.ts'
-          )
-          const physics = await import('/src/features/three/xrPhysicsRuntime.ts')
-          const camera = await import(
-            '/src/features/three/xrNativeControllerCameraRuntime.ts'
-          )
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
+          const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
+          const status = await window.__kgFlightSimBrowserProof.importModule('flightSimSurfaceOwnershipStatus')
+          const physics = await window.__kgFlightSimBrowserProof.importModule('xrPhysicsRuntime')
+          const camera = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerCameraRuntime')
           const emptyWorkspace = { readFileText: async () => null }
           const capture = () => {
             const state = store.useGraphStore.getState()

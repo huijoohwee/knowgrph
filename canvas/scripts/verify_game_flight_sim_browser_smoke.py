@@ -118,7 +118,7 @@ def main() -> None:
         )
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    target_url = f"{BASE_URL}/"
+    target_url = f"{BASE_URL}/?kgFlightSimBrowserProof=1"
     websocket_probe_url = build_websocket_probe_url(BASE_URL)
     local_origin = urlparse(BASE_URL).netloc
     requests: list[dict[str, str]] = []

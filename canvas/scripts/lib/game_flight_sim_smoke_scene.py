@@ -33,20 +33,12 @@ def read_and_pin_authored_physics_baseline(
     return page.evaluate(
         """
         async expectedSourceSha256 => {
-          const store = await import('/src/hooks/useGraphStore.ts')
-          const physics = await import('/src/features/three/xrPhysicsRuntime.ts')
-          const controller = await import(
-            '/src/features/three/xrNativeControllerDemoRuntime.ts'
-          )
-          const camera = await import(
-            '/src/features/three/xrNativeControllerCameraRuntime.ts'
-          )
-          const catalog = await import(
-            '/src/features/three/xrNativeControllerCameraCatalog.ts'
-          )
-          const presentation = await import(
-            '/src/features/three/xrNativeControllerPresentation.ts'
-          )
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
+          const physics = await window.__kgFlightSimBrowserProof.importModule('xrPhysicsRuntime')
+          const controller = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerDemoRuntime')
+          const camera = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerCameraRuntime')
+          const catalog = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerCameraCatalog')
+          const presentation = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerPresentation')
           const state = store.useGraphStore.getState()
           const blob = await state.captureThreeGltfSnapshot()
           if (!blob) return { ready: false }
@@ -202,19 +194,11 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
     return page.evaluate(
         """
         async () => {
-          const store = await import('/src/hooks/useGraphStore.ts')
-          const controller = await import(
-            '/src/features/three/xrNativeControllerDemoRuntime.ts'
-          )
-          const camera = await import(
-            '/src/features/three/xrNativeControllerCameraRuntime.ts'
-          )
-          const catalog = await import(
-            '/src/features/three/xrNativeControllerCameraCatalog.ts'
-          )
-          const presentation = await import(
-            '/src/features/three/xrNativeControllerPresentation.ts'
-          )
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
+          const controller = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerDemoRuntime')
+          const camera = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerCameraRuntime')
+          const catalog = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerCameraCatalog')
+          const presentation = await window.__kgFlightSimBrowserProof.importModule('xrNativeControllerPresentation')
           const blob = await store.useGraphStore.getState().captureThreeGltfSnapshot()
           if (!blob) return { ready: false }
           const gltf = JSON.parse(await blob.text())

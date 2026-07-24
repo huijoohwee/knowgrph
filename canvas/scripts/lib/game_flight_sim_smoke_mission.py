@@ -13,12 +13,8 @@ def complete_authored_flight_mission(
     return page.evaluate(
         """
         async ({ expectedRunId }) => {
-          const runtime = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
-          const model = await import(
-            '/src/features/game-flight-sim/flightSimModel.ts'
-          )
+          const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
+          const model = await window.__kgFlightSimBrowserProof.importModule('flightSimModel')
           const profile = runtime.readFlightSimSpatialProfile()
           const clamp = value => Math.max(-1, Math.min(1, value))
           const normalizeAngle = value => (

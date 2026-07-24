@@ -228,7 +228,7 @@ class BrowserVerificationLedgerTest(unittest.TestCase):
         self.assertIn("INVENTORY mismatch", message)
         self.assertIn("browser error surface", message)
 
-    def test_local_read_classifier_blocks_vite_proxy_and_mutation_paths(
+    def test_local_read_classifier_allows_built_assets_and_blocks_dev_sources(
         self,
     ) -> None:
         origin = "127.0.0.1:4187"
@@ -239,15 +239,27 @@ class BrowserVerificationLedgerTest(unittest.TestCase):
                 url=f"http://{origin}{path}",
             )
 
-        self.assertTrue(
+        self.assertFalse(
             request_is_proof_local_read(
                 request("GET", "/src/main.tsx"),
                 origin,
             )
         )
-        self.assertTrue(
+        self.assertFalse(
             request_is_proof_local_read(
                 request("HEAD", "/node_modules/.vite/deps/react.js"),
+                origin,
+            )
+        )
+        self.assertFalse(
+            request_is_proof_local_read(
+                request("GET", "/@vite/client"),
+                origin,
+            )
+        )
+        self.assertTrue(
+            request_is_proof_local_read(
+                request("GET", "/assets/index-candidate.js"),
                 origin,
             )
         )

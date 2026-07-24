@@ -226,6 +226,7 @@ export async function assertFlightSimVerificationReadiness({ readText }) {
     'canvas/scripts/verify_game_flight_sim_browser_smoke.py',
   )
   requireMarkers(browserVerifierSource, [
+    'target_url = f"{BASE_URL}/?kgFlightSimBrowserProof=1"',
     'page.on("websocket", record_websocket)',
     'context.route_web_socket("**/*", route_websocket)',
     '"productionFenceEscapeObserved": bool(',
@@ -237,6 +238,40 @@ export async function assertFlightSimVerificationReadiness({ readText }) {
   forbidMarkers(browserVerifierSource, [
     '.connect_to_server(',
   ], 'Flight Sim pre-navigation WebSocket transport proof')
+  const browserBootstrapSource = await readText(
+    'canvas/scripts/lib/game_flight_sim_smoke_bootstrap.py',
+  )
+  requireMarkers(browserBootstrapSource, [
+    'FLIGHT_SIM_BROWSER_PROOF_BRIDGE_SCHEMA = (',
+    '"knowgrph-flight-sim-browser-proof-bridge/v1"',
+    'window.__kgFlightSimBrowserProof?.schema === expectedSchema',
+    'page.wait_for_function(',
+    'Flight production candidate page did not load',
+  ], 'Flight Sim production browser bootstrap')
+  forbidMarkers(browserBootstrapSource, [
+    'VITE_WARMUP_MODULES',
+    'warm_vite_module_graph',
+    "import('/src/",
+    'import("/src/',
+  ], 'Flight Sim production browser bootstrap')
+  const browserProofBridgeSource = await readText(
+    'canvas/src/features/testing/flightSimBrowserProofBridge.ts',
+  )
+  requireMarkers(browserProofBridgeSource, [
+    'FLIGHT_SIM_BROWSER_PROOF_BRIDGE_SCHEMA =',
+    "'knowgrph-flight-sim-browser-proof-bridge/v1'",
+    'const MODULE_IMPORTERS = Object.freeze({',
+    "flightSimRuntime: () => import('@/features/game-flight-sim/flightSimRuntime')",
+    'Object.prototype.hasOwnProperty.call(MODULE_IMPORTERS, key)',
+    'Unknown Flight browser proof module',
+  ], 'Flight Sim production browser proof bridge')
+  const mainEntrySource = await readText('canvas/src/main.tsx')
+  requireMarkers(mainEntrySource, [
+    "import.meta.env.VITE_KNOWGRPH_FLIGHT_SIM_BROWSER_PROOF === '1'",
+    ".get('kgFlightSimBrowserProof') === '1'",
+    "import('@/features/testing/flightSimBrowserProofBridge')",
+    'module.installFlightSimBrowserProofBridge()',
+  ], 'Flight Sim production browser proof activation')
   const localViteBrowserSmokeSource = await readText(
     'canvas/scripts/lib/run-local-vite-browser-smoke.mjs',
   )
@@ -305,6 +340,7 @@ export async function assertFlightSimVerificationReadiness({ readText }) {
     'resolveGameFlightSimBrowserPaths(import.meta.url)',
     "KG_SKIP_DOCS_UPDATE: '1'",
     "VITE_BASE_PATH: '/'",
+    "VITE_KNOWGRPH_FLIGHT_SIM_BROWSER_PROOF: '1'",
     'cwd: canvasRoot',
     'const indexBytes = await readFile(distIndexPath)',
     "indexSource.includes('/@vite/client')",
@@ -408,6 +444,12 @@ export async function assertFlightSimVerificationReadiness({ readText }) {
     'def request_is_proof_local_read(request: Any, local_origin: str) -> bool:',
     'def summarize_websocket_attempts(',
     'def assert_zero_network(',
+  ], 'Flight Sim browser zero-network classifier')
+  forbidMarkers(browserNetworkSource, [
+    '"/src/"',
+    '"/node_modules/"',
+    '"/@vite/"',
+    '"/@vite/client"',
   ], 'Flight Sim browser zero-network classifier')
   const browserSceneSource = await readText(
     'canvas/scripts/lib/game_flight_sim_smoke_scene.py',

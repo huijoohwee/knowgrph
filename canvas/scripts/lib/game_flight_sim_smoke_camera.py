@@ -85,9 +85,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     invalid_selection = page.evaluate(
         """
         async () => {
-          const camera = await import(
-            '/src/features/strybldr/cameraMcpRuntime.ts'
-          )
+          const camera = await window.__kgFlightSimBrowserProof.importModule('cameraMcpRuntime')
           const before = camera.inspectLocalCamera().source
           const invalidValue = 'cinematic-flight'
           const result = camera.controlLocalCamera({
@@ -142,9 +140,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     timeline_run = page.evaluate(
         """
         async () => {
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           flight.restartFlightSim()
           return flight.startFlightSim()
         }
@@ -167,16 +163,10 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     timeline_setup = page.evaluate(
         """
         async () => {
-          const motion = await import(
-            '/src/features/three/xrMotionReferenceRuntime.ts'
-          )
-          const playback = await import(
-            '/src/features/three/xrCameraPlaybackControlsRuntime.ts'
-          )
-          const timeline = await import(
-            '/src/features/three/xrMotionReferenceTimeline.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const motion = await window.__kgFlightSimBrowserProof.importModule('xrMotionReferenceRuntime')
+          const playback = await window.__kgFlightSimBrowserProof.importModule('xrCameraPlaybackControlsRuntime')
+          const timeline = await window.__kgFlightSimBrowserProof.importModule('xrMotionReferenceTimeline')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           const runtime = motion.readXrMotionReferenceRuntime()
           const anchors = runtime.plan.cast.slice(0, 2)
           if (runtime.plan.camera.length !== 0) {
@@ -273,13 +263,9 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     page.evaluate(
         """
         async endTime => {
-          const motion = await import(
-            '/src/features/three/xrMotionReferenceRuntime.ts'
-          )
-          const playback = await import(
-            '/src/features/three/xrCameraPlaybackControlsRuntime.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const motion = await window.__kgFlightSimBrowserProof.importModule('xrMotionReferenceRuntime')
+          const playback = await window.__kgFlightSimBrowserProof.importModule('xrCameraPlaybackControlsRuntime')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           motion.setXrMotionReferencePlayhead(endTime)
           store.useGraphStore.getState().setTimelineTransportState({
             position: endTime / 60,
@@ -304,10 +290,8 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     page.evaluate(
         """
         async () => {
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           flight.stopFlightSim()
           store.useGraphStore.getState().setTimelineTransportState({
             playing: false,
@@ -331,10 +315,8 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     page.evaluate(
         """
         async cleanup => {
-          const motion = await import(
-            '/src/features/three/xrMotionReferenceRuntime.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const motion = await window.__kgFlightSimBrowserProof.importModule('xrMotionReferenceRuntime')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           motion.restoreXrMotionReferenceRuntimeSnapshot(
             cleanup.previousRuntime,
           )
@@ -351,10 +333,8 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     cleaned_up = page.evaluate(
         """
         async () => {
-          const motion = await import(
-            '/src/features/three/xrMotionReferenceRuntime.ts'
-          )
-          const store = await import('/src/hooks/useGraphStore.ts')
+          const motion = await window.__kgFlightSimBrowserProof.importModule('xrMotionReferenceRuntime')
+          const store = await window.__kgFlightSimBrowserProof.importModule('graphStore')
           const state = store.useGraphStore.getState()
           return {
             cameraMarks:
@@ -382,9 +362,7 @@ def verify_flight_camera_runtime(page: Page) -> dict[str, Any]:
     resumed = page.evaluate(
         """
         async () => {
-          const flight = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const flight = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           flight.restartFlightSim()
           return flight.startFlightSim()
         }

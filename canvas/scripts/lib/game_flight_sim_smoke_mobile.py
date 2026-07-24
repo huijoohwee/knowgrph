@@ -288,9 +288,7 @@ def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
     before = page.evaluate(
         """
         async () => {
-          const runtime = await import(
-            '/src/features/game-flight-sim/flightSimRuntime.ts'
-          )
+          const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
           return runtime.restartFlightSim()
         }
         """
@@ -345,9 +343,7 @@ def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
             after = page.evaluate(
                 """
                 async () => {
-                  const runtime = await import(
-                    '/src/features/game-flight-sim/flightSimRuntime.ts'
-                  )
+                  const runtime = await window.__kgFlightSimBrowserProof.importModule('flightSimRuntime')
                   return runtime.readFlightSimSnapshot()
                 }
                 """
@@ -381,9 +377,7 @@ def verify_mobile_touch_interaction(page: Page) -> dict[str, Any]:
         released = page.evaluate(
             """
             async () => {
-              const input = await import(
-                '/src/features/game-flight-sim/flightSimInput.ts'
-              )
+              const input = await window.__kgFlightSimBrowserProof.importModule('flightSimInput')
               return input.readFlightSimTouchInput()
             }
             """
