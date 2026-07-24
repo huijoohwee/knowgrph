@@ -1,6 +1,8 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
+  ["canvas.richMedia.selectionWidgetLink.provenanceEdge","@/__tests__/textSelectionWidgetLink.test","testTextSelectionWidgetLinkBuildsTargetPlacementAndProvenanceEdge"],
+  ["canvas.richMedia.selectionWidgetLink.paletteCreateTarget","@/__tests__/textSelectionWidgetLink.test","testWidgetPaletteCreatesTargetFromActiveTextSelection"],
   ["canvas.probeTree.richMediaProjection.preservesNamedWorkflowOutput","@/__tests__/probeTreeRichMediaProjection.test","testProbeTreeWorkflowPanelPreservesPublishedTextAcrossEmptyLineageValue"],
   ["storyboardWidget.workflowPublication.terminalRepairsLaggingCanonicalAuthority","@/__tests__/storyboardWidgetWorkflowPublicationTransaction.test","testTerminalPublicationRepairsLaggingCanonicalAuthorityFromUnchangedDraft"],
   ["storyboardWidget.workflowPublication.preservesIncomingRichMediaWidgetTopology","@/__tests__/storyboardWidgetWorkflowPublicationTransaction.test","testTextPublicationPreservesIncomingRichMediaWidgetTopology"],

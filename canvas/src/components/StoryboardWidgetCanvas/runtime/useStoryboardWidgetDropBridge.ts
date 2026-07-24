@@ -73,6 +73,7 @@ import {
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
 import { recordMediaDropScreenAnchor } from '@/lib/ui/mediaDropScreenAnchors'
+import { useTextSelectionWidgetCreateBridge } from './useTextSelectionWidgetCreateBridge'
 function addStoryboardWidgetUsedNodeIdVariants(out: Set<string>, rawId: unknown): void {
   const id = String(rawId || '').trim()
   if (!id) return
@@ -120,7 +121,7 @@ function sameWidgetRegistryShape(
     && String(entry.formId || '').trim() === formId
 }
 
-function resolveWidgetRegistryEntryForDrop(
+export function resolveWidgetRegistryEntryForDrop(
   registry: ReadonlyArray<WidgetRegistryEntry>,
   payload: Pick<FlowWidgetDragPayloadV1, 'registryEntryId' | 'nodeTypeId' | 'widgetTypeId' | 'formId'>,
 ): WidgetRegistryEntry | null {
@@ -365,7 +366,7 @@ export function useStoryboardWidgetDropBridge(args: {
       const actualId = args.appendDraftNode({ id: requestedId, type: entry.nodeTypeId, label, x, y, properties, skipPendingSelect: true })
       if (!actualId) {
         args.reservedNodeIdsRef.current.delete(requestedId)
-        return
+        return ''
       }
       args.reservedNodeIdsRef.current.add(actualId)
       if (args.geospatialWidgetPanelMode) {
@@ -403,9 +404,17 @@ export function useStoryboardWidgetDropBridge(args: {
         }
       }
       preserveDropCameraAfterInsert()
+      return actualId
     },
     [args, openPendingOverlayNode, preserveDropCameraAfterInsert, syncGrabMapsDiscoveryGeoFromDropCursor],
   )
+
+  useTextSelectionWidgetCreateBridge({
+    active: args.active || args.widgetDropCaptureEnabled === true,
+    widgetRegistryRef: args.widgetRegistryRef,
+    resolveRegistryEntry: resolveWidgetRegistryEntryForDrop,
+    addNodeFromRegistryAtWorld,
+  })
 
   const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => {
     disableAutoZoomModesForUserGesture(useGraphStore.getState())

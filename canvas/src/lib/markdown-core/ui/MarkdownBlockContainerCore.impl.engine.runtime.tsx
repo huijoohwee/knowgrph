@@ -26,6 +26,7 @@ import {
   toMarkdownBlockInlineEditStateTaskKey,
 } from './markdownBlockContainerCore.stateSync'
 import { useMarkdownInlineSelectionActions } from './markdownInlineSelectionActions'
+import { useTextSelectionWidgetLinkAction } from '@/lib/storyboardWidget/textSelectionWidgetLinkContext'
 const MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR =
   'h1,h2,h3,h4,h5,h6,p,li,blockquote,section,aside,div,span'
 type MarkdownBlockContainerProps = {
@@ -117,6 +118,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const originalOnClick = (rest as React.HTMLAttributes<HTMLElement>).onClick
   const [editing, setEditing] = React.useState(false)
   const inlineSelectionActions = useMarkdownInlineSelectionActions()
+  const textSelectionWidgetLink = useTextSelectionWidgetLinkAction()
   const [sessionEditLineRange, setSessionEditLineRange] = React.useState<{ startLine: number; endLine: number } | null>(null)
   const inlineEditRangeToken = React.useMemo(
     () => toMarkdownBlockInlineEditRangeToken(startLine, endLine),
@@ -602,6 +604,29 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       })
     })()
   }, [inlineSelectionToolbar.leftPx, inlineSelectionToolbar.topPx, editorPresentation, getSelectionOffsets, publishMarkdownDraftWithoutDomMutation, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readMarkdownTokenFromHtmlSelection, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, setCommentPreview])
+  const applyCreateLinkedWidget = React.useCallback(() => {
+    if (!textSelectionWidgetLink) return
+    if (editorPresentation === 'html') restoreCachedHtmlSelection()
+    const selection = readSelectionOffsetsForFormatting() || getSelectionOffsets()
+    if (!selection || selection.startOffset === selection.endOffset) return
+    const selectedTextSnapshot = editorPresentation === 'html' ? readCommentTextFromHtmlSelection() : ''
+    void (async () => {
+      const draft = await readCurrentMarkdownDraft()
+      const a = Math.max(0, Math.min(draft.length, selection.startOffset))
+      const b = Math.max(0, Math.min(draft.length, selection.endOffset))
+      const start = Math.min(a, b)
+      const end = Math.max(a, b)
+      const selectedText = String(selectedTextSnapshot || draft.slice(start, end)).trim()
+      if (!selectedText) return
+      const selectionStartLine = editStartLine + draft.slice(0, start).split('\n').length - 1
+      const selectionEndLine = selectionStartLine + draft.slice(start, end).split('\n').length - 1
+      textSelectionWidgetLink.createLinkedWidget({
+        selectedText,
+        startLine: selectionStartLine,
+        endLine: selectionEndLine,
+      })
+    })()
+  }, [editStartLine, editorPresentation, getSelectionOffsets, readCommentTextFromHtmlSelection, readCurrentMarkdownDraft, readSelectionOffsetsForFormatting, restoreCachedHtmlSelection, textSelectionWidgetLink])
   const {
     captureSelectionForToolbarAction,
     holdToolbarInteraction,
@@ -790,6 +815,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         applyAlign={applyAlign}
         applyDraftAction={applyDraftAction}
         applyWrap={applyWrap}
+        applyCreateLinkedWidget={textSelectionWidgetLink ? applyCreateLinkedWidget : undefined}
         applyComment={applyComment}
         captureSelectionForToolbarAction={captureSelectionForToolbarAction}
         closeCommentPreview={closeCommentPreview}
