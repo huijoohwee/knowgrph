@@ -100,6 +100,16 @@ export function testTextSelectionWidgetLinkBuildsTargetPlacementAndProvenanceEdg
   if (!isTextSelectionWidgetEdgePersisted({ graphData: composedGraphData, edge })) {
     throw new Error('expected composed workspace edge identity to satisfy the post-write persistence proof')
   }
+  const composedDuplicate = buildTextSelectionWidgetEdge({
+    graphData: composedGraphData,
+    session,
+    targetNodeId: 'target-widget',
+  })
+  if (composedDuplicate?.id !== `workspace-layer::${edge.id}`) {
+    throw new Error(
+      `expected inner endpoint ids to resolve the existing composed edge, got ${JSON.stringify(composedDuplicate)}`,
+    )
+  }
   const composedEdge = buildTextSelectionWidgetEdge({
     graphData: {
       ...composedGraphData,
