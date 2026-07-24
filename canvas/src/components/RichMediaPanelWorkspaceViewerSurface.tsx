@@ -61,17 +61,18 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
     endLine: number
     replacementLines: string[]
   }) => {
+    const canonicalText = model.panelDisplayText
     const nextText = replaceMarkdownLineRange({
-      markdownText: viewerText,
+      markdownText: canonicalText,
       startLine: change.startLine,
       endLine: change.endLine,
       replacementLines: change.replacementLines,
     })
-    if (nextText === viewerText) return
+    if (nextText === canonicalText) return
     pendingCommittedTextRef.current = nextText
     setViewerDraftText(nextText)
     commitText(nextText)
-  }, [commitText, viewerText])
+  }, [commitText, model.panelDisplayText])
 
   return (
     <React.Suspense fallback={(
