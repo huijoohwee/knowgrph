@@ -56,6 +56,7 @@ export type FloatingPanelView =
   | 'animation'
   | 'motionControl'
   | 'gameMode'
+  | 'flightSim'
   | 'camera'
   | 'design'
   | 'chat'

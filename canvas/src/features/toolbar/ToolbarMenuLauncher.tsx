@@ -130,6 +130,8 @@ export function ToolbarMenuLauncher({
             ? 'motionControl'
           : tab === 'gameMode'
             ? 'gameMode'
+          : tab === 'flightSim'
+            ? 'flightSim'
           : tab === 'camera'
             ? 'camera'
           : tab === 'chat'

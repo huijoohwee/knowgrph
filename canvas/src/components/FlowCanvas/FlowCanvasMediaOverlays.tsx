@@ -4,7 +4,10 @@ import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiv
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { FlowCanvasRichMediaOverlayToolbar } from '@/components/FlowCanvas/FlowCanvasRichMediaOverlayToolbar'
 import { StoryboardWidgetOverlayPortHandles } from '@/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles'
-import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/FlowCanvas/shared'
+import {
+  isFlowCanvasRichMediaPropertyMutationBlocked,
+  resolveFlowCanvasMediaOverlayInteractionPolicy,
+} from '@/components/FlowCanvas/shared'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
@@ -49,7 +52,10 @@ import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@
 import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
 import { clampMediaLayoutViewportToFrame16x9, coerceRichMediaPanelSizeForLayoutViewport, resolveFlowCanvasMediaLayoutViewport } from '@/components/FlowCanvas/flowCanvasMediaLayoutViewport'
 import { readMediaLayoutNodePropsSignature } from '@/components/FlowCanvas/flowCanvasMediaLayoutPropsSignature'
-import { buildFlowCanvasRichMediaPanelHeaderToolbar } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
+import {
+  buildFlowCanvasRichMediaPanelHeaderToolbar,
+  shouldActivateFlowCanvasRichMediaPanelFromPointer,
+} from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import { captureRichMediaPanelBoundaryEvent } from '@/components/captureRichMediaPanelBoundaryEvent'
 import {
   readElementWorldTopLeft2d,
@@ -758,7 +764,10 @@ export default function FlowCanvasMediaOverlays(args: {
           ? Z_INDEX_GRAPH_OVERLAY_SELECTED
           : Math.max(1, Z_INDEX_GRAPH_MEDIA_LAYER + Math.max(0, mediaNodes.length - index))
         const updateNode = (id: string, patch: { properties: Record<string, unknown> }) => {
-          if (workspaceMutationBlockedRef.current) return
+          if (isFlowCanvasRichMediaPropertyMutationBlocked({
+            workspaceMutationBlocked: workspaceMutationBlockedRef.current,
+            hasDelegatedPropertyMutation: typeof onNodePropertiesChange === 'function',
+          })) return
           if (onNodePropertiesChange) {
             onNodePropertiesChange(id, patch.properties, mutationSourceGraphData)
             return
@@ -827,6 +836,7 @@ export default function FlowCanvasMediaOverlays(args: {
               forwardWheelTo={() => canvasRef.current}
               onPointerDownCapture={event => {
                 if (event.button !== 0) return
+                if (!shouldActivateFlowCanvasRichMediaPanelFromPointer({ isSelected, target: event.target })) return
                 const id = String(node.id || '').trim()
                 if (!id) return
                 richMediaPanelHeaderToolbar.activate()
@@ -889,8 +899,8 @@ export default function FlowCanvasMediaOverlays(args: {
               storyboardWidgetFrontmatterDocumentMode={storyboardWidgetFrontmatterDocumentModeRequested}
               storyboardWidgetSurfaceId={storyboardWidgetOverlaySurfaceId}
               onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-              onClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
-              onDoubleClickCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+              onClick={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
+              onDoubleClick={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
               onContextMenuCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}
             />
           </section>

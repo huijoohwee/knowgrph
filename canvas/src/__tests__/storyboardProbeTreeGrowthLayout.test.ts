@@ -2,6 +2,7 @@ import {
   normalizeStoryboardWidgetProbeTreeThreadLayout,
   PROBE_TREE_GRAPH_LAYOUT_VERSION_PROPERTY,
   resolveStoryboardWidgetProbeTreeBranchPositions,
+  resolveStoryboardWidgetProbeTreeOutputPanelPosition,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
 import { buildProbeTreeStructuredResponse } from '@/features/agent-ready/probeTreeContract.mjs'
@@ -69,6 +70,73 @@ export function testProbeTreeInitialSiblingBatchBalancesAroundOccupiedCards() {
   assert(positions.every(position => Math.abs(position.x - outsidePosition.x) >= 360 || Math.abs(position.y - outsidePosition.y) >= 640), 'expected full-thread normalization to avoid fixed cards outside the Probe thread')
   assert(normalized.nodes.find(node => node.id === 'outside') === outsideNode, 'expected external fixed-card authority to remain byte-identical')
   assert(normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: normalized, threadRootId: 'root' }) === normalized, 'expected the settled collision-free first turn to remain idempotent')
+}
+
+export function testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideVisibleBundle() {
+  const hiddenObstacleNodes = Array.from({ length: 8 }, (_, columnIndex) => (
+    Array.from({ length: 5 }, (_, verticalIndex) => ({
+      id: `hidden-${columnIndex + 1}-${verticalIndex + 1}`,
+      type: 'TextGeneration',
+      label: 'Eligible but hidden card',
+      x: (columnIndex + 1) * 430,
+      y: (verticalIndex - 2) * 680,
+      properties: {
+        cardTypeLabel: 'Probe-Tree Card',
+        index: `P${columnIndex + 3}`,
+        parentNodeId: 'root',
+        probeTreeThreadRootId: 'root',
+        [PROBE_TREE_LAYOUT_MODE_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_MODE,
+        [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION,
+        [PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY]: true,
+      },
+    }))
+  )).flat()
+  const graphData: GraphData = {
+    type: 'Graph',
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: { gridSize: 20 },
+      frontmatterMeta: { widget_bundle: { graph: { nodes_ref: ['root', 'a', 'b'] } } },
+      [PROBE_TREE_GRAPH_LAYOUT_VERSION_PROPERTY]: {
+        root: { version: PROBE_TREE_BALANCED_LAYOUT_VERSION, gridSize: 20 },
+      },
+    },
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
+      ...hiddenObstacleNodes,
+      ...['a', 'b'].map((id, index) => ({
+        id,
+        type: 'TextGeneration',
+        label: id,
+        x: 3440,
+        y: index === 0 ? -1020 : 1020,
+        properties: {
+          cardTypeLabel: 'Probe-Tree Card',
+          index: `P${index + 1}`,
+          parentNodeId: 'root',
+          probeTreeThreadRootId: 'root',
+          [PROBE_TREE_LAYOUT_MODE_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_MODE,
+          [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION,
+          [PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY]: true,
+        },
+      })),
+    ],
+    edges: ['a', 'b'].map(id => ({ id: `edge-${id}`, source: 'root', target: id, label: 'candidateOption', properties: {} })),
+  }
+
+  const normalized = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData, threadRootId: 'root' })
+  assert(normalized !== graphData, 'expected current-version markers not to preserve an excessively distant branch layout')
+  const branchPositions = ['a', 'b'].map(id => readPosition(normalized, id))
+  assert(
+    Math.max(...branchPositions.map(position => position.x)) <= 860,
+    `expected widget-eligible nodes outside the rendered frontmatter bundle not to push Probe-Tree output away from its source, got ${JSON.stringify(branchPositions)}`,
+  )
+  assert(branchPositions.every(position => position.x > 0), `expected compact branches to remain forward of their source, got ${JSON.stringify(branchPositions)}`)
+  const outputPosition = resolveStoryboardWidgetProbeTreeOutputPanelPosition({ graphData: normalized, threadRootId: 'root' })
+  assert(outputPosition != null && outputPosition.x <= 1380, `expected hidden historical branches not to push the output ledger away, got ${JSON.stringify(outputPosition)}`)
+  assertProbeCardsDoNotOverlap(normalized, ['a', 'b'])
+  assert(hiddenObstacleNodes.every(node => normalized.nodes.find(candidate => candidate.id === node.id) === node), 'expected ignored non-rendered nodes to remain byte-identical')
+  assert(normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: normalized, threadRootId: 'root' }) === normalized, 'expected compact migrated layout to remain idempotent')
 }
 
 export function testProbeTreeDenseCascadeKeepsEdgesParentLocal() {

@@ -87,8 +87,10 @@ Expected content types:
 - `/.well-known/api-catalog` -> `application/linkset+json`
 - `/knowgrph/mcp/health` -> `application/json`
 - both runtime-readiness routes -> `application/json`, schema `knowgrph-production-runtime-readiness/v2`, and byte-identical bodies
+- arbitrary missing root image, script, directory, `/index.html`, and retired `/hackamap/` paths -> HTTP `404` with the managed Not found document, never a `200` Home shell
+- `/singabldr/` and `/singabldr/manifest.webmanifest` -> `200`, preserving the sibling app across the root 404 boundary
 
-The release workflow proves the canonical `airvio.co` runtime first, resolves the exact successful Pages deployment for the protected SHA through the Cloudflare API, reads its immutable marker routes through that direct origin, and keeps the Home/app browser proof on `airvio.co` with exact-SHA JavaScript namespaces before it publishes the mirror. To repeat the public custom-domain proof from a non-challenged operator network:
+The release workflow resolves the exact successful Pages deployment for the protected SHA through the Cloudflare API and reads its immutable marker and browser routes through that direct origin before it publishes the mirror. For returning-user proof, it derives the stable Pages production alias from `CLOUDFLARE_PAGES_PROJECT`, prewarms one persistent Chrome profile on that same origin, seeds a stale runtime asset plus root/nested app HTML and out-of-scope favicon-shaped HTML in Knowgrph-owned caches, seeds a valid Singabldr HTML cache, and reopens the profile afterward. The gate requires one canonical registration, exact-revision imported-worker URLs, matching active/controller revision and lifecycle-clean chat attestations, only the exact release namespace across every CacheStorage asset entry, zero HTML in Knowgrph-owned or `/knowgrph` cache entries, preserved sibling HTML caches, no installing/waiting legacy worker, clean transition-tab execution, network-owned HTML, and preserved local-first storage. The generated runtime-cache policies also reject non-200, HTML, and XHTML responses on admission and reject existing HTML/XHTML hits. This deterministic Pages transport avoids custom-domain challenge responses in hosted CI without changing the deployed artifact or weakening the checks. It does not claim custom-domain browser acceptance; repeat the public `airvio.co` proof from a non-challenged operator network:
 
 ```bash
 RELEASE_SHA=<40-character-knowgrph-sha> \
@@ -122,7 +124,7 @@ Open [airvio.co/knowgrph](https://airvio.co/knowgrph/) and confirm:
 
 - the page title is `knowgrph`
 - the main shell renders instead of a blank page or edge error
-- the apex hero renders `Map intent.`, `Orchestrate agents.`, and `Prove outcomes.` with a ready canvas iframe
+- the apex hero renders `Map intent`, `Run agents`, and `Get results` with a ready canvas iframe
 - neither surface remains on `Switching document` or `Preparing canvas view...`
 - the top-level controls are present: `Launch`, `Workspace View`, `Interaction`,
   `Settings`, `History`, `Help`

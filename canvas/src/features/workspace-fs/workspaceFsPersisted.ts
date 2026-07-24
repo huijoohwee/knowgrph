@@ -19,7 +19,14 @@ import {
   XR_PHYSICS_WORKSPACE_SEED_PATH,
 } from './workspaceFs'
 import { isWorkspaceRepoLocalRunReadyBootstrap } from './workspaceRunReadyDemos'
-import { ensureWorkspaceDocsMirrorFolder, readWorkspaceInitializationDocsMirrorEntries, upsertWorkspaceDocsMirrorText, upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
+import {
+  ensureWorkspaceDocsMirrorFolder,
+  readCanonicalLocalWorkspaceSeedMirrorEntries,
+  readWorkspaceInitializationDocsMirrorEntries,
+  upsertWorkspaceDocsMirrorText,
+  upsertWorkspaceInitializationSeedText,
+} from './workspaceSeedProvider'
+import { deleteWorkspaceDocsMirrorEntry } from './workspaceSeedLocalMirrorAuthority'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import {
   buildDocsMirrorBasenameSet,
@@ -42,6 +49,7 @@ import {
 } from '@/lib/storage/persistedCollectionStore'
 import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT, normalizeChatLocalStorageRootPath } from '@/features/chat/chatStorageConfig'
+import { isKnowgrphWorkspaceSeedsPath } from 'grph-shared/collaboration/documentRepositoryAuthority'
 
 const DB_NAME = 'kg:workspace-fs'
 const WORKSPACE_DOCS_MIRROR_FLUSH_DEBOUNCE_MS = 150
@@ -135,6 +143,22 @@ const scheduleWorkspaceDocsMirrorTextUpsert = (workspacePath: WorkspacePath, tex
   docsMirrorTextFlushTimers.set(workspacePath, timer)
 }
 
+const cancelWorkspaceDocsMirrorMutationsUnderPath = (workspacePath: WorkspacePath): void => {
+  const path = normalizeWorkspacePath(workspacePath)
+  const matches = (candidate: WorkspacePath): boolean => candidate === path || candidate.startsWith(`${path}/`)
+  for (const [candidate, timer] of docsMirrorFolderFlushTimers) {
+    if (!matches(candidate)) continue
+    if (typeof window !== 'undefined') window.clearTimeout(timer)
+    docsMirrorFolderFlushTimers.delete(candidate)
+  }
+  for (const [candidate, timer] of docsMirrorTextFlushTimers) {
+    if (!matches(candidate)) continue
+    if (typeof window !== 'undefined') window.clearTimeout(timer)
+    docsMirrorTextFlushTimers.delete(candidate)
+    docsMirrorPendingTextByPath.delete(candidate)
+  }
+}
+
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
@@ -187,11 +211,13 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     if (await removeLegacyWorkspaceSourceEntries(collections)) changed = true
     if (await migrateLegacyAuthoredMarkdownNotes(collections)) changed = true
     const docsOnlyMode = readWorkspaceSourceFilesDocsOnlySetting()
-    const sourceDocsMirrorEntries = docsOnlyMode && !isWorkspaceRepoLocalRunReadyBootstrap()
-      ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
-      : []
+    const sourceDocsMirrorEntries = !docsOnlyMode
+      ? []
+      : isWorkspaceRepoLocalRunReadyBootstrap()
+        ? await readCanonicalLocalWorkspaceSeedMirrorEntries()
+        : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
     const docsMirrorEntries = docsOnlyMode
-      ? sourceDocsMirrorEntries.every(entry => entry.authority === 'agentic-canvas-os-github')
+      ? sourceDocsMirrorEntries.every(entry => entry.authority === 'agentic-canvas-os-storage')
         ? sourceDocsMirrorEntries
         : await mergeCanonicalXrPhysicsWorkspaceSeedIntoDocsMirror(sourceDocsMirrorEntries)
       : []
@@ -520,15 +546,18 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     return path
   }
 
-  const deleteEntry = async (path: WorkspacePath) => {
+  const deleteEntry = async (path: WorkspacePath, options?: WorkspaceFsMutationOptions) => {
     await ensureRoot()
     const { collections } = await getDb()
     const p = normalizeWorkspacePath(path)
     if (p === WORKSPACE_ROOT_PATH || isInitializationWorkspacePath(p)) return
     const row = await collections.entries.findOne(p).exec()
     if (!row) return
+    const shouldMirrorCanonicalSeedDelete = options?.mirrorToHost !== false && isKnowgrphWorkspaceSeedsPath(p)
+    if (shouldMirrorCanonicalSeedDelete) cancelWorkspaceDocsMirrorMutationsUnderPath(p)
     if (row.get('kind') === 'file') {
       await row.remove()
+      if (shouldMirrorCanonicalSeedDelete) void deleteWorkspaceDocsMirrorEntry({ workspacePath: p })
       const remaining = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length)
       if (remaining === 0) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
       notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })
@@ -540,6 +569,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       const key = doc.get('path')
       if (key === p || key.startsWith(prefix)) await doc.remove()
     }
+    if (shouldMirrorCanonicalSeedDelete) void deleteWorkspaceDocsMirrorEntry({ workspacePath: p })
     const remaining = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length)
     if (remaining === 0) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
     notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })

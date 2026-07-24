@@ -1,5 +1,10 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { registerSW } from 'virtual:pwa-register'
+import {
+  installServiceWorkerCacheRevisionOwner,
+  type ServiceWorkerCacheRevisionOwner,
+} from '@/lib/pwa/serviceWorkerCacheRevisionOwner'
+import { registerCanonicalServiceWorker } from '@/lib/pwa/serviceWorkerRegistrationOwner'
+import { installServiceWorkerRevisionUpdateOwner } from '@/lib/pwa/serviceWorkerRevisionUpdateOwner'
 
 const DISPLAY_MODE_STANDALONE_MEDIA = '(display-mode: standalone)'
 const DISPLAY_MODE_FULLSCREEN_MEDIA = '(display-mode: fullscreen)'
@@ -14,6 +19,8 @@ type BeforeInstallPromptEvent = Event & {
 }
 
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null
+let cacheRevisionOwner: ServiceWorkerCacheRevisionOwner | null = null
+let disposeWorkerUpdateOwner: (() => void) | null = null
 
 export function getDeferredInstallPrompt(): BeforeInstallPromptEvent | null {
   return deferredInstallPrompt
@@ -72,7 +79,7 @@ const readPwaDisplayMode = (): PwaDisplayMode => {
   return 'browser'
 }
 
-const applyPwaDisplayModeState = (installedHint: boolean, swState?: { offlineReady?: boolean; updateReady?: boolean }): void => {
+const applyPwaDisplayModeState = (installedHint: boolean, swState?: { offlineReady?: boolean }): void => {
   if (typeof document === 'undefined') return
   const root = document.documentElement
   if (!root) return
@@ -80,14 +87,12 @@ const applyPwaDisplayModeState = (installedHint: boolean, swState?: { offlineRea
   root.dataset.kgDisplayMode = displayMode
   root.dataset.kgInstalled = displayMode === 'browser' && !installedHint ? '0' : '1'
   root.dataset.kgOfflineReady = swState?.offlineReady ? '1' : '0'
-  root.dataset.kgUpdateReady = swState?.updateReady ? '1' : '0'
 }
 
 export function installPwaRuntime(): void {
   if (typeof window === 'undefined') return
-  const swState = { offlineReady: false, updateReady: false }
+  const swState = { offlineReady: false }
   let installedHint = readPwaDisplayMode() !== 'browser'
-  let attemptedAutoUpdate = false
   applyPwaDisplayModeState(installedHint, swState)
 
   const displayModeMediaQueries =
@@ -132,44 +137,65 @@ export function installPwaRuntime(): void {
   }
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-  const updateServiceWorker = registerSW({
-    immediate: true,
-    onOfflineReady() {
-      swState.offlineReady = true
-      refreshDisplayModeState()
-      pushPwaToast({
-        id: 'pwa:offline-ready',
-        kind: 'success',
-        message: 'Offline shell ready for cached mobile relaunches.',
-        ttlMs: 5000,
-        dismissible: true,
-      })
-    },
-    onNeedRefresh() {
-      swState.updateReady = true
-      refreshDisplayModeState()
-      if (!attemptedAutoUpdate) {
-        attemptedAutoUpdate = true
-        void updateServiceWorker(true)
-        return
-      }
-      pushPwaToast({
-        id: 'pwa:update-ready',
-        kind: 'neutral',
-        message: 'App update ready. Reload to use the latest shell.',
-        ttlMs: 12000,
-        dismissible: true,
-      })
-    },
-    onRegisterError(error) {
+  if (import.meta.env.PROD && 'serviceWorker' in window.navigator) {
+    void registerCanonicalServiceWorker({
+      serviceWorkerTarget: window.navigator.serviceWorker,
+      scopePath: import.meta.env.BASE_URL,
+      reload: () => window.location.reload(),
+      onOfflineReady() {
+        swState.offlineReady = true
+        refreshDisplayModeState()
+        pushPwaToast({
+          id: 'pwa:offline-ready',
+          kind: 'success',
+          message: 'Application assets cached for faster relaunches.',
+          ttlMs: 5000,
+          dismissible: true,
+        })
+      },
+      onRegistered(registration) {
+        cacheRevisionOwner?.dispose()
+        cacheRevisionOwner = 'caches' in window
+          ? installServiceWorkerCacheRevisionOwner({
+              cacheStorage: window.caches,
+              controllerTarget: window.navigator.serviceWorker,
+              registration,
+              origin: window.location.origin,
+              runInitially: true,
+              onError(error) {
+                try {
+                  console.warn('[knowgrph] Service worker cache revision cleanup failed.', error)
+                } catch {
+                  void 0
+                }
+              },
+            })
+          : null
+        disposeWorkerUpdateOwner?.()
+        disposeWorkerUpdateOwner = installServiceWorkerRevisionUpdateOwner({
+          registration,
+          documentTarget: document,
+          windowTarget: window,
+          onUpdateSettled() {
+            cacheRevisionOwner?.requestPrune()
+          },
+          onError(error) {
+            try {
+              console.warn('[knowgrph] Service worker revision check failed.', error)
+            } catch {
+              void 0
+            }
+          },
+        })
+      },
+    }).catch(error => {
       swState.offlineReady = false
-      swState.updateReady = false
       refreshDisplayModeState()
       try {
         console.warn('[knowgrph] Offline shell registration failed.', error)
       } catch {
         void 0
       }
-    },
-  })
+    })
+  }
 }

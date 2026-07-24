@@ -202,7 +202,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 | Pages function | A2A Agent Card route | `/.well-known/agent-card.json` alias + `/knowgrph/.well-known/agent-card.json` | Implemented |
 | Pages function | Link header injector | `linkHeaderValue`, `onRequest()` | Implemented |
 | Pages function | HTTP MCP transport | `handleMcpTransport()` | Implemented |
-| Pages function | WebMCP HTML injection | `injectWebMcpScript()` | Implemented |
+| Pages function | WebMCP HTML injection | `cloudflare/pages/webmcp-html-injection.mjs` | Implemented |
 | Shared contract | Tool names and input schema | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Implemented |
 | Static artifacts | robots, sitemap, `.well-known` | `buildAgentReadyStaticFiles()` | Implemented |
 | Browser | WebMCP runtime | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Implemented |
@@ -288,6 +288,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
 - [x] browser runtime exposes all 28 shared app contracts: 24 read-only retrieval/inspection tools plus `knowgrph.control_local_camera`, `knowgrph.control_local_animation`, `knowgrph.control_local_motion_control`, and `knowgrph.control_local_xr_scene`; Motion Control starts or stops only the active browser-local camera/LiteRT runtime and exposes no frame payload
 - [x] HTML fallback exposes WebMCP markers plus scanner-visible `provideContext` and `registerTool`
+- [x] Pages injects the lifecycle whenever the HTML lacks the full lifecycle contract; coincidental tool-name text cannot suppress injection
 - [x] JSON-RPC MCP `initialize` returns a valid result
 - [x] JSON-RPC MCP `tools/list` returns the shared read-only published tool set
 - [x] JSON-RPC MCP `tools/call` executes live storage lookups
@@ -315,4 +316,4 @@ runtime agent surface must converge on the same document identity and pipeline m
    `cd $GITHUB_ROOT/huijoohwee && npx wrangler pages deploy . --project-name=joohwee --branch=main --commit-dirty=true`
 5. Re-run live checks against `https://airvio.co/knowgrph/`
 
-*Document version: 1.27.5 - Root WebMCP scanning is stable without meta-refresh navigation, and the live external scan passes with five unique published WebMCP tools; DNS-AID, Auth.md, and MainPanel -> FloatingPanel Chat -> KGC or MCP structured response -> Editor Workspace -> Canvas ownership contracts stay unchanged - 2026-05-29*
+*Document version: 1.27.6 - WebMCP lifecycle injection is gated by the complete lifecycle contract rather than coincidental tool-name text, preserving live release smoke fidelity - 2026-07-22*

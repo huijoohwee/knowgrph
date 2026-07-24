@@ -9,7 +9,10 @@ import {
   validateTaskBranch,
 } from '../collaboration-contract.mjs'
 import { findProtectedPushes, parsePrePushEntries } from '../check-pre-push-refs.mjs'
-import { classifyPrePushGate } from '../run-pre-push-gate.mjs'
+import {
+  classifyPrePushGate,
+  withoutGitLocalEnvironment,
+} from '../run-pre-push-gate.mjs'
 import { fetchOpenPullRequests } from '../github-active-scope-client.mjs'
 import {
   buildLocalCollaborationBrowserEnv,
@@ -43,6 +46,10 @@ test('local collaboration browser identities remain stable across repeated gate 
   const config = resolveLocalCollaborationStackConfig({ repoRoot: '/tmp/knowgrph-test', env: {} })
   const browserEnv = buildLocalCollaborationBrowserEnv(config, {})
 
+  assert.equal(config.ownerAppUrl, 'http://127.0.0.1:5175/')
+  assert.equal(config.guestAppUrl, 'http://127.0.0.1:5174/')
+  assert.notEqual(config.ownerAppUrl, 'http://127.0.0.1:5173/')
+  assert.notEqual(config.ownerAppUrl, config.guestAppUrl)
   assert.equal(config.ownerClientDeviceId, 'dev:collaboration-owner-local')
   assert.equal(config.guestClientDeviceId, 'dev:collaboration-guest-local')
   assert.equal(browserEnv.KG_COLLABORATION_E2E_OWNER_DEVICE_ID, config.ownerClientDeviceId)
@@ -272,4 +279,24 @@ test('pre-push protection is derived from canonical refs', async () => {
     headRevision: 'different',
     headRef: 'refs/heads/agent/macbook/canvas-render',
   }), 'object')
+})
+
+test('pre-push integration children cannot inherit repository-local Git routing', () => {
+  const original = {
+    GIT_DIR: '/repo/.git/worktrees/task',
+    GIT_WORK_TREE: '/repo/task',
+    GIT_INDEX_FILE: '/repo/.git/worktrees/task/index',
+    PATH: '/usr/bin',
+  }
+  const sanitized = withoutGitLocalEnvironment(
+    original,
+    'GIT_DIR\nGIT_WORK_TREE\nGIT_INDEX_FILE',
+  )
+  assert.deepEqual(sanitized, { PATH: '/usr/bin' })
+  assert.deepEqual(original, {
+    GIT_DIR: '/repo/.git/worktrees/task',
+    GIT_WORK_TREE: '/repo/task',
+    GIT_INDEX_FILE: '/repo/.git/worktrees/task/index',
+    PATH: '/usr/bin',
+  })
 })

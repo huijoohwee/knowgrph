@@ -73,6 +73,7 @@ import {
   type MediaPointerDragDropDetail,
 } from '@/lib/ui/mediaDragPayload'
 import { recordMediaDropScreenAnchor } from '@/lib/ui/mediaDropScreenAnchors'
+import { useTextSelectionWidgetCreateBridge } from './useTextSelectionWidgetCreateBridge'
 function addStoryboardWidgetUsedNodeIdVariants(out: Set<string>, rawId: unknown): void {
   const id = String(rawId || '').trim()
   if (!id) return
@@ -120,7 +121,7 @@ function sameWidgetRegistryShape(
     && String(entry.formId || '').trim() === formId
 }
 
-function resolveWidgetRegistryEntryForDrop(
+export function resolveWidgetRegistryEntryForDrop(
   registry: ReadonlyArray<WidgetRegistryEntry>,
   payload: Pick<FlowWidgetDragPayloadV1, 'registryEntryId' | 'nodeTypeId' | 'widgetTypeId' | 'formId'>,
 ): WidgetRegistryEntry | null {
@@ -171,11 +172,16 @@ export function useStoryboardWidgetDropBridge(args: {
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
 }) {
   const preserveDropCameraAfterInsert = React.useCallback(() => {
+    const rect = readStoryboardWidgetDropRect({
+      rootRef: args.rootRef,
+      widgetDropBridgeOnly: args.widgetDropBridgeOnly,
+    })
     const authority = captureStoryboardWidgetDropCameraAuthority({
       getLiveZoomTransform: args.getLiveZoomTransform,
       zoomViewKeyRef: args.zoomViewKeyRef,
       draftGraphDataRef: args.draftGraphDataRef,
       baseGraphData: args.baseGraphData,
+      screenOrigin: rect ? { left: rect.left, top: rect.top } : null,
     })
     const restore = (requestLayout: boolean) => restoreStoryboardWidgetDropCameraAuthority({
       authority,
@@ -189,7 +195,7 @@ export function useStoryboardWidgetDropBridge(args: {
         window.requestAnimationFrame(() => restore(false))
       })
     }
-  }, [args.baseGraphData, args.draftGraphDataRef, args.getLiveZoomTransform, args.zoomViewKeyRef])
+  }, [args.baseGraphData, args.draftGraphDataRef, args.getLiveZoomTransform, args.rootRef, args.widgetDropBridgeOnly, args.zoomViewKeyRef])
 
   const openPendingOverlayNode = React.useCallback((rawId: unknown) => {
     const id = String(rawId || '').trim()
@@ -360,7 +366,7 @@ export function useStoryboardWidgetDropBridge(args: {
       const actualId = args.appendDraftNode({ id: requestedId, type: entry.nodeTypeId, label, x, y, properties, skipPendingSelect: true })
       if (!actualId) {
         args.reservedNodeIdsRef.current.delete(requestedId)
-        return
+        return ''
       }
       args.reservedNodeIdsRef.current.add(actualId)
       if (args.geospatialWidgetPanelMode) {
@@ -398,9 +404,17 @@ export function useStoryboardWidgetDropBridge(args: {
         }
       }
       preserveDropCameraAfterInsert()
+      return actualId
     },
     [args, openPendingOverlayNode, preserveDropCameraAfterInsert, syncGrabMapsDiscoveryGeoFromDropCursor],
   )
+
+  useTextSelectionWidgetCreateBridge({
+    active: args.active || args.widgetDropCaptureEnabled === true,
+    widgetRegistryRef: args.widgetRegistryRef,
+    resolveRegistryEntry: resolveWidgetRegistryEntryForDrop,
+    addNodeFromRegistryAtWorld,
+  })
 
   const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => {
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
@@ -458,7 +472,7 @@ export function useStoryboardWidgetDropBridge(args: {
         widgetDropBridgeOnly: args.widgetDropBridgeOnly,
       })
     }
-    const resolveDropPos = (sx: number, sy: number, opts?: { allowNeutralFallback?: boolean }) => {
+    const resolveDropPos = (sx: number, sy: number, rect: DOMRect, opts?: { allowNeutralFallback?: boolean }) => {
       const transform = readResolvedStoryboardWidgetDropTransform({
         getLiveZoomTransform: args.getLiveZoomTransform,
         zoomViewKeyRef: args.zoomViewKeyRef,
@@ -466,6 +480,7 @@ export function useStoryboardWidgetDropBridge(args: {
         baseGraphData: args.baseGraphData,
         allowNeutralFallback: opts?.allowNeutralFallback,
         useProjectedRichMediaShell: true,
+        screenOrigin: { left: rect.left, top: rect.top },
       })
       if (!transform) return null
       return screenToWorld({
@@ -504,7 +519,7 @@ export function useStoryboardWidgetDropBridge(args: {
       const sy = clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) return 'rejected'
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
-      const pos = resolveDropPos(sx, sy, opts)
+      const pos = resolveDropPos(sx, sy, rect, opts)
       if (!pos) return 'await-transform'
       const mediaUrl = String(mediaPayload.url || '').trim()
       if (!mediaUrl) return 'rejected'
@@ -552,7 +567,7 @@ export function useStoryboardWidgetDropBridge(args: {
       const sy = clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) return 'rejected'
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
-      const pos = resolveDropPos(sx, sy, opts)
+      const pos = resolveDropPos(sx, sy, rect, opts)
       if (!pos) return 'await-transform'
       const dropKey = `${payload.registryEntryId}:${payload.layoutVariantId || 'default'}:${Math.round(sx)}:${Math.round(sy)}`
       if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
@@ -710,6 +725,7 @@ export function useStoryboardWidgetDropBridge(args: {
         baseGraphData: args.baseGraphData,
         allowNeutralFallback: opts?.allowNeutralFallback,
         useProjectedRichMediaShell: true,
+        screenOrigin: { left: rect.left, top: rect.top },
       })
       if (!transform) return { rect, pos: null }
       return {

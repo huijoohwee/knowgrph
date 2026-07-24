@@ -56,6 +56,7 @@ const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
 )
 const PROBE_TREE_RICH_MEDIA_PANEL_LABEL = 'Probe-Tree Branches'
 const PROBE_TREE_GRAPH_PROJECTION_MODEL = 'knowgrph-probe-tree-graph-projection'
+const PROBE_TREE_PROVIDER_MAX_ATTEMPTS = 3
 
 const readGraphIdentity = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
 
@@ -192,7 +193,11 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
     outputThreadRootId: threadRootId,
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
-    panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    panelProperties: {
+      probeTreeThreadLedger: true,
+      probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION,
+      markdownWorkspaceViewerSurface: true,
+    },
     connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')
@@ -421,13 +426,16 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       invocationResolutions: bridge?.invocationResolutions,
     })
   }
-  if (!materialized && args.generateProviderResponse && !providerError) {
+  while (!materialized && args.generateProviderResponse && !providerError && providerAttempts < PROBE_TREE_PROVIDER_MAX_ATTEMPTS) {
+    const repairAttempt = providerAttempts
     let repairText = ''
     try {
       providerAttempts += 1
       repairText = String(await args.generateProviderResponse(buildStoryboardWidgetProbeTreeProviderRepairPrompt({
         basePrompt: providerPrompt,
         rejectionReason: providerRejectionReason,
+        repairAttempt,
+        maxRepairAttempts: PROBE_TREE_PROVIDER_MAX_ATTEMPTS - 1,
       })) || '').trim()
     } catch (error) {
       providerError = error instanceof Error ? error.message : String(error || '')
@@ -447,6 +455,8 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
         onRejected: reason => { providerRejectionReason = reason },
       })
       if (materialized) providerAccepted = true
+    } else {
+      providerRejectionReason = 'The provider returned an empty repair response.'
     }
   }
   if (!materialized) {
@@ -472,7 +482,11 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     outputThreadRootId: threadRootId,
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
-    panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    panelProperties: {
+      probeTreeThreadLedger: true,
+      probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION,
+      markdownWorkspaceViewerSurface: true,
+    },
     connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')

@@ -16,6 +16,15 @@ import {
   serializeCollaborationYDoc,
   type CollaborationDocumentKind,
 } from 'grph-shared/collaboration/yjsSnapshot'
+import { resolveDocumentRepositoryAuthority } from 'grph-shared/collaboration/documentRepositoryAuthority'
+import { hashStringToHex } from '@/lib/hash/stringHash'
+import {
+  acknowledgeKnowgrphCollaborationUpdate,
+  enqueueKnowgrphCollaborationUpdate,
+  listKnowgrphCollaborationUpdates,
+  markKnowgrphCollaborationUpdateAttempt,
+} from '@/lib/storage/knowgrphStorageDb'
+import type { IndexedCollaborationUpdateRecord } from '@/lib/storage/indexedDbCollectionStore'
 
 type PocketBaseRecord = Record<string, unknown> & { id?: string }
 
@@ -255,6 +264,29 @@ export const createPocketBaseYjsSourceFileRoom = async (
   let disconnected = false
   let localCaretLine: number | null = null
   let snapshotPersistQueued = false
+  let clientSeq = nowMs() * 1_000
+
+  const sendQueuedCollaborationUpdate = async (
+    queued: IndexedCollaborationUpdateRecord,
+  ): Promise<void> => {
+    try {
+      await updateService.create({
+        updateId: queued.updateId,
+        roomId,
+        workspaceId,
+        documentKey,
+        documentKind,
+        senderPeerId: peerId,
+        clientSeq: queued.clientSeq,
+        updateBase64: queued.updateBase64,
+        sentAtMs: queued.createdAtMs,
+      })
+      await acknowledgeKnowgrphCollaborationUpdate(queued.updateId)
+    } catch (error) {
+      await markKnowgrphCollaborationUpdateAttempt(queued.updateId)
+      throw error
+    }
+  }
 
   const emitPresence = () => {
     const peers = Array.from(peersById.values()).sort((left, right) => left.displayName.localeCompare(right.displayName))
@@ -295,6 +327,11 @@ export const createPocketBaseYjsSourceFileRoom = async (
     if (peer.peerId === peerId) localAwarenessRecordId = peer.recordId
   }
   await upsertLocalAwareness()
+  const retainedUpdates = await listKnowgrphCollaborationUpdates(workspaceId, documentKey)
+  for (const retainedUpdate of retainedUpdates) {
+    if (retainedUpdate.provider !== 'pocketbase') continue
+    await sendQueuedCollaborationUpdate(retainedUpdate).catch(() => void 0)
+  }
   const awarenessHeartbeat = setInterval(() => {
     if (!disconnected) void upsertLocalAwareness().catch(() => void 0)
   }, AWARENESS_HEARTBEAT_MS)
@@ -323,18 +360,35 @@ export const createPocketBaseYjsSourceFileRoom = async (
 
   const docUpdateHandler = (update: Uint8Array, origin: unknown) => {
     if (disconnected || origin === SNAPSHOT_ORIGIN) return
-    queueRoomSnapshotPersist()
     if (origin === REMOTE_ORIGIN) return
     const updateBase64 = encodeYjsUpdateBase64(update)
-    void updateService.create({
+    clientSeq += 1
+    const createdAtMs = nowMs()
+    const queued: IndexedCollaborationUpdateRecord = {
+      updateId: `collab:${hashStringToHex([
+        workspaceId,
+        documentKey,
+        peerId,
+        clientSeq,
+        updateBase64,
+      ].join('\u0000'))}`,
       roomId,
       workspaceId,
       documentKey,
-      documentKind,
-      senderPeerId: peerId,
+      provider: 'pocketbase',
+      clientSeq,
       updateBase64,
-      sentAtMs: nowMs(),
-    }).catch(() => void 0)
+      attemptCount: 0,
+      acknowledgedAtMs: null,
+      createdAtMs,
+      updatedAtMs: createdAtMs,
+    }
+    void enqueueKnowgrphCollaborationUpdate(queued)
+      .then(() => {
+        queueRoomSnapshotPersist()
+        return sendQueuedCollaborationUpdate(queued)
+      })
+      .catch(() => void 0)
   }
   doc.on('update', docUpdateHandler)
 
@@ -407,6 +461,8 @@ export const createPocketBaseYjsSourceFileRoom = async (
         })
       }
       const snapshot = readSnapshot()
+      const authority = resolveDocumentRepositoryAuthority({ documentKey, documentKind })
+      if (!authority) throw new Error('Collaboration save is read-only for this document source.')
       const serializedText = snapshot.serializedText
       const yjsStateBase64 = snapshot.yjsStateBase64
       await roomService.update(roomId, {
@@ -419,6 +475,7 @@ export const createPocketBaseYjsSourceFileRoom = async (
         workspaceId,
         documentKey,
         documentKind,
+        repositoryTarget: authority.repositoryTarget,
         serializedText,
         yjsStateBase64,
         activePeerCount,

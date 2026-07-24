@@ -10,6 +10,11 @@ import {
   formatCollaborationJson,
   serializeCollaborationYDocStateBase64,
 } from '../../../grph-shared/src/collaboration/yjsSnapshot'
+import {
+  DOCUMENT_REPOSITORY_TARGETS,
+  resolveDocumentRepositoryAuthorityResult,
+  type DocumentRepositoryTarget,
+} from '../../../grph-shared/src/collaboration/documentRepositoryAuthority'
 
 const KNOWGRPH_COLLABORATION_AWARENESS_STALE_MS = 2 * 60_000
 
@@ -66,6 +71,8 @@ const isCollaborationSaveRequest = (value: unknown): value is KnowgrphCollaborat
     && typeof record.workspaceId === 'string'
     && typeof record.documentKey === 'string'
     && (record.documentKind === 'markdown' || record.documentKind === 'json')
+    && (record.repositoryTarget === DOCUMENT_REPOSITORY_TARGETS.knowgrphDocs
+      || record.repositoryTarget === DOCUMENT_REPOSITORY_TARGETS.workspaceDocs)
     && typeof record.serializedText === 'string'
     && typeof record.yjsStateBase64 === 'string'
     && typeof record.activePeerCount === 'number'
@@ -94,22 +101,6 @@ const decodeUtf8Base64 = (value: string): string => {
   const bytes = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
   return new TextDecoder().decode(bytes)
-}
-
-const normalizeGitHubDocsPathForCollaborationSave = (documentKey: string, documentKind: 'markdown' | 'json'): string => {
-  const raw = normalizeString(documentKey)
-    .replace(/^workspace:/, '')
-    .replace(/^\/+/, '')
-  const repositoryRelative = raw.startsWith('agentic-canvas-os/')
-    ? raw.slice('agentic-canvas-os/'.length)
-    : raw
-  const githubPath = repositoryRelative.startsWith('docs/') ? repositoryRelative : `docs/${repositoryRelative}`
-  const parts = githubPath.split('/').filter(Boolean)
-  if (parts.length < 2 || parts[0] !== 'docs') return ''
-  if (parts.some(part => part === '.' || part === '..')) return ''
-  const lower = githubPath.toLowerCase()
-  if (documentKind === 'json') return lower.endsWith('.json') ? parts.join('/') : ''
-  return (lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mdx')) ? parts.join('/') : ''
 }
 
 const readCanonicalCollaborationSaveTextWithState = (args: {
@@ -151,7 +142,7 @@ const readCanonicalCollaborationSaveTextWithState = (args: {
   return { text: formatCollaborationJson(parsed), error: null }
 }
 
-const readGitHubBridgeConfig = (env: KnowgrphStorageWorkerEnv): {
+const readGitHubBridgeConfig = (env: KnowgrphStorageWorkerEnv, repositoryTarget: DocumentRepositoryTarget): {
   token: string
   owner: string
   repo: string
@@ -161,7 +152,11 @@ const readGitHubBridgeConfig = (env: KnowgrphStorageWorkerEnv): {
 } => ({
   token: normalizeString(env.KNOWGRPH_STORAGE_GITHUB_TOKEN),
   owner: normalizeString(env.KNOWGRPH_STORAGE_GITHUB_OWNER),
-  repo: normalizeString(env.KNOWGRPH_STORAGE_GITHUB_REPO),
+  repo: normalizeString(
+    repositoryTarget === DOCUMENT_REPOSITORY_TARGETS.knowgrphDocs
+      ? env.KNOWGRPH_STORAGE_GITHUB_KNOWGRPH_REPO
+      : env.KNOWGRPH_STORAGE_GITHUB_WORKSPACE_REPO,
+  ),
   branch: normalizeString(env.KNOWGRPH_STORAGE_GITHUB_BRANCH) || 'main',
   committerName: normalizeString(env.KNOWGRPH_STORAGE_GITHUB_COMMITTER_NAME),
   committerEmail: normalizeString(env.KNOWGRPH_STORAGE_GITHUB_COMMITTER_EMAIL),
@@ -196,12 +191,13 @@ const readRecordNumber = (record: unknown, key: string): number => {
 
 const commitCollaborationSnapshotToGitHub = async (args: {
   env: KnowgrphStorageWorkerEnv
+  repositoryTarget: DocumentRepositoryTarget
   githubPath: string
   text: string
 }): Promise<{ commitSha: string | null; contentSha: string | null }> => {
-  const config = readGitHubBridgeConfig(args.env)
+  const config = readGitHubBridgeConfig(args.env, args.repositoryTarget)
   if (!config.token) throw new Error('missing GitHub bridge token')
-  if (!config.owner || !config.repo) throw new Error('missing GitHub bridge repository config')
+  if (!config.owner || !config.repo) throw new Error(`missing GitHub bridge repository config for ${args.repositoryTarget}`)
   const apiUrl = `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${args.githubPath}`
   const headers = {
     accept: 'application/vnd.github+json',
@@ -223,7 +219,7 @@ const commitCollaborationSnapshotToGitHub = async (args: {
     throw new Error(`GitHub contents read failed (${currentResponse.status})`)
   }
   const body: Record<string, unknown> = {
-    message: `chore(sync): save ${args.githubPath.replace(/^docs\//, '')} from collaboration bridge`,
+    message: `chore(sync): save ${args.githubPath.replace(/^docs\//, '')} from ${args.repositoryTarget} collaboration bridge`,
     content: encodeUtf8Base64(args.text),
     branch: config.branch,
   }
@@ -291,8 +287,21 @@ export const handleCollaborationSave = async (request: Request, env: KnowgrphSto
   const workspaceId = normalizeString(body.workspaceId)
   const documentKey = normalizeString(body.documentKey)
   if (!workspaceId || !documentKey) return errorResponse(400, 'bad_request', 'workspaceId and documentKey are required')
-  const githubPath = normalizeGitHubDocsPathForCollaborationSave(documentKey, body.documentKind)
-  if (!githubPath) return errorResponse(400, 'bad_request', 'collaboration save path must target a supported docs file')
+  const authorityResult = resolveDocumentRepositoryAuthorityResult({
+    documentKey,
+    documentKind: body.documentKind,
+  })
+  if (authorityResult.ok === false) {
+    return errorResponse(
+      400,
+      'bad_request',
+      `unsupported collaboration save path: ${authorityResult.path || documentKey}`,
+    )
+  }
+  const authority = authorityResult.authority
+  if (authority.repositoryTarget !== body.repositoryTarget) {
+    return errorResponse(400, 'bad_request', 'collaboration save repository target does not match path authority')
+  }
   try {
     const pocketBaseSnapshot = await readPocketBaseCollaborationSnapshot({
       env,
@@ -308,13 +317,15 @@ export const handleCollaborationSave = async (request: Request, env: KnowgrphSto
     if (canonical.error) return errorResponse(409, 'conflict', canonical.error)
     const result = await commitCollaborationSnapshotToGitHub({
       env,
-      githubPath,
+      repositoryTarget: authority.repositoryTarget,
+      githubPath: authority.githubPath,
       text: canonical.text,
     })
     return okCollaborationSaveResponse({
       workspaceId,
       documentKey,
-      githubPath,
+      repositoryTarget: authority.repositoryTarget,
+      githubPath: authority.githubPath,
       commitSha: result.commitSha,
       contentSha: result.contentSha,
       committedAtMs: Date.now(),

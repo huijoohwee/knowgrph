@@ -183,6 +183,11 @@
       "import": "./dist/collaboration/yjsSnapshot.js",
       "default": "./dist/collaboration/yjsSnapshot.js"
     },
+    "./collaboration/documentRepositoryAuthority": {
+      "types": "./dist/collaboration/documentRepositoryAuthority.d.ts",
+      "import": "./dist/collaboration/documentRepositoryAuthority.js",
+      "default": "./dist/collaboration/documentRepositoryAuthority.js"
+    },
     "./dom/pointerDrag": {
       "types": "./dist/dom/pointerDrag.d.ts",
       "import": "./dist/dom/pointerDrag.js",

@@ -167,6 +167,7 @@ export const LS_KEYS = {
   workspaceImportVideoDownloadOutputDir: 'kg:workspace:import:videoDownload:outputDir',
   workspaceImportShareExportRootPath: 'kg:workspace:import:shareExportRootPath',
   workspaceDocsMirrorRootPath: 'kg:workspace:docsMirror:rootPath',
+  workspaceCloudSyncEnabled: 'kg:sync:workspace:cloudEnabled',
   workspaceSeedSyncEnabled: 'kg:sync:workspace:seedSyncEnabled',
   workspaceSeedSyncPollMs: 'kg:sync:workspace:seedSyncPollMs',
   workspaceSeedSyncIdleMaxMs: 'kg:sync:workspace:seedSyncIdleMaxMs',

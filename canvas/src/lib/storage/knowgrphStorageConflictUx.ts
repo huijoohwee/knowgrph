@@ -8,6 +8,7 @@ import {
 
 const CONFLICT_TOAST_ID_PREFIX = 'knowgrph-storage-conflict'
 const loggedConflictIdsByWorkspace = new Map<string, Set<string>>()
+const loggedTransportErrorByWorkspace = new Map<string, string>()
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
@@ -26,9 +27,40 @@ export const notifyKnowgrphStorageConflictUx = (result: KnowgrphStorageSyncRunRe
   if (!workspaceId) return
   const store = useGraphStore.getState()
   const toastId = buildConflictToastId(workspaceId)
+  const transportError = normalizeString(result.transportError)
   if (result.unresolvedConflictCount <= 0) {
+    if (transportError) {
+      store.upsertUiToast({
+        id: toastId,
+        kind: 'warning',
+        message: `${transportError} Local changes remain saved in the retained outbox.`,
+        ttlMs: null,
+        dismissible: true,
+        log: false,
+        actions: [{
+          id: buildKnowgrphStorageConflictReviewLogActionId(workspaceId),
+          label: 'Review Log',
+          tone: 'neutral',
+        }],
+      })
+      if (loggedTransportErrorByWorkspace.get(workspaceId) !== transportError) {
+        loggedTransportErrorByWorkspace.set(workspaceId, transportError)
+        store.pushUiLog({
+          kind: 'warning',
+          source: 'storage:sync:transport',
+          message: `${transportError} No queued mutation was discarded.`,
+          actions: [{
+            id: buildKnowgrphStorageConflictReviewLogActionId(workspaceId),
+            label: 'Review Log',
+            tone: 'neutral',
+          }],
+        })
+      }
+      return
+    }
     store.dismissUiToast(toastId)
     loggedConflictIdsByWorkspace.delete(workspaceId)
+    loggedTransportErrorByWorkspace.delete(workspaceId)
     return
   }
   store.upsertUiToast({
@@ -77,7 +109,9 @@ export const notifyKnowgrphStorageConflictUx = (result: KnowgrphStorageSyncRunRe
     if (!mutationId || seen.has(mutationId)) continue
     seen.add(mutationId)
     const entity = normalizeString(conflict.entity) || 'record'
-    const recordId = normalizeString(conflict.recordId) || 'unknown'
+    const recordId = normalizeString(conflict.canonicalPath)
+      || normalizeString(conflict.recordId)
+      || 'unknown'
     const suffix = normalizeString(conflict.message)
     store.pushUiLog({
       kind: 'warning',
@@ -108,4 +142,5 @@ export const notifyKnowgrphStorageConflictUx = (result: KnowgrphStorageSyncRunRe
 
 export const __resetKnowgrphStorageConflictUxForTests = (): void => {
   loggedConflictIdsByWorkspace.clear()
+  loggedTransportErrorByWorkspace.clear()
 }

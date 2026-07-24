@@ -28,15 +28,9 @@ import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCame
 import { readThreeObjectInputOwnership, useThreeObjectInputOwnership } from './threeObjectInputOwnership'
 import { useThreeObjectCameraInputOwnership } from './useThreeObjectCameraInputOwnership'
 import { useXrNativeControllerDemoCamera } from './useXrNativeControllerDemoCamera'
-
 export function Controls({
-  schema,
-  positions,
-  paused,
-  mode = '3d',
-  modelAssetRenderKey,
-  modelAssetFit,
-  xrEmptyWorld = false,
+  schema, positions, paused, mode = '3d', modelAssetRenderKey, modelAssetFit,
+  xrEmptyWorld = false, flightSimActive = false, gameplayCoordinateScale = 1,
   onControlsChange,
 }: {
   schema: GraphSchema
@@ -46,6 +40,8 @@ export function Controls({
   modelAssetRenderKey?: string
   modelAssetFit?: ModelAssetCameraFit | null
   xrEmptyWorld?: boolean
+  flightSimActive?: boolean
+  gameplayCoordinateScale?: number
   onControlsChange?: () => void
 }) {
   const { camera, gl, size } = useThree()
@@ -92,7 +88,15 @@ export function Controls({
     controls,
     baseEnabled: !paused && !choreographyOwnsCamera,
   })
-  useXrNativeControllerDemoCamera({ camera: perspectiveCamera, controls, suspended: !!paused || mode !== 'xr' || xrEmptyWorld || choreographyOwnsCamera || objectInputOwnership.active })
+  useXrNativeControllerDemoCamera({
+    camera: perspectiveCamera,
+    controls,
+    coordinateScale: gameplayCoordinateScale,
+    flightSimActive,
+    renderer: gl,
+    suspended: !!paused || mode !== 'xr' || xrEmptyWorld
+      || choreographyOwnsCamera || objectInputOwnership.active,
+  })
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
   const controlsUserInteractingRef = React.useRef(false)

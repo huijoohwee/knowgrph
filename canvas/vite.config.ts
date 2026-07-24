@@ -30,8 +30,9 @@ import { serializeMarkdownPipeTable } from './src/features/markdown/ui/markdownD
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
 import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRangeServer'
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
-import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64 } from './viteWorkspaceArtifactBridge'; import { buildVersionedAssetFileNames } from './viteBuildAssetNamespace.mjs'
-import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
+import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64, enforceCanonicalWorkspaceMutation, parseKgFsMutationRequest } from './viteWorkspaceArtifactBridge'; import { buildVersionedAssetFileNames } from './viteBuildAssetNamespace.mjs'
+import { isWorkspaceMirrorReadPathAllowed, resolveWorkspaceMirrorReadRoots } from './viteWorkspaceMirrorReadRoots'
+import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'; import { createServiceWorkerRevisionAuthorityPlugin } from './viteServiceWorkerRevisionAuthority.mjs'
 import {
   buildWebpageSandboxCsp,
   stripWebpageInlineEventHandlers,
@@ -43,7 +44,7 @@ import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBas
 import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
 import { loadChatProxyServerManagedEnv, resolveViteRuntimeIdentity } from './viteChatProxyEnv'
 import { forwardChatProxyUpstreamHead, forwardChatProxyUpstreamResponse } from './viteChatProxyResponse'; import { createProbeTreeMcpBridgePlugin } from './viteProbeTreeMcpBridge'
-import { createExternalMcpBridgePlugin } from './viteExternalMcpBridge'; import { resolveKnowgrphStorageDevProxyTarget } from './viteStorageProxyEnv'
+import { createExternalMcpBridgePlugin } from './viteExternalMcpBridge'; import { resolveKnowgrphStorageDevProxyTarget } from './viteStorageProxyEnv'; import { nonHtmlRuntimeCachePlugin } from './vitePwaRuntimeCachePolicy'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..'), workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname }); const runtimeIdentity = resolveViteRuntimeIdentity(repoRoot)
@@ -5120,15 +5121,11 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Body too large' }))
       return
     }
-    let parsed: { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown; mkdirOnly?: unknown } | null = null
-    try {
-      parsed = JSON.parse(body) as { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown; mkdirOnly?: unknown }
-    } catch {
-      parsed = null
-    }
+    const parsed = parseKgFsMutationRequest(body)
     const incomingPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
+    const workspacePath = typeof parsed?.workspacePath === 'string' ? parsed.workspacePath.trim() : ''
     const text = typeof parsed?.text === 'string' ? parsed.text : ''
-    const base64 = typeof parsed?.base64 === 'string' ? parsed.base64 : '', encoding = typeof parsed?.encoding === 'string' ? parsed.encoding.trim().toLowerCase() : '', mkdirOnly = parsed?.mkdirOnly === true
+    const base64 = typeof parsed?.base64 === 'string' ? parsed.base64 : '', encoding = typeof parsed?.encoding === 'string' ? parsed.encoding.trim().toLowerCase() : '', mkdirOnly = parsed?.mkdirOnly === true, deleteOnly = parsed?.deleteOnly === true
     if (!incomingPath || incomingPath.includes('\u0000')) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -5136,6 +5133,8 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const requestedAbsPath = pathPolicy.resolveHostPath(incomingPath)
+    const workspaceMutation = await enforceCanonicalWorkspaceMutation({ policy: pathPolicy, requestedAbsPath, workspacePath, deleteOnly })
+    if (workspaceMutation) { res.statusCode = workspaceMutation.status; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: workspaceMutation.status === 200, ...(workspaceMutation.error ? { error: workspaceMutation.error } : {}) })); return }
     if (mkdirOnly) { if (!pathPolicy.isAllowed(requestedAbsPath)) { res.statusCode = 403; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: 'Forbidden' })); return } try { await fs.mkdir(requestedAbsPath, { recursive: true }); res.statusCode = 200; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: true })) } catch (e: unknown) { const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''; res.statusCode = 500; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: msg || 'Mkdir failed' })) } return }
     const kgcPathInfo = parseKgcPathInfo(requestedAbsPath)
     const absPath = kgcPathInfo.tracePath || kgcPathInfo.canonicalPath
@@ -5207,16 +5206,14 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
   const MAX_FILE_COUNT_DEFAULT = 500
   const MAX_FILE_BYTES = 500 * 1024
   const workspaceMirrorRoot = path.resolve(repoRoot, '..')
-  const allowedRoots = [
-    workspaceMirrorRoot,
-    path.resolve(repoRoot, '..', '..'),
-    path.resolve(repoRoot),
-    path.resolve(repoRoot, '..'),
-  ]
-  const isAllowed = (candidate: string): boolean => {
-    const resolved = path.resolve(candidate)
-    return allowedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
-  }
+  const allowedRoots = resolveWorkspaceMirrorReadRoots({
+    repoRoot,
+    configuredRoots: [
+      process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT,
+      process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT,
+    ],
+  })
+  const isAllowed = (candidate: string): boolean => isWorkspaceMirrorReadPathAllowed(candidate, allowedRoots)
   const toHostPath = (candidate: string): string => {
     const raw = String(candidate || '').trim()
     if (!raw) return ''
@@ -6867,9 +6864,9 @@ export default defineConfig(({ command, mode }) => {
       'highlight.js/lib/languages/sql',
       'dayjs',
       'mermaid',
-      'maplibre-gl',
+      'maplibre-gl', 'maplibre-gl/dist/maplibre-gl.js',
       'dagre',
-      '@react-three/fiber',
+      '@react-three/fiber', 'fflate', 'three/examples/jsm/loaders/GLTFLoader.js',
       'yjs',
     ],
     exclude: ['gympgrph', 'grph-shared', 'entities'],
@@ -6986,9 +6983,9 @@ export default defineConfig(({ command, mode }) => {
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ]
   },
-  server: {
+  server: { host: '127.0.0.1',
     port: 5173,
-    strictPort: false,
+    strictPort: true,
     watch: { ignored: [...DEFAULT_VITE_WATCH_IGNORED, createWorkspaceMirrorWatchPathIgnore(buildWorkspaceMirrorWatchIgnoredRoots({ repoRoot, canvasRoot: __dirname, workspaceRoot, docsRoot: process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT, chatLogRoot: process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT }))] },
     headers: {
       'Cache-Control': 'no-store',
@@ -7013,7 +7010,7 @@ export default defineConfig(({ command, mode }) => {
     stripMermaidArchitectureDetectorPlugin,
     stripMermaidCoseBilkentLayoutPlugin,
     react(),
-    inlineHtmlStylesheetAssetsPlugin(),
+    inlineHtmlStylesheetAssetsPlugin(), createServiceWorkerRevisionAuthorityPlugin(runtimeIdentity.sourceRevision),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,
@@ -7081,9 +7078,9 @@ export default defineConfig(({ command, mode }) => {
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        navigateFallback: 'index.html',
-        importScripts: ['knowgrph-chat-stream-sw.js'],
-        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/**/*.{js,css,woff,woff2,ttf}'],
+        navigateFallback: null,
+        importScripts: [`knowgrph-service-worker-revision.js?revision=${runtimeIdentity.sourceRevision}`, `knowgrph-chat-stream-sw.js?revision=${runtimeIdentity.sourceRevision}`],
+        globPatterns: ['manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/**/*.{js,css,woff,woff2,ttf}'],
         globIgnores: ['assets/**/monaco-*.js', 'assets/**/mermaid-*.js'],
         runtimeCaching: [
           {
@@ -7093,7 +7090,7 @@ export default defineConfig(({ command, mode }) => {
               || request.destination === 'worker',
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'kg-assets',
+              cacheName: 'kg-assets', plugins: [nonHtmlRuntimeCachePlugin],
               expiration: { maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 14 },
             },
           },
@@ -7101,7 +7098,7 @@ export default defineConfig(({ command, mode }) => {
             urlPattern: ({ request }) => request.destination === 'image' || request.destination === 'font',
             handler: 'CacheFirst',
             options: {
-              cacheName: 'kg-static',
+              cacheName: 'kg-static', plugins: [nonHtmlRuntimeCachePlugin],
               expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
@@ -7117,7 +7114,7 @@ export default defineConfig(({ command, mode }) => {
               ),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'kg-data',
+              cacheName: 'kg-data', plugins: [nonHtmlRuntimeCachePlugin],
               expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },

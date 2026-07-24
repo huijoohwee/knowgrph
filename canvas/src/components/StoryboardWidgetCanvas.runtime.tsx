@@ -569,6 +569,7 @@ export default function StoryboardWidgetCanvasRuntime(
     setSelectionSource: setSelectionSourceForActions,
     setGraphDataPreservingLayout,
     updateOpenWidgetNodeIds,
+    persistCommittedNodeProperties: persistPublishedStoryboardCardMediaGraphForSurface,
     onNodePropertiesCommittedForAutoRun: handleNodePropertiesCommittedForAutoRun,
     upsertUiToast,
     nodePropsJson,
