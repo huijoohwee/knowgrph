@@ -16,10 +16,19 @@ export const XR_SCENE_FLOATING_PANEL_VIEWS = [
   'animation',
   'motionControl',
   'gameMode',
+  'flightSim',
   'camera',
 ] as const
 
 export type XrSceneFloatingPanelView = (typeof XR_SCENE_FLOATING_PANEL_VIEWS)[number]
+export type XrGameplaySurfaceId = Extract<XrSceneFloatingPanelView, 'gameMode' | 'flightSim'>
+
+const XR_GAMEPLAY_SURFACE_IDS = new Set<XrGameplaySurfaceId>(['gameMode', 'flightSim'])
+const XR_GAMEPLAY_COMPANION_PANEL_VIEWS = new Set<XrSceneFloatingPanelView>(['camera'])
+
+export function isXrGameplaySurfaceView(value: string): value is XrGameplaySurfaceId {
+  return XR_GAMEPLAY_SURFACE_IDS.has(value as XrGameplaySurfaceId)
+}
 
 export function resolveXrSurfaceEntryPanelView(input: Readonly<{
   floatingPanelOpen: boolean
@@ -28,7 +37,9 @@ export function resolveXrSurfaceEntryPanelView(input: Readonly<{
   if (!input.floatingPanelOpen) return 'motionControl'
   if (input.floatingPanelView === 'skillsCommands') return undefined
   const scenePanelView = XR_SCENE_FLOATING_PANEL_VIEWS.find(view => view === input.floatingPanelView)
-  return scenePanelView && scenePanelView !== 'gameMode' ? scenePanelView : 'motionControl'
+  return scenePanelView && !isXrGameplaySurfaceView(scenePanelView)
+    ? scenePanelView
+    : 'motionControl'
 }
 
 export type XrSceneSurfaceActivation = Readonly<{
@@ -38,16 +49,33 @@ export type XrSceneSurfaceActivation = Readonly<{
   beforePanelCommit?: () => void
 }>
 
-let exitActiveGameMode: (() => void) | null = null
+const gameplayExitHandlers = new Map<XrGameplaySurfaceId, () => void>()
 
-registerSharedXrDepartureHandler(() => exitActiveGameMode?.())
+function exitInactiveGameplaySurfaces(selected?: XrGameplaySurfaceId): void {
+  for (const [surfaceId, exit] of gameplayExitHandlers) {
+    if (surfaceId !== selected) exit()
+  }
+}
+
+registerSharedXrDepartureHandler(() => exitInactiveGameplaySurfaces())
+
+export function registerXrSceneGameplayExitHandler(
+  surfaceId: XrGameplaySurfaceId,
+  handler: () => void,
+): () => void {
+  bindCanvasSurfaceOwnershipSource(listener => useGraphStore.subscribe(listener))
+  const existing = gameplayExitHandlers.get(surfaceId)
+  if (existing && existing !== handler) {
+    throw new Error(`${surfaceId} already has an active XR gameplay exit owner`)
+  }
+  gameplayExitHandlers.set(surfaceId, handler)
+  return () => {
+    if (gameplayExitHandlers.get(surfaceId) === handler) gameplayExitHandlers.delete(surfaceId)
+  }
+}
 
 export function registerXrSceneGameModeExitHandler(handler: () => void): () => void {
-  bindCanvasSurfaceOwnershipSource(listener => useGraphStore.subscribe(listener))
-  exitActiveGameMode = handler
-  return () => {
-    if (exitActiveGameMode === handler) exitActiveGameMode = null
-  }
+  return registerXrSceneGameplayExitHandler('gameMode', handler)
 }
 
 export function activateXrSceneSurface(
@@ -93,7 +121,12 @@ export function activateXrSceneSurface(
     throw error
   }
 
-  if (activation.panelView && activation.panelView !== 'gameMode') exitActiveGameMode?.()
+  const selectedGameplaySurface = activation.panelView && isXrGameplaySurfaceView(activation.panelView)
+    ? activation.panelView
+    : undefined
+  if (!activation.panelView || !XR_GAMEPLAY_COMPANION_PANEL_VIEWS.has(activation.panelView)) {
+    exitInactiveGameplaySurfaces(selectedGameplaySurface)
+  }
   if (activation.panelView === 'media') setMediaCatalogMode('xr-3d')
   if (activation.panelView) activeState.setFloatingPanelView(activation.panelView)
   if (activation.openPanel) activeState.setFloatingPanelOpen(true)

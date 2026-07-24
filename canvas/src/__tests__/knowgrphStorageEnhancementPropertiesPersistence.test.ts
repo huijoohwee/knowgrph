@@ -27,14 +27,18 @@ const idArbitrary = fc.array(
 // Feature: knowgrph-storage-sync-enhancement, Property 1: Durable write precedes transport
 export async function testStorageEnhancementProperty01DurableWritePrecedesTransport() {
   const bootstrap = sourceText('src/features/source-files/SourceFilesPersistenceBootstrap.tsx')
-  const durableWriteIndex = bootstrap.indexOf('.then(deps => deps.syncSourceFilesToKnowgrphStorage({')
+  const durableWriteIndex = bootstrap.indexOf('deps.syncSourceFilesToKnowgrphStorage({')
+  const barrierIndex = bootstrap.lastIndexOf(
+    'runWorkspaceSeedSyncTask(capturedOwnership.signal, () => (',
+    durableWriteIndex,
+  )
   const successContinuationIndex = bootstrap.indexOf(
     'handleKnowgrphStorageQueueRequestSuccess({',
     durableWriteIndex,
   )
   assert(
-    durableWriteIndex >= 0 && successContinuationIndex > durableWriteIndex,
-    'expected transport scheduling to remain in the durable-write success continuation',
+    barrierIndex >= 0 && durableWriteIndex > barrierIndex && successContinuationIndex > durableWriteIndex,
+    'expected transport scheduling to remain barrier-owned in the durable-write success continuation',
   )
   await fc.assert(fc.asyncProperty(
     fc.array(shortTextArbitrary, { maxLength: 12 }),

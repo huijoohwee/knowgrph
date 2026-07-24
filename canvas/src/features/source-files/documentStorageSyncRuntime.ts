@@ -63,8 +63,14 @@ export const runDocumentStorageSyncNow = async (): Promise<DocumentStorageSyncNo
   const syncResult = await dependencies.syncKnowgrphStorageNow({
     workspaceId,
     baseUrl: dependencies.baseUrl,
-    onPulledChangesApplied: ({ changes }) => {
-      dependencies.applyPulledKnowgrphStorageChangesToSourceFiles({ workspaceId, changes })
+    onPulledChangesApplied: async ({ changes, signal, taskContext }) => {
+      const result = dependencies.applyPulledKnowgrphStorageChangesToSourceFiles({
+        workspaceId,
+        changes,
+        signal,
+        taskContext,
+      })
+      await result.completion
     },
   })
   return {

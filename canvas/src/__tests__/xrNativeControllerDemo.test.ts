@@ -27,6 +27,10 @@ import { resolveXrMotionReferenceStage } from '@/features/three/xrSceneLibrary'
 import { resolveXrTerrainPerimeter } from '@/features/three/xrTerrainPerimeter'
 import { resolveXrNativeControllerFollowFraming } from '@/features/three/xrNativeControllerCameraFraming'
 import {
+  XR_NATIVE_CONTROLLER_CAMERA_DEFAULT_MODE,
+  XR_NATIVE_CONTROLLER_CAMERA_OPTIONS,
+} from '@/features/three/xrNativeControllerCameraCatalog'
+import {
   readXrNativeControllerCamera,
   selectXrNativeControllerCameraMode,
 } from '@/features/three/xrNativeControllerCameraRuntime'
@@ -270,7 +274,12 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   assert(stage.includes('<XrNativeControllerAuthoredSubjects')
     && authoredSubjects.includes('runtime.plan.subjects.map')
     && authoredSubjects.includes('<XrSceneLibrarySubject'), 'native controller ownership must keep authored Helicopter/Airplane/Car subjects visible through the shared subject renderer')
-  assert(camera.includes('controls.target.lerp') && camera.includes('desiredFov') && camera.includes('resolveXrNativeControllerFollowFraming') && cameraFraming.includes('PLAYGROUND_FOV_DEGREES') && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth controller following and retain aspect-aware full-frame optics')
+  assert(camera.includes('controls.target.lerp')
+    && camera.includes('follow.fovDegrees')
+    && camera.includes('resolveXrNativeControllerFollowFraming')
+    && camera.includes('resolveFlightSimFollowTarget')
+    && cameraFraming.includes('PLAYGROUND_FOV_DEGREES')
+    && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth Physics and Flight following with aspect-aware full-frame optics')
   assert(camera.includes('controls.enableRotate = false') && !camera.includes('frame.player.velocity'), 'world-relative controller input must retain a fixed-yaw hero camera')
   assert(cameraFraming.includes('AERIAL_FOV_DEGREES') && camera.includes('aerialFactor') && camera.includes('XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE'), 'Rocket altitude must widen one fixed-scale camera owner into the aerial island view')
   assert(camera.includes("readXrNativeControllerCamera().mode === 'fixed-follow'")
@@ -285,6 +294,9 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   selectXrNativeControllerCameraMode('invalid-camera' as never)
   assert(readXrNativeControllerCamera().mode === 'free-orbit', 'invalid Camera selection must fail closed')
   selectXrNativeControllerCameraMode('fixed-follow')
+  assert(XR_NATIVE_CONTROLLER_CAMERA_DEFAULT_MODE === 'fixed-follow'
+    && JSON.stringify(XR_NATIVE_CONTROLLER_CAMERA_OPTIONS.map(option => [option.id, option.label]))
+      === JSON.stringify([['fixed-follow', 'Fixed Follow'], ['free-orbit', 'Free Orbit']]), 'Physics and Flight must share one exact Camera catalog')
   for (const landmark of ['kg_xr_playground_skull_grotto', 'kg_xr_playground_treasure', 'kg_xr_playground_key', 'kg_xr_playground_moving_hazards', 'BowlingPin']) {
     assert(environment.includes(landmark), `procedural playground must include ${landmark}`)
   }

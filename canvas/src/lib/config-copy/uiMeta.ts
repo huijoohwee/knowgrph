@@ -96,6 +96,7 @@ export const UI_LABELS = {
   xr: 'XR',
   motionControl: 'Motion Control',
   gameMode: 'Game Mode',
+  flightSim: 'Flight Sim',
   samples: 'Samples',
   close: 'Close',
   save: 'Save',

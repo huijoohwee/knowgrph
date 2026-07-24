@@ -338,8 +338,14 @@ export async function testKnowgrphStorageClientSyncCanApplyPulledRemoteChangesIn
     baseUrl: 'https://example.com',
     fetchImpl,
     dbState,
-    onPulledChangesApplied: ({ workspaceId, changes }) => {
-      applyPulledKnowgrphStorageChangesToSourceFiles({ workspaceId, changes })
+    onPulledChangesApplied: async ({ workspaceId, changes, signal, taskContext }) => {
+      const result = applyPulledKnowgrphStorageChangesToSourceFiles({
+        workspaceId,
+        changes,
+        signal,
+        taskContext,
+      })
+      await result.completion
     },
   })
 
