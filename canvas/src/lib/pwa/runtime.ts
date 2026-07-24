@@ -161,7 +161,7 @@ export function installPwaRuntime(): void {
               controllerTarget: window.navigator.serviceWorker,
               registration,
               origin: window.location.origin,
-              runInitially: false,
+              runInitially: true,
               onError(error) {
                 try {
                   console.warn('[knowgrph] Service worker cache revision cleanup failed.', error)
