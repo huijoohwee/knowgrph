@@ -79,8 +79,11 @@ export function useTextSelectionWidgetCreateBridge(args: {
         })
         return
       }
-      const duplicate = (graphAfterNode?.edges || []).some(candidate => candidate.id === edge.id)
-      if (!duplicate) stateAfterNode.addEdge(edge)
+      const edgeAlreadyPersisted = isTextSelectionWidgetEdgePersisted({
+        graphData: graphAfterNode,
+        edge,
+      })
+      if (!edgeAlreadyPersisted) stateAfterNode.addEdge(edge)
       const graphAfterEdge = useGraphStore.getState().graphData as GraphData | null
       const edgePersisted = isTextSelectionWidgetEdgePersisted({
         graphData: graphAfterEdge,
