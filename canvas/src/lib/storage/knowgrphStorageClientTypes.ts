@@ -5,8 +5,16 @@ import type {
   KnowgrphStoragePullResponse,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import type { KnowgrphStorageDb } from '@/lib/storage/knowgrphStorageDb'
+import type { WorkspaceSeedSyncTaskContext } from '@/lib/workspace/workspaceSeedSyncRuntime'
 
 export type KnowgrphStorageFetchLike = typeof fetch
+export type KnowgrphStoragePulledChangesApplyArgs = {
+  workspaceId: string
+  deviceId: string
+  changes: KnowgrphStoragePullResponse['changes']
+  signal: AbortSignal
+  taskContext: WorkspaceSeedSyncTaskContext
+}
 
 export type QueueKnowgrphStorageMutationArgs =
   | {
@@ -49,11 +57,9 @@ export type KnowgrphStorageSyncNowArgs = {
   maxRetryCount?: number
   requestTimeoutMs?: number
   sleepImpl?: ((delayMs: number) => Promise<void>) | null
-  onPulledChangesApplied?: ((args: {
-    workspaceId: string
-    deviceId: string
-    changes: KnowgrphStoragePullResponse['changes']
-  }) => void | Promise<void>) | null
+  onPulledChangesApplied?: ((
+    args: KnowgrphStoragePulledChangesApplyArgs
+  ) => void | Promise<void>) | null
   onSyncCompleted?: ((result: KnowgrphStorageSyncRunResult) => void | Promise<void>) | null
   dbState?: KnowgrphStorageDb | null
 }

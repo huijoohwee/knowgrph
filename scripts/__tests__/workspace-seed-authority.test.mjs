@@ -6,6 +6,9 @@ import test from 'node:test'
 
 import {
   DRAFT_WORKSPACE_SEED_BASENAMES,
+  FLIGHT_COMPANION_BASENAME,
+  FLIGHT_SEED_BASENAME,
+  FLIGHT_SEED_RELATIVE_PATH,
   PHYSICS_SEED_RELATIVE_PATH,
   resolveWorkspaceSeedSiblingRootsFromGitCommonDir,
   verifyWorkspaceSeedAuthority,
@@ -15,6 +18,68 @@ const canonicalSeed = `---
 canonical_source_file: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
 source_root: "knowgrph/docs"
 source_backed: true
+native_controller_demo:
+  camera_mode: "fixed-follow"
+  camera:
+    default: "fixed-follow"
+    selector: "FloatingPanel Camera / SHOOT / Camera source"
+    available: ["fixed-follow", "free-orbit"]
+    invocation: "/camera.select @camera #camera camera=fixed-follow|free-orbit"
+    timeline_override: "camera-mark playback temporarily owns framing"
+---
+`
+const flightRuntimeSeed = `---
+status: "runtime-ready"
+runtime_status: "runtime-ready"
+runtime_claim: "local-runtime-ready"
+evidence_status: "exact-head source and browser proof required at every handoff"
+publish_scope: "local-only"
+kgCanvasSurfaceMode: "xr"
+kgCanvasRenderMode: "3d"
+kgCanvas3dMode: "xr"
+kgFloatingPanelOpen: true
+kgFloatingPanelView: "flightSim"
+run_ready_demo:
+  id: "flight-sim"
+  canonical_source_file: "/docs/workspace-seeds/knowgrph-game-flight-sim-demo.md"
+  source_root: "knowgrph/docs"
+  source_backed: true
+  native_runtime: true
+  auto_start: true
+  external_dependencies: []
+shared_xr_scene:
+  source_authority: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
+  world_ownership: "overlay-only"
+  surface_owner: "XR Mode"
+  camera_owner: "canvas/src/features/three/useXrNativeControllerDemoCamera.ts"
+native_flight_demo:
+  camera_mode: "fixed-follow"
+  camera:
+    default: "fixed-follow"
+    selector: "FloatingPanel Camera / SHOOT / Camera source"
+    available: ["fixed-follow", "free-orbit"]
+    invocation: "/camera.select @camera #camera camera=fixed-follow|free-orbit"
+    timeline_override: "camera-mark playback temporarily owns framing"
+    catalog_owner: "canvas/src/features/three/xrNativeControllerCameraCatalog.ts"
+    selection_owner: "canvas/src/features/three/xrNativeControllerCameraRuntime.ts"
+    driver_owner: "canvas/src/features/three/useXrNativeControllerDemoCamera.ts"
+flight_sim:
+  invocation: "/flight.sim @canvas #flight operation=open"
+  inspect_tool: "knowgrph.inspect_local_flight_sim"
+  control_tool: "knowgrph.control_local_flight_sim"
+---
+`
+const flightCompanion = `---
+status: "projection-pending"
+runtime_claim: "local-runtime-ready"
+kgCanvasSurfaceMode: "2d"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "flow"
+kgFloatingPanelOpen: false
+kgBottomPanelOpen: false
+activatable_seed: false
+note_kind: "projection-contract"
+run_ready_demo_id: "flight-sim"
 ---
 `
 const safeDraftPresentation = [
@@ -38,6 +103,11 @@ const fixture = async () => {
   await mkdir(publishRoot, { recursive: true })
   await writeFile(path.join(path.dirname(canonicalPath), 'README.md'), '# Workspace Seed Authority\n')
   await writeFile(canonicalPath, canonicalSeed)
+  await writeFile(path.join(knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH), flightRuntimeSeed)
+  await writeFile(
+    path.join(knowgrphRoot, 'docs/workspace-seeds', FLIGHT_COMPANION_BASENAME),
+    flightCompanion,
+  )
   for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
     const frontmatter = basename.endsWith('.companion.md')
       ? `status: "draft"\nactivatable_seed: false\nnote_kind: "projection-contract"\n${safeDraftPresentation}`
@@ -91,17 +161,68 @@ test('rejects every missing authored draft document', async t => {
   }
 })
 
-test('rejects a draft document that declares runtime activation', async t => {
+test('rejects a flight runtime source without canonical shared-XR overlay authority', async t => {
   const roots = await fixture()
   t.after(() => rm(roots.root, { recursive: true, force: true }))
   await writeFile(
-    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
-    '---\nstatus: "draft"\nruntime_status: "draft"\nrun_ready_demo:\n  id: "flight-sim"\n---\n',
+    path.join(roots.knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
+    flightRuntimeSeed.replace('world_ownership: "overlay-only"', 'world_ownership: "standalone"'),
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /draft workspace document knowgrph-game-flight-sim-demo\.md must remain non-activating/,
+    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
   )
+})
+
+test('rejects a flight runtime source with a private camera catalog', async t => {
+  const roots = await fixture()
+  t.after(() => rm(roots.root, { recursive: true, force: true }))
+  await writeFile(
+    path.join(roots.knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
+    flightRuntimeSeed.replace(
+      'catalog_owner: "canvas/src/features/three/xrNativeControllerCameraCatalog.ts"',
+      'catalog_owner: "canvas/src/features/game-flight-sim/flightCameraCatalog.ts"',
+    ),
+  )
+  await assert.rejects(
+    () => verifyWorkspaceSeedAuthority(roots),
+    /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+  )
+})
+
+test('rejects drift from the shared Physics camera contract', async t => {
+  const mutations = [
+    ['camera mode', 'camera_mode: "fixed-follow"', 'camera_mode: "free-orbit"'],
+    [
+      'selector',
+      'selector: "FloatingPanel Camera / SHOOT / Camera source"',
+      'selector: "Flight Camera"',
+    ],
+    [
+      'invocation',
+      'invocation: "/camera.select @camera #camera camera=fixed-follow|free-orbit"',
+      'invocation: "/flight.camera camera=fixed-follow|free-orbit"',
+    ],
+    [
+      'Timeline override',
+      'timeline_override: "camera-mark playback temporarily owns framing"',
+      'timeline_override: "Flight always owns framing"',
+    ],
+  ]
+  for (const [label, from, to] of mutations) {
+    await t.test(label, async t => {
+      const roots = await fixture()
+      t.after(() => rm(roots.root, { recursive: true, force: true }))
+      await writeFile(
+        path.join(roots.knowgrphRoot, FLIGHT_SEED_RELATIVE_PATH),
+        flightRuntimeSeed.replace(from, to),
+      )
+      await assert.rejects(
+        () => verifyWorkspaceSeedAuthority(roots),
+        /runtime-ready workspace document knowgrph-game-flight-sim-demo\.md has invalid authority/,
+      )
+    })
+  }
 })
 
 test('rejects every live canvas or runtime claim in a draft document', async t => {
@@ -174,12 +295,12 @@ test('rejects live activation flags nested in a planned run-ready contract', asy
       const roots = await fixture()
       t.after(() => rm(roots.root, { recursive: true, force: true }))
       await writeFile(
-        path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
+        path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-mmorpg-demo.md'),
         `---\nstatus: draft\nruntime_status: draft\n${safeDraftPresentation}\nplanned_run_ready_demo:\n  id: planned\n${plannedContractCase.contract}\n---\n`,
       )
       await assert.rejects(
         () => verifyWorkspaceSeedAuthority(roots),
-        /draft workspace document knowgrph-game-flight-sim-demo\.md must remain non-activating/,
+        /draft workspace document knowgrph-game-mmorpg-demo\.md must remain non-activating/,
       )
     })
   }
@@ -189,7 +310,7 @@ test('accepts runtime-equivalent safe aliases and ignores Markdown body examples
   const roots = await fixture()
   t.after(() => rm(roots.root, { recursive: true, force: true }))
   await writeFile(
-    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.md'),
+    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-mmorpg-demo.md'),
     [
       '---',
       'status: draft',
@@ -221,11 +342,11 @@ test('does not accept safe presentation markers from the Markdown body', async t
   const roots = await fixture()
   t.after(() => rm(roots.root, { recursive: true, force: true }))
   await writeFile(
-    path.join(roots.knowgrphRoot, 'docs/workspace-seeds/knowgrph-game-flight-sim-demo.companion.md'),
+    path.join(roots.knowgrphRoot, 'docs/workspace-seeds', FLIGHT_COMPANION_BASENAME),
     [
       '---',
-      'status: draft',
-      'runtime_claim: planned-contract-only',
+      'status: projection-pending',
+      'runtime_claim: local-runtime-ready',
       'activatable_seed: false',
       'note_kind: projection-contract',
       '---',
@@ -235,12 +356,16 @@ test('does not accept safe presentation markers from the Markdown body', async t
   )
   await assert.rejects(
     () => verifyWorkspaceSeedAuthority(roots),
-    /draft workspace document knowgrph-game-flight-sim-demo\.companion\.md must remain non-activating.*missing=/,
+    /projection companion knowgrph-game-flight-sim-demo\.companion\.md must remain non-activating.*missing=/,
   )
 })
 
 test('rejects draft documents projected into Agentic Canvas OS', async t => {
-  for (const basename of DRAFT_WORKSPACE_SEED_BASENAMES) {
+  for (const basename of [
+    FLIGHT_SEED_BASENAME,
+    FLIGHT_COMPANION_BASENAME,
+    ...DRAFT_WORKSPACE_SEED_BASENAMES,
+  ]) {
     await t.test(basename, async t => {
       const roots = await fixture()
       t.after(() => rm(roots.root, { recursive: true, force: true }))

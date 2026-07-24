@@ -38,7 +38,10 @@ export const KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS = 10_000
 export const DEFAULT_CHUNK_REFERENCE_LIMIT = 1_000
 
 
-export const inFlightSyncByWorkspace = new Map<string, Promise<KnowgrphStorageSyncRunResult>>()
+export const inFlightSyncByWorkspace = new Map<string, {
+  promise: Promise<KnowgrphStorageSyncRunResult>
+  signal?: AbortSignal
+}>()
 export const pollTimerByWorkspace = new Map<string, number>()
 export const repairedKnowgrphStorageDbs = new WeakSet<object>()
 

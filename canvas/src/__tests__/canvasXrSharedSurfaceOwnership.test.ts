@@ -51,6 +51,7 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
     { floatingPanelOpen: true, floatingPanelView: 'media', expected: 'media' },
     { floatingPanelOpen: true, floatingPanelView: 'camera', expected: 'camera' },
     { floatingPanelOpen: true, floatingPanelView: 'gameMode', expected: 'motionControl' },
+    { floatingPanelOpen: true, floatingPanelView: 'flightSim', expected: 'motionControl' },
     { floatingPanelOpen: false, floatingPanelView: 'skillsCommands', expected: 'motionControl' },
     { floatingPanelOpen: true, floatingPanelView: 'help', expected: 'motionControl' },
   ] as const
@@ -349,10 +350,10 @@ export function testXrSurfaceFrontmatterPresetActivatesXrCanvasMode() {
 export async function testDraftWorkspaceSeedFrontmatterExitsXrAndClosesPanels() {
   const draftDocuments = [
     'knowgrph-game-flight-sim-demo.companion.md',
-    'knowgrph-game-flight-sim-demo.md',
     'knowgrph-game-mmorpg-demo.companion.md',
     'knowgrph-game-mmorpg-demo.md',
   ]
+  const flightBasename = 'knowgrph-game-flight-sim-demo.md'
   const physicsBasename = 'knowgrph-physics-playground-demo.md'
   const applyWorkspaceSeed = async (basename: string): Promise<void> => {
     const name = `docs/workspace-seeds/${basename}`
@@ -397,6 +398,21 @@ export async function testDraftWorkspaceSeedFrontmatterExitsXrAndClosesPanels() 
     useGraphStore.getState().resetAll()
     await applyWorkspaceSeed(physicsBasename)
     assertPhysicsXr()
+    await applyWorkspaceSeed(flightBasename)
+    const flight = useGraphStore.getState()
+    if (flight.canvasRenderMode !== '3d'
+      || flight.canvas3dMode !== 'xr'
+      || flight.floatingPanelOpen !== true
+      || flight.floatingPanelView !== 'flightSim') {
+      throw new Error(`expected Flight source activation to reuse native XR with its gameplay panel, got ${JSON.stringify({
+        canvasRenderMode: flight.canvasRenderMode,
+        canvas3dMode: flight.canvas3dMode,
+        floatingPanelOpen: flight.floatingPanelOpen,
+        floatingPanelView: flight.floatingPanelView,
+      })}`)
+    }
+    await applyWorkspaceSeed(physicsBasename)
+    assertPhysicsXr()
     for (const basename of draftDocuments) {
       await applyWorkspaceSeed(basename)
       const next = useGraphStore.getState()
@@ -430,7 +446,7 @@ export function testXrSceneSurfaceOwnershipSourceBoundaries() {
   const physicsRuntime = readSource('features/canvas/XrPhysicsRunReadyDemoRuntime.tsx')
   const canvasSlice = readSource('hooks/store/canvasSlice.ts')
   const surfaceOwnership = readSource('lib/canvas/canvasSurfaceOwnershipRuntime.ts')
-  if (!['media', 'animation', 'motionControl', 'gameMode', 'camera'].every(view => surfaceRuntime.includes(`'${view}'`))
+  if (!['media', 'animation', 'motionControl', 'gameMode', 'flightSim', 'camera'].every(view => surfaceRuntime.includes(`'${view}'`))
     || !surfaceRuntime.includes('activateCanvasGraphSurfaceMode')
     || !surfaceRuntime.includes("input.floatingPanelView === 'skillsCommands'")
     || !surfaceRuntime.includes('registerXrSceneGameModeExitHandler')
@@ -438,7 +454,7 @@ export function testXrSceneSurfaceOwnershipSourceBoundaries() {
     || !toolbarRouting.includes('XR_SCENE_FLOATING_PANEL_VIEWS.find')
     || !toolbarRouting.includes('activateXrSceneSurface({ panelView })')
     || /set(?:Canvas|Floating|Bottom|Media)/.test(toolbarRouting)) {
-    throw new Error('expected one shared XR scene-surface owner for all five FloatingPanel projections')
+    throw new Error('expected one shared XR scene-surface owner for all six FloatingPanel projections')
   }
   const transitionInterceptionCount = canvasSlice.match(/interceptSharedXrSurfaceTransition\(/g)?.length ?? 0
   if (!surfaceRuntime.includes('registerSharedXrActivationHandler(() => activateXrSceneSurface())')
@@ -471,13 +487,14 @@ export function testXrSceneSurfaceOwnershipSourceBoundaries() {
     || !frontmatter.includes('const sharedXrSurfaceRouted = sharedXrSurfaceRequested || sharedXrPanelRequested')
     || !frontmatterXrSelection.includes('activateXrSceneSurface({')
     || /set(?:Canvas|Floating|Bottom|Media)/.test(frontmatterXrSelection)) {
-    throw new Error('expected XR frontmatter presets to invoke the shared scene owner for all five panels without raw surface setters')
+    throw new Error('expected XR frontmatter presets to invoke the shared scene owner for all six panels without raw surface setters')
   }
   const sharedSceneConsumers = {
     Media: 'features/three/xrSceneMcpRuntime.ts',
     Animation: 'features/three/xrAnimationMcpRuntime.ts',
     'Motion Control': 'features/three/motionControlSurfaceRuntime.ts',
     'Game Mode': 'features/game-fps/gameModeRuntime.ts',
+    'Flight Sim': 'features/game-flight-sim/flightSimRuntime.ts',
     Camera: 'features/strybldr/cameraMcpRuntime.ts',
   } as const
   for (const [label, relativePath] of Object.entries(sharedSceneConsumers)) {
@@ -498,6 +515,7 @@ export function testXrSceneSurfaceOwnershipSourceBoundaries() {
     Animation: 'features/three/XrAnimationFloatingPanelView.tsx',
     'Motion Control': 'features/three/MotionControlFloatingPanelView.tsx',
     'Game Mode': 'features/game-fps/GameModeFloatingPanelView.tsx',
+    'Flight Sim': 'features/game-flight-sim/FlightSimFloatingPanelView.tsx',
     Camera: 'features/strybldr/StrybldrCameraFloatingPanelView.tsx',
   } as const
   for (const [label, relativePath] of Object.entries(panelProjectionSources)) {

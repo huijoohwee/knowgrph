@@ -439,14 +439,15 @@ export function testSourceFilesPersistenceBootstrapOwnsKnowgrphStorageLoopAndQue
     resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesKnowgrphStorageSettings.ts'),
     'utf8',
   )
-  if (!text.includes("loadKnowgrphStorageRuntimeDependencies")) {
-    throw new Error('expected source-files bootstrap to lazy-load the knowgrph storage runtime dependencies instead of pulling them into the eager bootstrap module graph')
+  if (!text.includes('createKnowgrphStorageWorkspaceLifecycle')) {
+    throw new Error('expected source-files bootstrap to delegate lazy storage dependency loading to the workspace lifecycle owner')
   }
   if (
-    !text.includes("ensureKnowgrphStorageRuntimeDependencies()")
-    || !text.includes(".then(deps => deps.syncSourceFilesToKnowgrphStorage({")
+    !text.includes('ensureKnowgrphStorageRuntimeDependencies(capturedOwnership)')
+    || !text.includes('runWorkspaceSeedSyncTask(capturedOwnership.signal, () => (')
+    || !text.includes('deps.syncSourceFilesToKnowgrphStorage({')
   ) {
-    throw new Error('expected source-files bootstrap to integrate source-file edits with storage outbox enqueueing through the deferred storage runtime loader')
+    throw new Error('expected source-files bootstrap to integrate source-file edits with storage outbox enqueueing through the deferred runtime loader and Flight suspension barrier')
   }
   if (!text.includes("const request = resolveSourceFilesPersistenceEffectRequest(next as never)") || !text.includes("applySourceFilesPersistenceEffectRequest(request)")) {
     throw new Error('expected source-files persistence subscription to enqueue storage sync from live source-file edits through the dedicated persistence effect request path')

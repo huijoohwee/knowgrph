@@ -9,7 +9,10 @@ import {
   validateTaskBranch,
 } from '../collaboration-contract.mjs'
 import { findProtectedPushes, parsePrePushEntries } from '../check-pre-push-refs.mjs'
-import { classifyPrePushGate } from '../run-pre-push-gate.mjs'
+import {
+  classifyPrePushGate,
+  withoutGitLocalEnvironment,
+} from '../run-pre-push-gate.mjs'
 import { fetchOpenPullRequests } from '../github-active-scope-client.mjs'
 import {
   buildLocalCollaborationBrowserEnv,
@@ -276,4 +279,24 @@ test('pre-push protection is derived from canonical refs', async () => {
     headRevision: 'different',
     headRef: 'refs/heads/agent/macbook/canvas-render',
   }), 'object')
+})
+
+test('pre-push integration children cannot inherit repository-local Git routing', () => {
+  const original = {
+    GIT_DIR: '/repo/.git/worktrees/task',
+    GIT_WORK_TREE: '/repo/task',
+    GIT_INDEX_FILE: '/repo/.git/worktrees/task/index',
+    PATH: '/usr/bin',
+  }
+  const sanitized = withoutGitLocalEnvironment(
+    original,
+    'GIT_DIR\nGIT_WORK_TREE\nGIT_INDEX_FILE',
+  )
+  assert.deepEqual(sanitized, { PATH: '/usr/bin' })
+  assert.deepEqual(original, {
+    GIT_DIR: '/repo/.git/worktrees/task',
+    GIT_WORK_TREE: '/repo/task',
+    GIT_INDEX_FILE: '/repo/.git/worktrees/task/index',
+    PATH: '/usr/bin',
+  })
 })

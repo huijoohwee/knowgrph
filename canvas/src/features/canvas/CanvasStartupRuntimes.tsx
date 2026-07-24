@@ -4,6 +4,7 @@ import { CanvasStartupSsotBridgeRuntime } from '@/features/canvas/CanvasStartupS
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { XrPhysicsRunReadyDemoRuntime } from '@/features/canvas/XrPhysicsRunReadyDemoRuntime'
+import { FlightSimRunReadyDemoRuntime } from '@/features/canvas/FlightSimRunReadyDemoRuntime'
 
 export function CanvasStartupRuntimes() {
   const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
@@ -12,7 +13,10 @@ export function CanvasStartupRuntimes() {
       <CanvasStartupDebugRuntime />
       <SourceFilesPersistenceBootstrap />
       <CanvasStartupSsotBridgeRuntime />
-      {sourceFilesBootstrapReady ? <XrPhysicsRunReadyDemoRuntime /> : null}
+      {sourceFilesBootstrapReady ? <>
+        <XrPhysicsRunReadyDemoRuntime />
+        <FlightSimRunReadyDemoRuntime />
+      </> : null}
     </>
   )
 }

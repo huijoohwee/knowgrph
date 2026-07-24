@@ -12,6 +12,17 @@ export const CHAT_DURABLE_STREAM_CHUNK = 'KG_CHAT_STREAM_CHUNK'
 export const CHAT_DURABLE_STREAM_DONE = 'KG_CHAT_STREAM_DONE'
 export const CHAT_DURABLE_STREAM_ERROR = 'KG_CHAT_STREAM_ERROR'
 
+const durableChatStreamTransportSuspensions = new Set<symbol>()
+
+export class DurableChatStreamTransportSuspendedError extends Error {
+  readonly code = 'DURABLE_CHAT_STREAM_TRANSPORT_SUSPENDED'
+
+  constructor() {
+    super('Durable chat stream transport is suspended while Flight Sim owns the runtime.')
+    this.name = 'DurableChatStreamTransportSuspendedError'
+  }
+}
+
 export type DurableChatStreamMetadata = {
   runId: string
   traceId: string
@@ -136,6 +147,24 @@ export const clearActiveDurableChatStreamRun = (runId?: string | null): void => 
     storage.removeItem(LS_KEYS.chatDurableStreamActiveRun)
   } catch {
     void 0
+  }
+}
+
+const assertDurableChatStreamTransportAvailable = (): void => {
+  if (durableChatStreamTransportSuspensions.size === 0) return
+  throw new DurableChatStreamTransportSuspendedError()
+}
+
+export const acquireDurableChatStreamTransportSuspension = (): (() => void) => {
+  if (readActiveDurableChatStreamRun()) {
+    throw new Error(
+      'Flight Sim cannot suspend durable chat stream transport while a durable chat run is active.',
+    )
+  }
+  const owner = Symbol('durable-chat-stream-transport-suspension')
+  durableChatStreamTransportSuspensions.add(owner)
+  return () => {
+    durableChatStreamTransportSuspensions.delete(owner)
   }
 }
 
@@ -369,6 +398,7 @@ export const fetchWithDurableChatStream = async (args: {
   signal?: AbortSignal | null
   fallbackFetch?: typeof fetch
 }): Promise<Response> => {
+  assertDurableChatStreamTransportAvailable()
   const fallbackFetch = args.fallbackFetch || fetch
   const method = normalizeString(args.init?.method || 'GET').toUpperCase()
   const body = typeof args.init?.body === 'string' ? args.init.body : ''
@@ -403,6 +433,7 @@ export const fetchWithDurableChatStream = async (args: {
 }
 
 export const attachDurableChatStreamResponse = async (runId: string): Promise<Response> => {
+  assertDurableChatStreamTransportAvailable()
   const response = await createWorkerBackedResponse({ runId })
   if (!response) throw new Error('No active durable chat stream worker is available.')
   return response
