@@ -44,7 +44,7 @@ export const useMarkdownBlockContainerHostEditing = (args: {
   toolbarRef: React.RefObject<HTMLElement | null>
   slashMenuRef: React.RefObject<HTMLElement | null>
   variableMenuRef: React.RefObject<HTMLElement | null>
-  commit: () => void
+  commit: () => void | Promise<void>
   toolbarInteractionUntilRef: React.MutableRefObject<number>
   editOpenBlurGuardUntilRef: React.MutableRefObject<number>
   lastEditorPointerDownAtRef: React.MutableRefObject<number>

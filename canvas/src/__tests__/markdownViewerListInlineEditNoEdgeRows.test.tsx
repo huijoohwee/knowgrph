@@ -1,4 +1,5 @@
 import React from 'react'
+import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownListBlock } from '@/features/markdown/ui/MarkdownListBlock'
@@ -210,35 +211,52 @@ export async function testMarkdownViewerNestedListQuestionKeepsRenderedEditSurfa
     const reactDomClient = await import('react-dom/client')
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
-    const { tokens } = lexMarkdown(markdown)
-    const listToken = tokens.find(t => String((t as unknown as { type?: unknown }).type || '') === 'list')
-    if (!listToken) throw new Error('missing nested list token')
     const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+    const draftChanges: string[] = []
     const root = reactDomClient.createRoot(container)
-    root.render(
-      <MarkdownListBlock
-        token={listToken}
-        highlightClass=""
-        baseTextClass="text-sm"
-        wrapClass=""
-        opts={{
-          activeDocumentPath: '/fixtures/probe-tree.md',
-          uiPanelTextFontClass: 'font-sans',
-          uiPanelMonospaceTextClass: 'font-mono',
-          markdownPresentationMode: false,
-          highlightedLineRange: null,
-          markdownWordWrap: true,
-          mermaidFrontmatterConfig: null,
-          rootThemeMode: 'light',
-          previewOverlayScope: 'container',
-          markdownSourceLines: markdown.split('\n'),
-          viewerBlockEditingEnabled: true,
-          markdownBlockGutterEnabled: false,
-          onReplaceLineRange: change => replaceCalls.push(change),
-          forbidCopy: true,
-        }}
-      />,
-    )
+    const StatefulListHarness = () => {
+      const [liveMarkdown, setLiveMarkdown] = React.useState(markdown)
+      const { tokens } = lexMarkdown(liveMarkdown)
+      const listToken = tokens.find(t => String((t as unknown as { type?: unknown }).type || '') === 'list')
+      if (!listToken) return null
+      return (
+        <MarkdownListBlock
+          token={listToken}
+          highlightClass=""
+          baseTextClass="text-sm"
+          wrapClass=""
+          opts={{
+            activeDocumentPath: '/fixtures/probe-tree.md',
+            uiPanelTextFontClass: 'font-sans',
+            uiPanelMonospaceTextClass: 'font-mono',
+            markdownPresentationMode: false,
+            highlightedLineRange: null,
+            markdownWordWrap: true,
+            mermaidFrontmatterConfig: null,
+            rootThemeMode: 'light',
+            previewOverlayScope: 'container',
+            markdownSourceLines: liveMarkdown.split('\n'),
+            viewerBlockEditingEnabled: true,
+            markdownBlockGutterEnabled: false,
+            onReplaceLineRange: change => {
+              replaceCalls.push(change)
+              setLiveMarkdown(previous => replaceMarkdownLineRange({
+                markdownText: previous,
+                startLine: change.startLine,
+                endLine: change.endLine,
+                replacementLines: change.replacementLines,
+              }))
+            },
+            onInlineDraftTextChange: nextText => {
+              draftChanges.push(nextText)
+              setLiveMarkdown(nextText)
+            },
+            forbidCopy: true,
+          }}
+        />
+      )
+    }
+    root.render(<StatefulListHarness />)
     await tick()
     await tick()
 
@@ -306,6 +324,43 @@ export async function testMarkdownViewerNestedListQuestionKeepsRenderedEditSurfa
     }
     if (replaceCalls.length !== 0) {
       throw new Error(`expected entering edit to avoid source mutation, got ${JSON.stringify(replaceCalls)}`)
+    }
+
+    const editedQuestion = 'What is the most impactful missing variable for this sourcing decision?'
+    const editorStrong = editor.querySelector('strong')
+    if (!editorStrong) throw new Error(`expected bold question editor, html=${editor.innerHTML}`)
+    editorStrong.textContent = editedQuestion
+    editor.dispatchEvent(new dom.window.InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: editedQuestion,
+    }))
+    editor.blur()
+    await new Promise<void>(resolve => setTimeout(resolve, 100))
+    for (let attempt = 0; attempt < 12 && replaceCalls.length === 0; attempt += 1) await tick()
+
+    const replacement = replaceCalls.at(-1)
+    if (
+      !replacement
+      || replacement.startLine !== 14
+      || replacement.endLine !== 14
+      || replacement.replacementLines.length !== 1
+      || replacement.replacementLines[0] !== `1. **${editedQuestion}**`
+    ) {
+      throw new Error(`expected committed nested question to preserve its list marker and bold content, got ${JSON.stringify(replaceCalls)}`)
+    }
+    const reflectedDraft = draftChanges.at(-1)
+    if (!reflectedDraft?.split('\n')[13]?.startsWith(`1. **${editedQuestion}**`)) {
+      throw new Error(`expected the reflected whole-document draft to preserve the first ordered-list marker, got ${JSON.stringify(reflectedDraft)}`)
+    }
+    const committedQuestion = Array.from(
+      dom.window.document.querySelectorAll('strong') as NodeListOf<HTMLElement>,
+    )
+      .find(element => String(element.textContent || '').includes(editedQuestion))
+    const committedOuterRow = committedQuestion?.closest('li[data-kg-list-item-index="0"]')
+    if (!committedOuterRow || committedOuterRow.getAttribute('data-kg-list-item-start-line') !== '14') {
+      throw new Error(`expected the committed question to remain the first ordered-list row, html=${container.innerHTML}`)
     }
 
     root.unmount()

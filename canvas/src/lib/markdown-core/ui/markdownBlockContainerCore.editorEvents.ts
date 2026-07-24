@@ -57,7 +57,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   toolbarRef: React.RefObject<HTMLElement | null>
   slashMenuRef: React.RefObject<HTMLElement | null>
   variableMenuRef: React.RefObject<HTMLElement | null>
-  commit: () => void
+  commit: () => void | Promise<void>
   toolbarInteractingRef: React.MutableRefObject<boolean>
   toolbarInteractionUntilRef: React.MutableRefObject<number>
   editOpenBlurGuardUntilRef: React.MutableRefObject<number>
