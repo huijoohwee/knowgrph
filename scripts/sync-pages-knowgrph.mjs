@@ -37,6 +37,8 @@ const motionControlMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src
 const motionControlMcpContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'three', 'motionControlMcpContract.mjs')
 const gameModeMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'game-fps', 'gameModeMcpContract.mjs')
 const gameModeMcpContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'game-fps', 'gameModeMcpContract.mjs')
+const flightSimMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'game-flight-sim', 'flightSimMcpContract.mjs')
+const flightSimMcpContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'game-flight-sim', 'flightSimMcpContract.mjs')
 const richMediaTextMarkdownContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'rich-media', 'richMediaTextMarkdownContract.mjs')
 const richMediaTextMarkdownContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'rich-media', 'richMediaTextMarkdownContract.mjs')
 const youtubeTranscriptFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'youtube-transcript.mjs')
@@ -390,10 +392,10 @@ const fileExists = async (filePath) => {
 
 const agentReadyRuntimeCopies = [
   [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget], [webMcpHtmlInjectionSource, webMcpHtmlInjectionTarget], [semanticKeyContractSource, semanticKeyContractTarget],
-  [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [motionControlMcpContractSource, motionControlMcpContractTarget], [gameModeMcpContractSource, gameModeMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(mirrorRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs')],
+  [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [motionControlMcpContractSource, motionControlMcpContractTarget], [gameModeMcpContractSource, gameModeMcpContractTarget], [flightSimMcpContractSource, flightSimMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(mirrorRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs')],
   [richMediaTextMarkdownContractSource, richMediaTextMarkdownContractTarget],
   ...agentReadyBrowserRuntimeFilenames.map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
-  ...['knowgrphAgentReadyOutputSchemas.mjs', 'mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs', 'motionControlAgentReadyContract.mjs', 'gameModeAgentReadyContract.mjs', 'probeTreeUserInputRelevance.mjs', 'knowgrphVdeoxplnRegistryData.mjs', 'knowgrphApplicationCompositionVdeoxpln.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
+  ...['knowgrphAgentReadyOutputSchemas.mjs', 'mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs', 'motionControlAgentReadyContract.mjs', 'gameModeAgentReadyContract.mjs', 'flightSimAgentReadyContract.mjs', 'probeTreeUserInputRelevance.mjs', 'knowgrphVdeoxplnRegistryData.mjs', 'knowgrphApplicationCompositionVdeoxpln.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
 ]
 const removeEmptyDirs = async (rootDir) => {

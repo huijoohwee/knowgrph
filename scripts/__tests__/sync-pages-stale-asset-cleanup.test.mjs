@@ -45,6 +45,7 @@ test("publish sync includes the published agent-ready dependency closure", () =>
   assert.match(syncScript, /'mcpAppsContractText\.mjs'/);
   assert.match(syncScript, /'mcpAppsOnboarding\.mjs'/);
   assert.match(syncScript, /'motionControlAgentReadyContract\.mjs'/);
+  assert.match(syncScript, /'flightSimAgentReadyContract\.mjs'/);
   assert.match(syncScript, /'probeTreeUserInputRelevance\.mjs'/);
   assert.match(syncScript, /'knowgrphVdeoxplnRegistryData\.mjs'/);
   assert.match(syncScript, /'knowgrphApplicationCompositionVdeoxpln\.mjs'/);
@@ -76,6 +77,12 @@ test("publish sync includes the motion-control tool contract dependency", () => 
   assert.match(syncScript, /motionControlMcpContractSource = path\.resolve\(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'motionControlMcpContract\.mjs'\)/);
   assert.match(syncScript, /motionControlMcpContractTarget = path\.resolve\(mirrorRoot, 'canvas', 'src', 'features', 'three', 'motionControlMcpContract\.mjs'\)/);
   assert.match(syncScript, /\[motionControlMcpContractSource, motionControlMcpContractTarget\]/);
+});
+
+test("publish sync includes the Flight Sim tool contract dependency", () => {
+  assert.match(syncScript, /flightSimMcpContractSource = path\.resolve\(knowgrphRoot, 'canvas', 'src', 'features', 'game-flight-sim', 'flightSimMcpContract\.mjs'\)/);
+  assert.match(syncScript, /flightSimMcpContractTarget = path\.resolve\(mirrorRoot, 'canvas', 'src', 'features', 'game-flight-sim', 'flightSimMcpContract\.mjs'\)/);
+  assert.match(syncScript, /\[flightSimMcpContractSource, flightSimMcpContractTarget\]/);
 });
 
 test("publish sync keeps the live canvas hero markdown route in the root-managed file set", () => {
