@@ -15,6 +15,7 @@ import {
 import type { GraphData } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import WidgetPalette from '@/features/toolbar/WidgetPalette'
+import { MarkdownInlineSelectionToolbar } from '@/lib/markdown-core/ui/MarkdownInlineSelectionToolbar'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
@@ -211,5 +212,79 @@ export async function testWidgetPaletteCreatesTargetFromActiveTextSelection() {
     }
     restoreDom()
     restoreWindow()
+  }
+}
+
+export async function testTextSelectionWidgetLinkKeepsMathAndAddsDistinctProvenanceAction() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  const anchor = dom.window.document.createElement('span')
+  container.appendChild(anchor)
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const toolbarRef = { current: null } as React.RefObject<HTMLElement | null>
+  const anchorRef = { current: anchor } as React.RefObject<HTMLSpanElement | null>
+  const actions: string[] = []
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(MarkdownInlineSelectionToolbar, {
+        show: true,
+        anchorRef,
+        toolbarRef,
+        holdToolbarInteraction: () => void 0,
+        onToolbarInteractionEnd: () => void 0,
+        floatingMenuButtonDangerClassName: '',
+        floatingMenuButtonDisabledClassName: '',
+        toolbarMenuClassName: '',
+        toolbarMenuButtonClassName: '',
+        toolbarMenuDividerClassName: '',
+        applyTurnInto: () => void 0,
+        applyToggleHeading: () => void 0,
+        applyAlign: () => void 0,
+        applyDraftAction: () => void 0,
+        applyWrap: (left, right) => actions.push(`wrap:${left}${right}`),
+        applyCreateLinkedWidget: () => actions.push('create-linked-widget'),
+        applyComment: () => void 0,
+        applyHighlightColor: () => void 0,
+        applyColor: () => void 0,
+        applyClearFormatting: () => void 0,
+        applyChecklist: () => void 0,
+        applyDivider: () => void 0,
+        openSlashCommandMenu: () => void 0,
+        openVariableCommandMenu: () => void 0,
+        handleDuplicate: () => void 0,
+        handleDelete: () => void 0,
+      }),
+      { window: dom.window, frames: 4 },
+    )
+
+    const mathButton = dom.window.document.querySelector('button[aria-label="Math"]')
+    const provenanceButton = dom.window.document.querySelector(
+      'button[aria-label="Create linked widget from selection"]',
+    )
+    if (!(mathButton instanceof dom.window.HTMLButtonElement)) {
+      throw new Error('expected the ∑ Math action to remain present in link-enabled Rich Media editing')
+    }
+    if (mathButton.textContent?.trim() !== '∑' || mathButton.hasAttribute('data-kg-create-linked-widget')) {
+      throw new Error('expected ∑ to remain exclusively bound to Math/LaTeX formatting')
+    }
+    if (!(provenanceButton instanceof dom.window.HTMLButtonElement)) {
+      throw new Error('expected a separate provenance target-widget action')
+    }
+    const provenanceIcon = provenanceButton.querySelector('[data-kg-provenance-direction-icon="target"]')
+    if (provenanceIcon?.textContent?.trim() !== '→') {
+      throw new Error('expected the linked-target action to reuse the shared target-provenance glyph')
+    }
+
+    mathButton.click()
+    provenanceButton.click()
+    if (actions.join(',') !== 'wrap:$$,create-linked-widget') {
+      throw new Error(`expected distinct Math and provenance actions, got ${JSON.stringify(actions)}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window })
+    restore()
   }
 }
