@@ -100,6 +100,38 @@ export function testTextSelectionWidgetLinkBuildsTargetPlacementAndProvenanceEdg
   if (!isTextSelectionWidgetEdgePersisted({ graphData: composedGraphData, edge })) {
     throw new Error('expected composed workspace edge identity to satisfy the post-write persistence proof')
   }
+  const composedDuplicate = buildTextSelectionWidgetEdge({
+    graphData: composedGraphData,
+    session,
+    targetNodeId: 'target-widget',
+  })
+  if (composedDuplicate?.id !== `workspace-layer::${edge.id}`) {
+    throw new Error(
+      `expected inner endpoint ids to resolve the existing composed edge, got ${JSON.stringify(composedDuplicate)}`,
+    )
+  }
+  const composedEdge = buildTextSelectionWidgetEdge({
+    graphData: {
+      ...composedGraphData,
+      edges: [{
+        id: 'workspace-layer::e1',
+        source: 'workspace-layer::unrelated-source',
+        target: 'workspace-layer::unrelated-target',
+        label: 'flow',
+        properties: {},
+      }],
+    },
+    session,
+    targetNodeId: 'target-widget',
+  })
+  if (!composedEdge
+    || composedEdge.id !== 'e2'
+    || composedEdge.source !== 'workspace-layer::source-panel'
+    || composedEdge.target !== 'workspace-layer::target-widget') {
+    throw new Error(
+      `expected inner ids to resolve against the composed graph without reusing e1, got ${JSON.stringify(composedEdge)}`,
+    )
+  }
   clearTextSelectionWidgetLinkSession()
   if (getTextSelectionWidgetLinkSnapshot() !== null) {
     throw new Error('expected completing or cancelling the flow to clear the active selection')

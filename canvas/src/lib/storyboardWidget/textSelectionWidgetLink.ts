@@ -1,6 +1,10 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { createUniqueId } from '@/lib/ids'
-import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import {
+  buildCanonicalNodeIdSet,
+  isCanonicalNodeIdEqual,
+  resolveGraphNodeByCanonicalId,
+} from '@/lib/graph/canonicalNodeIds'
 
 export const TEXT_SELECTION_WIDGET_LINK_SCHEMA = 'knowgrph-text-selection-widget-link/v1'
 export const TEXT_SELECTION_WIDGET_CREATE_EVENT = 'knowgrph:text-selection-widget-create'
@@ -116,19 +120,23 @@ export function buildTextSelectionWidgetEdge(args: {
   session: TextSelectionWidgetLinkSession
   targetNodeId: string
 }): GraphEdge | null {
-  const sourceNodeId = String(args.session.sourceNodeId || '').trim()
-  const targetNodeId = String(args.targetNodeId || '').trim()
+  const sourceNodeId = String(
+    resolveGraphNodeByCanonicalId(args.graphData, args.session.sourceNodeId)?.id || '',
+  ).trim()
+  const targetNodeId = String(
+    resolveGraphNodeByCanonicalId(args.graphData, args.targetNodeId)?.id || '',
+  ).trim()
   if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return null
-  const nodeIds = new Set((args.graphData.nodes || []).map(node => String(node.id || '').trim()))
-  if (!nodeIds.has(sourceNodeId) || !nodeIds.has(targetNodeId)) return null
   const duplicate = (args.graphData.edges || []).find(edge => (
-    String(edge.source || '').trim() === sourceNodeId
-    && String(edge.target || '').trim() === targetNodeId
+    isCanonicalNodeIdEqual(edge.source, sourceNodeId)
+    && isCanonicalNodeIdEqual(edge.target, targetNodeId)
     && String(edge.properties?.schema || '').trim() === TEXT_SELECTION_WIDGET_LINK_SCHEMA
     && String(edge.properties?.['selection:text'] || '').trim() === args.session.selectedText
   ))
   if (duplicate) return duplicate
-  const edgeIds = new Set((args.graphData.edges || []).map(edge => String(edge.id || '').trim()))
+  const edgeIds = buildCanonicalNodeIdSet(
+    (args.graphData.edges || []).map(edge => edge.id),
+  )
   const properties: Record<string, JSONValue> = {
     schema: TEXT_SELECTION_WIDGET_LINK_SCHEMA,
     'selection:text': args.session.selectedText,
