@@ -8,6 +8,7 @@ import {
   TEXT_SELECTION_WIDGET_CREATE_EVENT,
   getTextSelectionWidgetLinkSnapshot,
   isTextSelectionWidgetEdgePersisted,
+  persistTextSelectionWidgetEdgeAfterTargetCreation,
   resolveTextSelectionWidgetTargetPosition,
   TEXT_SELECTION_WIDGET_LINK_SCHEMA,
   type TextSelectionWidgetCreateDetail,
@@ -137,6 +138,74 @@ export function testTextSelectionWidgetLinkBuildsTargetPlacementAndProvenanceEdg
   if (getTextSelectionWidgetLinkSnapshot() !== null) {
     throw new Error('expected completing or cancelling the flow to clear the active selection')
   }
+}
+
+export async function testTextSelectionWidgetLinkWaitsForCreatedTargetPublication() {
+  const session = beginTextSelectionWidgetLinkSession({
+    sourceNodeId: 'source-panel',
+    selectedText: 'selected source text',
+    startLine: 12,
+    endLine: 13,
+    documentPath: 'notes/example.md',
+  })
+  if (!session) throw new Error('expected an active selection-link session')
+
+  let graphData: GraphData = {
+    type: 'Graph',
+    nodes: [{
+      id: 'source-panel',
+      type: 'RichMediaPanel',
+      label: 'Source',
+      x: 100,
+      y: 220,
+      properties: {},
+    }],
+    edges: [],
+  }
+  let waitCount = 0
+  let addEdgeCount = 0
+  const result = await persistTextSelectionWidgetEdgeAfterTargetCreation({
+    readGraphDataCandidates: () => [graphData],
+    session,
+    targetNodeId: 'target-widget',
+    addEdge: edge => {
+      addEdgeCount += 1
+      graphData = { ...graphData, edges: [...graphData.edges, edge] }
+    },
+    waitForGraphMutation: async () => {
+      waitCount += 1
+      graphData = {
+        ...graphData,
+        nodes: [
+          ...graphData.nodes,
+          {
+            id: 'target-widget',
+            type: 'TextGeneration',
+            label: 'Target',
+            x: 940,
+            y: 220,
+            properties: {},
+          },
+        ],
+      }
+    },
+  })
+
+  if (result.kind !== 'persisted'
+    || result.edge.source !== 'source-panel'
+    || result.edge.target !== 'target-widget') {
+    throw new Error(`expected the delayed target publication to persist its selection edge, got ${JSON.stringify(result)}`)
+  }
+  if (waitCount !== 1 || addEdgeCount !== 1 || graphData.edges.length !== 1) {
+    throw new Error(
+      `expected one bounded publication wait and one edge write, got ${JSON.stringify({
+        waitCount,
+        addEdgeCount,
+        edgeCount: graphData.edges.length,
+      })}`,
+    )
+  }
+  clearTextSelectionWidgetLinkSession()
 }
 
 export async function testWidgetPaletteCreatesTargetFromActiveTextSelection() {
