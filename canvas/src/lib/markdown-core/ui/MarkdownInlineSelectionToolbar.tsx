@@ -36,6 +36,7 @@ import {
   uiToolbarRowScrollListClassName,
   uiToolbarTouchRowScrollClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { ProvenanceDirectionIcon } from '@/lib/storyboardWidget/ProvenanceDirectionIcon'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { MarkdownSelectionActionMenuItems } from './MarkdownSelectionActionMenuItems'
 import type { MarkdownInlineSelectionActions } from './markdownInlineSelectionActions'
@@ -230,6 +231,7 @@ export const MarkdownInlineSelectionToolbar = (props: {
     )
   }
   const selectionActions = props.selectionActions
+  const createLinkedWidget = props.applyCreateLinkedWidget
   return (
     <AnchorOverlay
       anchorRef={props.anchorRef}
@@ -293,16 +295,27 @@ export const MarkdownInlineSelectionToolbar = (props: {
         <button
           type="button"
           className={markdownInlineSelectionToolbarButtonClassName}
-          onClick={(event) => runToolbarAction(
-            event,
-            props.applyCreateLinkedWidget || (() => props.applyWrap('$', '$')),
-          )}
-          title={props.applyCreateLinkedWidget ? 'Create linked widget' : 'Math'}
-          aria-label={props.applyCreateLinkedWidget ? 'Create linked widget from selection' : undefined}
-          data-kg-create-linked-widget={props.applyCreateLinkedWidget ? '1' : undefined}
+          onClick={(event) => runToolbarAction(event, () => props.applyWrap('$', '$'))}
+          title="Math"
+          aria-label="Math"
         >
           <span className="text-[10px] leading-none">∑</span>
         </button>
+        {createLinkedWidget ? (
+          <button
+            type="button"
+            className={markdownInlineSelectionToolbarButtonClassName}
+            onClick={(event) => runToolbarAction(event, createLinkedWidget)}
+            title="Create linked target widget"
+            aria-label="Create linked widget from selection"
+            data-kg-create-linked-widget="1"
+          >
+            <ProvenanceDirectionIcon
+              direction="target"
+              className="text-xs leading-none"
+            />
+          </button>
+        ) : null}
         {renderToolbarMenu({
           key: 'highlight',
           ariaLabel: 'Highlight',
