@@ -1,6 +1,8 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
+  ["canvas.richMedia.selectionWidgetLink.provenanceEdge","@/__tests__/textSelectionWidgetLink.test","testTextSelectionWidgetLinkBuildsTargetPlacementAndProvenanceEdge"],
+  ["canvas.richMedia.selectionWidgetLink.paletteCreateTarget","@/__tests__/textSelectionWidgetLink.test","testWidgetPaletteCreatesTargetFromActiveTextSelection"],
   ["canvas.probeTree.richMediaProjection.preservesNamedWorkflowOutput","@/__tests__/probeTreeRichMediaProjection.test","testProbeTreeWorkflowPanelPreservesPublishedTextAcrossEmptyLineageValue"],
   ["storyboardWidget.workflowPublication.terminalRepairsLaggingCanonicalAuthority","@/__tests__/storyboardWidgetWorkflowPublicationTransaction.test","testTerminalPublicationRepairsLaggingCanonicalAuthorityFromUnchangedDraft"],
   ["storyboardWidget.workflowPublication.preservesIncomingRichMediaWidgetTopology","@/__tests__/storyboardWidgetWorkflowPublicationTransaction.test","testTextPublicationPreservesIncomingRichMediaWidgetTopology"],
@@ -184,6 +186,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["richMedia.deliverables.nativeMarkdownPresentationSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface"],
   ["richMedia.probeTree.editorWorkspaceViewerSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testProbeTreeRichMediaPanelReusesEditorWorkspaceViewerSurface"],
   ["richMedia.probeTree.postEditRetainsCommittedDraft","@/__tests__/richMediaPanelWorkspaceViewerPostEditRegression.test.tsx","testRichMediaWorkspaceViewerRetainsCommittedDraftUntilParentPersistence"],
+  ["richMedia.probeTree.listOptionDraftCommitsAgainstCanonicalText","@/__tests__/richMediaPanelWorkspaceViewerPostEditRegression.test.tsx","testRichMediaWorkspaceViewerCommitsListOptionAgainstCanonicalText"],
   ["richMedia.textOutput.versionSelectorPublishesSelection","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorPublishesSelection"],
   ["richMedia.textOutput.versionSelectorUsesStoryboardChrome","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorUsesStoryboardChrome"],
   ["richMedia.textOutput.versionSelectorUsesBubbleToolbar","@/__tests__/richMediaOutputVersionSelector.test.tsx","testRichMediaPanelTextOutputVersionSelectorUsesBubbleToolbar"],

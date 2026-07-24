@@ -73,6 +73,7 @@ export const MarkdownInlineSelectionToolbar = (props: {
   captureSelectionForToolbarAction?: () => void
   applyDraftAction: (action: 'bold' | 'inlineCode' | 'italic' | 'link' | 'strike') => void
   applyWrap: (left: string, right: string) => void
+  applyCreateLinkedWidget?: () => void
   applyComment: () => void
   applyHighlightColor: (color: string) => void
   applyColor: (color: string) => void
@@ -289,7 +290,19 @@ export const MarkdownInlineSelectionToolbar = (props: {
         <button type="button" className={markdownInlineSelectionToolbarButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('<u>', '</u>'))} title="Underline"><Underline className={markdownInlineSelectionToolbarIconClassName} strokeWidth={1.8} /></button>
         <button type="button" className={markdownInlineSelectionToolbarButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('^', '^'))} title="Superscript"><Superscript className={markdownInlineSelectionToolbarIconClassName} strokeWidth={1.8} /></button>
         <button type="button" className={markdownInlineSelectionToolbarButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('~', '~'))} title="Subscript"><Subscript className={markdownInlineSelectionToolbarIconClassName} strokeWidth={1.8} /></button>
-        <button type="button" className={markdownInlineSelectionToolbarButtonClassName} onClick={(event) => runToolbarAction(event, () => props.applyWrap('$', '$'))} title="Math"><span className="text-[10px] leading-none">∑</span></button>
+        <button
+          type="button"
+          className={markdownInlineSelectionToolbarButtonClassName}
+          onClick={(event) => runToolbarAction(
+            event,
+            props.applyCreateLinkedWidget || (() => props.applyWrap('$', '$')),
+          )}
+          title={props.applyCreateLinkedWidget ? 'Create linked widget' : 'Math'}
+          aria-label={props.applyCreateLinkedWidget ? 'Create linked widget from selection' : undefined}
+          data-kg-create-linked-widget={props.applyCreateLinkedWidget ? '1' : undefined}
+        >
+          <span className="text-[10px] leading-none">∑</span>
+        </button>
         {renderToolbarMenu({
           key: 'highlight',
           ariaLabel: 'Highlight',
