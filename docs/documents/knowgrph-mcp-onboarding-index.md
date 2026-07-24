@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-mcp-onboarding-index
-version: 1.0.4
+version: 1.0.5
 status: implemented
 created: 2026-07-10
-updated: 2026-07-12
+updated: 2026-07-22
 author: airvio / joohwee
 domain: knowgrph
 doc_type: "Onboarding Index"
@@ -22,6 +22,8 @@ related:
   - docs/documents/knowgrph-mcp-install-contract.md
   - docs/documents/knowgrph-mcp-install-boundary-release-note-20260710.md
   - docs/documents/knowgrph-agent-ready-prd-tad.md
+  - docs/documents/knowgrph-xr-invocation-runtime-api.md
+  - docs/documents/knowgrph-native-physics-engines-prd-tad.md
   - docs/documents/markdown-convertible-agent-discovery-document.md
   - docs/documents/knowgrph-superagent-harness.md
   - docs/documents/knowgrph-mcp/knowgrph-mcp.md
@@ -43,6 +45,7 @@ Use it when you need one short path to:
 - understand the public discovery vs control-plane split
 - find the source-backed Markdown discovery contract behind the Live Canvas Hero
 - find the canonical install contract
+- inspect XR Mode, Media, Skills & Commands, and native-physics runtime boundaries
 - scan the latest install-boundary release note
 - jump straight to the latest evidence-backed release proof
 
@@ -90,20 +93,24 @@ Concrete grammar examples:
    - Recent-change summary plus the latest evidence-backed release proof
 3. `docs/documents/knowgrph-agent-ready-prd-tad.md`
    - Broader agent-ready surface, trust boundary, and discovery context
-4. `docs/documents/markdown-convertible-agent-discovery-document.md`
+4. `docs/documents/knowgrph-xr-invocation-runtime-api.md`
+   - Exact-revision `/`, `@`, `#` hydration, literal XR invocation, panel continuity, WebMCP lifecycle, and Source Files authority
+5. `docs/documents/knowgrph-native-physics-engines-prd-tad.md`
+   - Independent native 2D/3D engines and the Rapier principles-only, no-copy, no-dependency boundary
+6. `docs/documents/markdown-convertible-agent-discovery-document.md`
    - Live Canvas Hero Markdown-discovery contract, publish route, and live proof
-5. `huijoohwee/knowgrph` `README.md` or `docs/documents/knowgrph-superagent-harness.md`
+7. `huijoohwee/knowgrph` `README.md` or `docs/documents/knowgrph-superagent-harness.md`
    - Lowest-cost local evaluation path before hosted setup
-6. `docs/documents/knowgrph-mcp/knowgrph-mcp.md`
+8. `docs/documents/knowgrph-mcp/knowgrph-mcp.md`
    - Full MCP topology, readiness scope, and current implementation truth
-7. `docs/documents/knowgrph-mcp-service-prd-tad.md`
+9. `docs/documents/knowgrph-mcp-service-prd-tad.md`
    - Publish-side mirror entry for the implemented MCP baseline and shipped-vs-planned boundary
-8. `docs/documents/knowgrph-mcp-agentic-os-prd-tad.md`
+10. `docs/documents/knowgrph-mcp-agentic-os-prd-tad.md`
    - Publish-side mirror entry for the Agentic Canvas OS dashboard and orchestration contract
-9. `docs/documents/knowgrph-mcp-service-prd-tad.companion.md` or
+11. `docs/documents/knowgrph-mcp-service-prd-tad.companion.md` or
    `docs/documents/knowgrph-mcp-agentic-os-prd-tad.companion.md`
    - Publish-side mirror entries for file-owner detail, lane payloads, and companion guardrails
-10. `https://airvio.co/knowgrph/.well-known/mcp/apps/knowgrph-agent-ready.html`
+12. `https://airvio.co/knowgrph/.well-known/mcp/apps/knowgrph-agent-ready.html`
    - Browser-published MCP Apps card for template-only `#promotion.retry <path...>` recovery semantics
 
 ## Which Doc To Open
@@ -114,6 +121,8 @@ Concrete grammar examples:
 | I want the shortest update summary | `docs/documents/knowgrph-mcp-install-boundary-release-note-20260710.md` |
 | I want the latest release proof with preview URL and docs-seed verification | `docs/documents/knowgrph-mcp-install-boundary-release-note-20260710.md` |
 | I want the larger discovery and readiness context | `docs/documents/knowgrph-agent-ready-prd-tad.md` |
+| I want XR Mode, panel, invocation, WebMCP, and Source Files readiness | `docs/documents/knowgrph-xr-invocation-runtime-api.md` |
+| I want the independent 2D/3D physics and Rapier clean-room boundary | `docs/documents/knowgrph-native-physics-engines-prd-tad.md` |
 | I want the Live Canvas Hero Markdown route and discovery contract | `docs/documents/markdown-convertible-agent-discovery-document.md` |
 | I want the cheapest evaluation path before hosted setup | `huijoohwee/knowgrph` `README.md` or `docs/documents/knowgrph-superagent-harness.md` |
 | I want the MCP-specific architecture and scope | `docs/documents/knowgrph-mcp/knowgrph-mcp.md` |
