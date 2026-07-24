@@ -100,3 +100,100 @@ export async function testRichMediaWorkspaceViewerRetainsCommittedDraftUntilPare
     restore()
   }
 }
+
+export async function testRichMediaWorkspaceViewerCommitsListOptionAgainstCanonicalText() {
+  const { dom, restore } = initJsdomHarness()
+  try {
+    await import('@/features/markdown/ui/MarkdownPreview')
+    const container = dom.window.document.createElement('section')
+    dom.window.document.body.appendChild(container)
+    const root = createRoot(container)
+    const markdown = readFileSync(resolveRepoTestDataPath('probe-tree-rich-media-edit-parity.md'), 'utf8')
+    const panelChanges: Array<{ text?: string }> = []
+    const model = {
+      panelTextEditable: true,
+      panelDisplayText: markdown,
+      panelMarkdownDocumentPath: '/fixtures/probe-tree-rich-media-edit-parity.md',
+      setPanelDraftText: () => void 0,
+    } as unknown as RichMediaPanelModel
+    const props = {
+      title: 'Probe-Tree Branches',
+      url: '',
+      kind: 'iframe',
+      onPanelChange: next => {
+        panelChanges.push(next)
+      },
+    } as RichMediaPanelProps
+
+    await mountReactRoot(
+      root,
+      <RichMediaPanelWorkspaceViewerSurface model={model} props={props} />,
+      { window: dom.window, frames: 24 },
+    )
+
+    const originalOption = '优先批发库存以实现规模效应，虽成本稍高但单品稳定，利于首月稳定供货'
+    const editedOption = originalOption.replace('成本', '成x本')
+    const option = Array.from(container.querySelectorAll('li[data-kg-list-item-index]') as NodeListOf<HTMLElement>)
+      .find(element => String(element.textContent || '').trim() === originalOption)
+    if (!option) throw new Error(`expected production-shaped Probe-Tree list option, html=${container.innerHTML}`)
+    const optionLine = option.querySelector('[data-start-line]') as HTMLElement | null
+    if (!optionLine) throw new Error(`expected editable list option line, html=${option.innerHTML}`)
+    optionLine.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 400,
+      bottom: 42,
+      width: 400,
+      height: 42,
+      toJSON: () => ({}),
+    } as DOMRect)
+    optionLine.dispatchEvent(new dom.window.MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 8,
+      clientY: 8,
+    }))
+    await waitForTasks(2)
+    await waitForFrames(dom.window, 2)
+
+    const editor = optionLine.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error(`expected rendered list option editor, html=${option.innerHTML}`)
+    editor.textContent = editedOption
+    editor.dispatchEvent(new dom.window.InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: 'x',
+    }))
+    await waitForTasks(4)
+    await waitForFrames(dom.window, 2)
+    if (panelChanges.length !== 0) {
+      throw new Error(`expected transient viewer parity before commit, got ${JSON.stringify(panelChanges)}`)
+    }
+    editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Enter',
+      ctrlKey: true,
+    }))
+    await waitForTasks(8)
+    await waitForFrames(dom.window, 4)
+
+    if (container.querySelector('[contenteditable="true"][aria-label="Edit markdown block"]')) {
+      throw new Error('expected the committed list option to return to the Viewer surface')
+    }
+    if (!Array.from(container.querySelectorAll('li[data-kg-list-item-index]') as NodeListOf<HTMLElement>)
+      .some(element => String(element.textContent || '').trim() === editedOption)) {
+      throw new Error(`expected the committed list option to remain visible while parent persistence catches up, html=${container.innerHTML}`)
+    }
+    if (!panelChanges.at(-1)?.text?.includes(`   1. ${editedOption}`)) {
+      throw new Error(`expected the parent persistence payload to commit the list option against canonical markdown, got ${JSON.stringify(panelChanges)}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restore()
+  }
+}
