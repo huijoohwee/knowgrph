@@ -1,6 +1,7 @@
 import React from 'react'
 
 import type { StoryboardCardSourceReference } from '@/components/StoryboardCanvas/storyboardCardConnectedSources'
+import { ProvenanceDirectionIcon } from '@/lib/storyboardWidget/ProvenanceDirectionIcon'
 import {
   UI_INLINE_CHIP_LABEL_15CH_CLASSNAME,
   UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
@@ -36,7 +37,7 @@ export function StoryboardCardSourceReferenceChips(props: {
               props.onActivate?.(reference)
             }}
           >
-            <span aria-hidden="true">←</span>
+            <ProvenanceDirectionIcon direction="source" />
             <span className={`${UI_TEXT_TRUNCATE_CHIP} ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`}>
               {reference.label}
             </span>
