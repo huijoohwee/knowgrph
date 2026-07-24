@@ -18,6 +18,7 @@ import { useMarkdownBlockContainerRuntimeProbe } from './markdownBlockContainerC
 import { useMarkdownBlockContainerInlineUiState } from './markdownBlockContainerCore.inlineUiState'
 import { useMarkdownBlockContainerSelectionState } from './markdownBlockContainerCore.selectionState'
 import { useMarkdownBlockContainerHostEditing } from './markdownBlockContainerCore.hostEditing'
+import { registerActiveMarkdownBlockEditor } from './markdownBlockContainerCore.activeEditor'
 import {
   cancelMarkdownBlockInlineEditStateSync,
   scheduleMarkdownBlockInlineEditStateSync,
@@ -272,6 +273,10 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setSessionEditLineRange,
     onDraftTextChange: onInlineDraftTextChange,
   })
+  React.useEffect(() => {
+    if (!editing) return
+    return registerActiveMarkdownBlockEditor(commit)
+  }, [commit, editing])
   const readSelectionOffsetsForInlineCommand = React.useCallback(() => {
     const current = getSelectionOffsets()
     if (current) {
