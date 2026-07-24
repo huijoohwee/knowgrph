@@ -15,7 +15,9 @@ import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticO
 import { cn } from '@/lib/utils'
 import {
   buildMotionControlBoundingBoxInvocation,
+  buildMotionControlExportInvocation,
   buildMotionControlInvocation,
+  buildMotionControlShareInvocation,
   controlLocalMotionControl,
   inspectLocalMotionControl,
   type MotionControlOperation,
@@ -34,6 +36,9 @@ import {
   type MotionControlSnapshot,
 } from './motionControlRuntime'
 import { MotionControlTargetCards } from './MotionControlTargetCards'
+import { MotionCapturePlatformProjection } from './MotionCapturePlatformProjection'
+import { readMotionCaptureSessionSnapshot, subscribeMotionCaptureSession } from './motionCaptureSessionRuntime'
+import { readMotionCapturePeerSharingSnapshot, subscribeMotionCapturePeerSharing } from './motionCapturePeerRuntime'
 import {
   MOTION_CONTROL_XR_UNAVAILABLE_MESSAGE,
   openMotionControlSurface,
@@ -51,14 +56,11 @@ const MOTION_CONTROL_REQUIRED_METADATA_TOKENS = Object.freeze([
   ...Object.values(MOTION_CONTROL_INVOCATION_BINDINGS).map(token => ({ kind: 'binding' as const, token })),
 ])
 
-function MotionInvocation({ operation, backend, boundingBox }: { operation: MotionControlOperation; backend?: MotionControlBackendPreference; boundingBox?: boolean }) {
-  const invocation = boundingBox === undefined
-    ? buildMotionControlInvocation(operation, backend)
-    : buildMotionControlBoundingBoxInvocation(boundingBox)
+function MotionInvocationChip({ invocation, operation }: { invocation: string; operation: string }) {
   return (
     <code
       className={cn(UI_INLINE_CHIP_GROUP_CLASSNAME, 'min-w-0 overflow-hidden font-mono text-[9px]', UI_THEME_TOKENS.text.secondary)}
-      data-kg-motion-control-invocation={boundingBox === undefined ? operation : `bounding-box-${boundingBox ? 'enable' : 'disable'}`}
+      data-kg-motion-control-invocation={operation}
       data-kg-motion-control-invocation-chip-renderer="shared-markdown-sigil"
     >
       {renderMarkdownSigilInlineText(invocation, {
@@ -66,6 +68,13 @@ function MotionInvocation({ operation, backend, boundingBox }: { operation: Moti
       })}
     </code>
   )
+}
+
+function MotionInvocation({ operation, backend, boundingBox }: { operation: Exclude<MotionControlOperation, 'export' | 'share'>; backend?: MotionControlBackendPreference; boundingBox?: boolean }) {
+  const invocation = boundingBox === undefined
+    ? buildMotionControlInvocation(operation, backend)
+    : buildMotionControlBoundingBoxInvocation(boundingBox)
+  return <MotionInvocationChip invocation={invocation} operation={boundingBox === undefined ? operation : `bounding-box-${boundingBox ? 'enable' : 'disable'}`} />
 }
 
 function drawPoseOverlay(canvas: HTMLCanvasElement, state: MotionControlSnapshot): void {
@@ -111,6 +120,8 @@ function drawPoseOverlay(canvas: HTMLCanvasElement, state: MotionControlSnapshot
 export function MotionControlFloatingPanelView() {
   const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: MOTION_CONTROL_GRAMMAR_SIGILS })
   const state = React.useSyncExternalStore(subscribeMotionControl, readMotionControlSnapshot, readMotionControlSnapshot)
+  const capture = React.useSyncExternalStore(subscribeMotionCaptureSession, readMotionCaptureSessionSnapshot, readMotionCaptureSessionSnapshot)
+  const peerSharing = React.useSyncExternalStore(subscribeMotionCapturePeerSharing, readMotionCapturePeerSharingSnapshot, readMotionCapturePeerSharingSnapshot)
   const pushUiToast = useGraphStore(store => store.pushUiToast)
   const [backend, setBackend] = React.useState<MotionControlBackendPreference>(state.requestedBackend)
   const [startPending, setStartPending] = React.useState(false)
@@ -125,7 +136,7 @@ export function MotionControlFloatingPanelView() {
     const canvas = overlayRef.current
     if (canvas) drawPoseOverlay(canvas, state)
   }, [state])
-  const runControl = React.useCallback(async (operation: Exclude<MotionControlOperation, 'open'>) => {
+  const runControl = React.useCallback(async (operation: Extract<MotionControlOperation, 'start' | 'stop'>) => {
     const setOperationPending = operation === 'start' ? setStartPending : setStopPending
     setOperationPending(true)
     try {
@@ -172,6 +183,7 @@ export function MotionControlFloatingPanelView() {
   const nativeInvocationReady = Boolean(inspection.invocationGrammar)
   const runtimeBusy = state.phase === 'requesting-camera' || state.phase === 'loading-model' || state.phase === 'running'
   const canStop = startPending || runtimeBusy || state.cameraActive
+    || capture.sources.length > 0 || capture.recording.status === 'recording' || peerSharing.enabled
   return (
     <section
       className={floatingPanelCatalogSurfaceClassName()}
@@ -234,6 +246,8 @@ export function MotionControlFloatingPanelView() {
           <span><b>Inference</b><br />{state.latencyMs.toFixed(1)} ms · {state.framesPerSecond.toFixed(1)} FPS</span>
         </section>
 
+        <MotionCapturePlatformProjection variant="full" />
+
         <MotionControlTargetCards livePoseActive={Boolean(state.pose)} onOpenTarget={openTarget} />
 
         <section className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-invocations="shared-catalog">
@@ -247,8 +261,15 @@ export function MotionControlFloatingPanelView() {
           ) : null}
           <MotionInvocation operation="start" backend={backend} />
           <MotionInvocation operation="stop" />
+          <MotionInvocation operation="record" />
+          <MotionInvocation operation="finish" />
+          <MotionInvocation operation="clear" />
           <MotionInvocation operation="open" boundingBox={true} />
           <MotionInvocation operation="open" boundingBox={false} />
+          <MotionInvocationChip invocation={buildMotionControlExportInvocation('json')} operation="export-json" />
+          <MotionInvocationChip invocation={buildMotionControlExportInvocation('csv')} operation="export-csv" />
+          <MotionInvocationChip invocation={buildMotionControlShareInvocation(true)} operation="share-enable" />
+          <MotionInvocationChip invocation={buildMotionControlShareInvocation(false)} operation="share-disable" />
           <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>WebMCP: {inspection.webMcpTools.control}</p>
         </section>
 
