@@ -272,6 +272,14 @@ test('Flight browser proof activates only after applying the authored source', (
   assert.match(missionVerifier, /snapshot\.tick !== prior\.tick \+ 1/)
   assert.match(sceneVerifier, /expected_landing_pad_count = 1/)
   assert.match(
+    sceneVerifier,
+    /visibleWaypointCount = Object\.entries\(namedNodeCounts\)/,
+  )
+  assert.match(
+    sceneVerifier,
+    /visibleLandingPadCount =[\s\S]*namedNodeCounts\.kg_flight_sim_landing_pad/,
+  )
+  assert.match(
     serverOwner,
     /refusing responsive pre-existing server/,
   )

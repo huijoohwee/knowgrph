@@ -254,6 +254,13 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
               'kg_flight_sim_optional_beacon',
             ),
           )
+          const visibleWaypointCount = Object.entries(namedNodeCounts)
+            .filter(([name, count]) => (
+              name.startsWith('kg_flight-sim_waypoint_')
+              && count > 0
+            )).length
+          const visibleLandingPadCount =
+            namedNodeCounts.kg_flight_sim_landing_pad || 0
           const authoredTransforms = [
             'kg_graph_xr_stage',
             'kg_xr_native_controller_demo',
@@ -319,6 +326,8 @@ def read_flight_scene(page: Page) -> dict[str, Any]:
             },
             names: Object.keys(namedNodeCounts).sort(),
             namedNodeCounts,
+            visibleWaypointCount,
+            visibleLandingPadCount,
             authoredSceneSignature,
             baselineAuthoredSceneSignature:
               baselineIdentity.authoredSceneSignature || null,

@@ -458,6 +458,8 @@ export async function assertFlightSimVerificationReadiness({ readText }) {
   requireMarkers(browserSceneSource, [
     'FLIGHT_OPTIONAL_BEACON_PATH',
     'FLIGHT_OPTIONAL_BEACON_SHA256',
+    'const visibleWaypointCount = Object.entries(namedNodeCounts)',
+    'const visibleLandingPadCount =',
     '"meshDescendantCount"',
     'Flight optional beacon did not retain its admitted rendered GLB',
   ], 'Flight Sim rendered fallback identity proof')
