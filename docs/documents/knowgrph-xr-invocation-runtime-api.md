@@ -1,3 +1,21 @@
+---
+title: "Knowgrph XR Invocation Runtime API"
+id: "md:knowgrph-xr-invocation-runtime-api"
+doc_type: "API Contract And Runtime Evidence"
+date: "2026-07-22"
+updated: "2026-07-22"
+version: "1.0.0"
+status: "runtime-ready"
+lang: "en-US"
+frontmatter_contract: "required"
+execution_boundary: "dev-only"
+publish_scope: "local-only"
+source_revision: "df312d72d3e163bbcc3e9f19ca299223f9a54431"
+protected_pull_request: "https://github.com/huijoohwee/knowgrph/pull/307"
+protected_integration_run: "https://github.com/huijoohwee/knowgrph/actions/runs/29895795869"
+deployment: "not authorized"
+---
+
 # Knowgrph XR Invocation Runtime API
 
 ## Surface contract
@@ -9,6 +27,13 @@ Repo-local run-ready surfaces hydrate through the same-origin `/knowgrph/control
 FloatingPanel **Media** owns complete dynamic XR invocations. Every visible invocation chip sends the identical displayed string, as the sole `invocation` input field, to `knowgrph.control_local_xr_scene`.
 
 XR scene, Animation, and Camera MCP controls share Source Files document authority. While bootstrap or a document intent is resolving or failed, MCP inspection reports the scene as not ready, Media and Animation controls stay disabled, and Camera choreography rejects mutation without changing runtime state or graph metadata.
+
+## Integrated readiness contract
+
+- The `/`, `@`, and `#` catalog reconciles as one exact-revision transaction. A response is admitted only when its top-level `sourceRevision` matches the configured revision; an epoch change retries only sigils resolved by the losing revision and ends in `fresh`, `stale`, or `blocked`.
+- Browser WebMCP registration is lifecycle-owned and late-bind safe: native-host attachment is bounded, detach releases owned registrations, and a readable local fallback remains available until native context is installed. The fallback is not a remote dependency or privileged bridge.
+- Surface and operator ownership remain independent. Moving from Surface Mode to XR Mode retains an open Media or Skills & Commands panel; Camera opens a panel only when neither operator surface is already open.
+- XR physics delegates fixed stepping to Knowgrph's independently authored spatial engine. The Rapier repository informed domain-separation principles only; no external source, prose, schema, algorithm, example, fixture, package, compatibility layer, service, or runtime dependency is admitted.
 
 - Placement labels are URI-encoded in `/xr.place` and decoded before bounded scene mutation.
 - `/xr.transform` retains the selected asset, position, yaw, scale, and color.
@@ -29,6 +54,15 @@ A bounded native-host retry cannot overwrite a functional `fallback-readable` co
 
 If a native host detaches, its AbortSignal-backed registrations are released, the owned fallback becomes readable again, and a fresh bounded binding cycle begins. Test reset detaches the owned `navigator.modelContext` and `document.modelContext` descriptors before clearing fallback identity, so reinstalling in the same document cannot misclassify the old fallback as native.
 
+## Evidence boundary
+
+| Evidence | Result |
+|---|---|
+| Protected source and build | PR #307 merged as `df312d72d3e163bbcc3e9f19ca299223f9a54431`; Integration Gate run `29895795869` passed on reviewed head `f914723570a126fdc6262d1efddfdc994a2c0eb5`. |
+| Focused runtime | XR surface routing, literal Media dispatch, exact-revision grammar, WebMCP lifecycle, Source Files fencing, TypeScript, hygiene, MCP docs, and production-readiness selectors passed. |
+| Browser | Same-origin MCP requests, panel continuity, literal `/xr.place` dispatch, readable WebMCP fallback, and zero browser/runtime errors passed on the behavior-equivalent pre-final feature state. The final merge itself was not re-run through browser acceptance. |
+| Production | No Prod, Cloudflare, provider-spend, or live-public-runtime claim is made by this Dev evidence. |
+
 ## Ownership and boundary
 
 - Runtime owner: `canvas/src/features/three/xrSceneMcpRuntime.ts`.
@@ -40,4 +74,4 @@ If a native host detaches, its AbortSignal-backed registrations are released, th
 - Workspace mutation diagnostics stay in the shared in-memory runtime trace; XR Media persistence performs no hardcoded localhost debug-collector requests.
 - Published projection owner: `cloudflare/pages/knowgrph-agent-ready.mjs`.
 
-External image-to-3D repositories remain reference-only dependencies. This runtime copies no external implementation, schema, prose, or example and introduces no external renderer, model, storage, deployment, or mutation owner.
+The native 2D/3D physics contract is documented in `docs/documents/knowgrph-native-physics-engines-prd-tad.md`. Rapier remains a principles-only reference, not a dependency; this runtime copies no external implementation, schema, prose, algorithm, example, fixture, or test and introduces no external renderer, physics runtime, storage, deployment, or mutation owner.
