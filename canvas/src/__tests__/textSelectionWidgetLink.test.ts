@@ -7,6 +7,7 @@ import {
   clearTextSelectionWidgetLinkSession,
   TEXT_SELECTION_WIDGET_CREATE_EVENT,
   getTextSelectionWidgetLinkSnapshot,
+  isTextSelectionWidgetEdgePersisted,
   resolveTextSelectionWidgetTargetPosition,
   TEXT_SELECTION_WIDGET_LINK_SCHEMA,
   type TextSelectionWidgetCreateDetail,
@@ -85,6 +86,19 @@ export function testTextSelectionWidgetLinkBuildsTargetPlacementAndProvenanceEdg
   })
   if (duplicate?.id !== edge.id) {
     throw new Error('expected repeated target creation to resolve the existing provenance edge')
+  }
+  const composedGraphData: GraphData = {
+    ...graphData,
+    nodes: graphData.nodes.map(node => ({ ...node, id: `workspace-layer::${node.id}` })),
+    edges: [{
+      ...edge,
+      id: `workspace-layer::${edge.id}`,
+      source: `workspace-layer::${edge.source}`,
+      target: `workspace-layer::${edge.target}`,
+    }],
+  }
+  if (!isTextSelectionWidgetEdgePersisted({ graphData: composedGraphData, edge })) {
+    throw new Error('expected composed workspace edge identity to satisfy the post-write persistence proof')
   }
   clearTextSelectionWidgetLinkSession()
   if (getTextSelectionWidgetLinkSnapshot() !== null) {

@@ -7,6 +7,7 @@ import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/w
 import {
   buildTextSelectionWidgetEdge,
   clearTextSelectionWidgetLinkSession,
+  isTextSelectionWidgetEdgePersisted,
   resolveTextSelectionWidgetTargetPosition,
   TEXT_SELECTION_WIDGET_CREATE_EVENT,
   type TextSelectionWidgetCreateDetail,
@@ -81,7 +82,10 @@ export function useTextSelectionWidgetCreateBridge(args: {
       const duplicate = (graphAfterNode?.edges || []).some(candidate => candidate.id === edge.id)
       if (!duplicate) stateAfterNode.addEdge(edge)
       const graphAfterEdge = useGraphStore.getState().graphData as GraphData | null
-      const edgePersisted = (graphAfterEdge?.edges || []).some(candidate => candidate.id === edge.id)
+      const edgePersisted = isTextSelectionWidgetEdgePersisted({
+        graphData: graphAfterEdge,
+        edge,
+      })
       if (!edgePersisted) {
         useGraphStore.getState().upsertUiToast({
           id: 'rich-media-selection-widget-link-error',
