@@ -72,6 +72,8 @@ export async function testRichMediaWorkspaceViewerRetainsCommittedDraftUntilPare
       inputType: 'insertText',
       data: editedQuestion,
     }))
+    await waitForTasks(4)
+    await waitForFrames(dom.window, 2)
     editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
       bubbles: true,
       cancelable: true,

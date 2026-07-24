@@ -40,7 +40,7 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
   const commitText = React.useCallback((nextText: string) => {
     if (!model.panelTextEditable) return
     commitRichMediaInlineEditVersion({
-      currentText: viewerText,
+      currentText: model.panelDisplayText,
       nextText,
       commit: () => {
         model.setPanelDraftText(nextText)
@@ -54,7 +54,7 @@ export function RichMediaPanelWorkspaceViewerSurface(args: {
         })
       },
     })
-  }, [model, props, viewerText])
+  }, [model, props])
 
   const handleReplaceLineRange = React.useCallback((change: {
     startLine: number
